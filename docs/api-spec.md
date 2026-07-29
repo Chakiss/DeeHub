@@ -128,6 +128,7 @@ Every non-2xx response uses one envelope:
 | `VERSION_MISMATCH`         | 409  | Optimistic lock failed; refetch and retry                |
 | `INVENTORY_UNAVAILABLE`    | 409  | Not enough allotment for one or more nights              |
 | `RESTRICTION_VIOLATED`     | 422  | Stop-sell, min/max stay, CTA or CTD blocks the stay      |
+| `RATE_MISSING`             | 422  | A night in the stay has no price for that occupancy      |
 | `INVALID_STATE_TRANSITION` | 409  | e.g. checking in a cancelled reservation                 |
 | `ALLOTMENT_BELOW_BOOKED`   | 409  | Allotment cannot drop below units already sold           |
 | `MAPPING_MISSING`          | 422  | Channel operation without a room-type/rate-plan mapping  |

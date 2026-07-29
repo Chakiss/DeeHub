@@ -344,8 +344,13 @@ server — always from the property's timezone.
 
 ## 6. Open questions
 
-1. **Late cancellation of consumed nights** (§3.5) — confirm the "consumed
-   nights stay counted" rule with the founder.
+1. **Late cancellation of consumed nights** (§3.5) — **implemented** as
+   written: cancelling releases only nights on or after the property's current
+   business date, and already-consumed nights stay counted so occupancy history
+   stays truthful. Covered by
+   `create-reservation.integration.test.ts` ("retains nights already consumed
+   when cancelled mid-stay"). Still worth a founder sign-off, since it changes
+   occupancy and ADR reporting; reversing it is a one-line change plus a test.
 2. **Group bookings / room blocks** — out of scope for Milestone 1; would
    likely become a `Block` aggregate reserving allotment without guests.
 3. **Multi-property reservations** — currently disallowed; revisit if chains

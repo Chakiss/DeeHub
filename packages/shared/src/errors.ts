@@ -16,6 +16,8 @@ export const ERROR_STATUS = {
   VERSION_MISMATCH: 409,
   INVENTORY_UNAVAILABLE: 409,
   RESTRICTION_VIOLATED: 422,
+  /** A night in the requested stay has no price configured for that occupancy. */
+  RATE_MISSING: 422,
   INVALID_STATE_TRANSITION: 409,
   ALLOTMENT_BELOW_BOOKED: 409,
   MAPPING_MISSING: 422,
@@ -96,6 +98,14 @@ export const errors = {
     details?: ErrorDetails,
   ): DomainError {
     return new DomainError('RESTRICTION_VIOLATED', message, { restriction, ...details });
+  },
+
+  rateMissing(ratePlanId: string, occupancy: number, missingDates: readonly string[]): DomainError {
+    return new DomainError(
+      'RATE_MISSING',
+      `No price configured for ${String(occupancy)} guest(s) on ${missingDates.join(', ')}`,
+      { ratePlanId, occupancy, missingDates },
+    );
   },
 
   invalidTransition(from: string, to: string): DomainError {
