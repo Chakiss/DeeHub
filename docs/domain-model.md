@@ -196,6 +196,11 @@ Reservation (root)
 └─ guestId?                     link to CRM Guest
 ```
 
+**One stay = one room unit.** A guest booking two Deluxe rooms produces two
+`Stay` entities, not one stay with a quantity. Each can be assigned to a
+different physical room and carry different occupancy, and inventory
+counting stays trivial: units held on a night = number of stay-nights.
+
 **Why nights are materialized:** OTAs send per-night prices, revenue reports
 need per-night revenue, partial-stay modifications change individual nights,
 and the price must be frozen at booking time. Recomputing from a rate plan
