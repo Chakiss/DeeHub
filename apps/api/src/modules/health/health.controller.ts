@@ -1,9 +1,12 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
+import { Public } from '../../common/guards/auth.guard';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { sql } from 'drizzle-orm';
 import { DATABASE, type Database } from '../../database/database.module';
 
 @ApiTags('health')
+// Probes run before any credential exists; Cloud Run must be able to reach them.
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(@Inject(DATABASE) private readonly db: Database) {}

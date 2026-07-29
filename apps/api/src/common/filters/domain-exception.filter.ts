@@ -1,6 +1,13 @@
 import { ArgumentsHost, Catch, HttpException, Logger, type ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { DomainError, isDomainError, type ErrorCode } from '@deehub/shared';
+import {
+  DateError,
+  DomainError,
+  ERROR_STATUS,
+  MoneyError,
+  isDomainError,
+  type ErrorCode,
+} from '@deehub/shared';
 
 interface ErrorBody {
   error: {
@@ -34,6 +41,20 @@ export class DomainExceptionFilter implements ExceptionFilter {
         error: { ...exception.toJSON(), requestId },
       };
       response.status(exception.httpStatus).json(body);
+      return;
+    }
+
+    // Shared-kernel guard failures (an impossible calendar date, a decimal
+    // money amount) mean the caller sent bad input. Without this they would
+    // surface as 500s, which is both wrong and unhelpful to the client.
+    if (exception instanceof DateError || exception instanceof MoneyError) {
+      response.status(ERROR_STATUS.VALIDATION_ERROR).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: exception.message,
+          requestId,
+        },
+      } satisfies ErrorBody);
       return;
     }
 

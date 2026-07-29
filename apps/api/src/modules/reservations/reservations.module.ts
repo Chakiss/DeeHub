@@ -4,8 +4,10 @@ import { PropertiesModule } from '../properties/properties.module';
 import { RatesModule } from '../rates/rates.module';
 import { CancelReservationUseCase } from './application/cancel-reservation.usecase';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
+import { GetReservationQuery } from './application/get-reservation.query';
 import { RESERVATION_REPOSITORY } from './domain/reservation.repository';
 import { DrizzleReservationRepository } from './infrastructure/drizzle-reservation.repository';
+import { ReservationsController } from './interface/reservations.controller';
 
 /**
  * Reservations bounded context.
@@ -16,11 +18,13 @@ import { DrizzleReservationRepository } from './infrastructure/drizzle-reservati
  */
 @Module({
   imports: [InventoryModule, PropertiesModule, RatesModule],
+  controllers: [ReservationsController],
   providers: [
     { provide: RESERVATION_REPOSITORY, useClass: DrizzleReservationRepository },
     CreateReservationUseCase,
     CancelReservationUseCase,
+    GetReservationQuery,
   ],
-  exports: [CreateReservationUseCase, CancelReservationUseCase],
+  exports: [CreateReservationUseCase, CancelReservationUseCase, GetReservationQuery],
 })
 export class ReservationsModule {}

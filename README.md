@@ -15,6 +15,7 @@ pnpm install
 cp .env.example .env
 pnpm infra:up          # Postgres, Redis, MinIO
 pnpm db:migrate        # apply migrations
+pnpm db:seed           # demo hotel, rates, a year of inventory, three users
 pnpm test              # unit + integration tests
 pnpm --filter @deehub/api dev
 ```

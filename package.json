@@ -18,7 +18,8 @@
     "db:migrate": "pnpm --filter @deehub/api db:migrate",
     "infra:up": "docker compose -f infrastructure/docker-compose.yml up -d",
     "infra:down": "docker compose -f infrastructure/docker-compose.yml down",
-    "infra:reset": "docker compose -f infrastructure/docker-compose.yml down -v && pnpm infra:up"
+    "infra:reset": "docker compose -f infrastructure/docker-compose.yml down -v && pnpm infra:up",
+    "db:seed": "pnpm --filter @deehub/api db:seed"
   },
   "devDependencies": {
     "prettier": "3.9.6",

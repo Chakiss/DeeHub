@@ -1,11 +1,10 @@
 import './config/load-dotenv';
 import 'reflect-metadata';
-import { randomUUID } from 'node:crypto';
 import { Logger, type INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { DomainExceptionFilter } from './common/filters/domain-exception.filter';
 import { ENV, type Env } from './config/env';
@@ -34,16 +33,12 @@ async function bootstrap(): Promise<void> {
 
   app.use(helmet());
 
-  // Every response carries a correlation id. It appears in logs, in error
-  // bodies, and in Sentry, so a user reporting "booking failed at 14:02" can
-  // be traced to one request.
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const existing = req.headers['x-request-id'];
-    const requestId = typeof existing === 'string' && existing ? existing : randomUUID();
-    req.headers['x-request-id'] = requestId;
-    res.setHeader('X-Request-Id', requestId);
-    next();
-  });
+  // Refresh tokens live in an httpOnly cookie, so they are unreadable from
+  // client-side JavaScript (api-spec.md §3).
+  app.use(cookieParser());
+
+  // Request correlation and the tenant scope are established by
+  // RequestScopeMiddleware, registered in AppModule so it runs before guards.
 
   app.enableCors({
     origin: env.CORS_ORIGINS,
