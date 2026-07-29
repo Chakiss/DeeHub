@@ -15,34 +15,34 @@ Constrained by [ADR-0001](adr/0001-multi-property-saas.md) (multi-tenancy),
 
 Use these words in code, APIs, docs and conversation. Do not invent synonyms.
 
-| Term | Meaning |
-|---|---|
-| **Organization** | The tenant. A hotel owner or group that signs up. Owns properties, users, billing. |
-| **Property** | One hotel. Has its own timezone, currency, address, tax settings. |
-| **Room Type** | A sellable category ("Deluxe Double"), *not* a physical room. The unit of inventory and rates. |
-| **Physical Room** | A real room with a number ("301"). Used for assignment and housekeeping only — never for availability (ADR-0002). |
-| **Allotment** | Number of sellable units of a room type on a given night. |
-| **Booked** | Units of allotment consumed by inventory-holding reservations on a night. |
-| **Availability** | `allotment − booked`. Never derived from physical rooms. |
-| **ARI** | Availability, Rates, Inventory — the payload exchanged with OTAs. |
-| **Restriction** | A rule blocking a sale: stop-sell, min/max stay, CTA, CTD. |
-| **Stop-sell** | Room type closed for sale on a night regardless of availability. |
-| **CTA / CTD** | Closed to Arrival / Closed to Departure — the stay may not start / end on that night. |
-| **LOS** | Length of Stay, in nights. |
-| **Rate Plan** | A commercial offer attached to a room type (e.g. "BAR Room Only", "Non-refundable Breakfast Included"). Carries policy: cancellation, meal, payment. |
-| **BAR** | Best Available Rate — the standard parent rate plan. |
-| **Derived Rate** | A rate plan priced as an offset from a parent (−10%, −200 THB). Phase 3. |
-| **Business Date** | Today's calendar date in the *property's* timezone. The only "today" the domain knows. |
-| **Night** | A calendar date a stay occupies. A stay 12→14 Aug occupies nights 12 and 13. |
-| **Stay** | One room-type × date-range × rate plan × occupancy line within a reservation. |
-| **Reservation** | A booking, containing one or more stays. The aggregate customers talk about. |
-| **Guest** | A person; the CRM record. Distinct from the booker on a reservation. |
-| **Channel** | A sales channel: an OTA, the direct booking engine, or walk-in/phone. |
-| **Mapping** | The link between a DeeHub room type / rate plan and a channel's own identifiers. |
-| **Sync** | Pushing ARI to a channel or pulling reservations from it. |
-| **No-show** | A confirmed guest who never arrived. |
-| **Pickup** | Reservations received in a period for future dates. |
-| **ADR / RevPAR** | Average Daily Rate / Revenue Per Available Room. |
+| Term              | Meaning                                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Organization**  | The tenant. A hotel owner or group that signs up. Owns properties, users, billing.                                                                   |
+| **Property**      | One hotel. Has its own timezone, currency, address, tax settings.                                                                                    |
+| **Room Type**     | A sellable category ("Deluxe Double"), _not_ a physical room. The unit of inventory and rates.                                                       |
+| **Physical Room** | A real room with a number ("301"). Used for assignment and housekeeping only — never for availability (ADR-0002).                                    |
+| **Allotment**     | Number of sellable units of a room type on a given night.                                                                                            |
+| **Booked**        | Units of allotment consumed by inventory-holding reservations on a night.                                                                            |
+| **Availability**  | `allotment − booked`. Never derived from physical rooms.                                                                                             |
+| **ARI**           | Availability, Rates, Inventory — the payload exchanged with OTAs.                                                                                    |
+| **Restriction**   | A rule blocking a sale: stop-sell, min/max stay, CTA, CTD.                                                                                           |
+| **Stop-sell**     | Room type closed for sale on a night regardless of availability.                                                                                     |
+| **CTA / CTD**     | Closed to Arrival / Closed to Departure — the stay may not start / end on that night.                                                                |
+| **LOS**           | Length of Stay, in nights.                                                                                                                           |
+| **Rate Plan**     | A commercial offer attached to a room type (e.g. "BAR Room Only", "Non-refundable Breakfast Included"). Carries policy: cancellation, meal, payment. |
+| **BAR**           | Best Available Rate — the standard parent rate plan.                                                                                                 |
+| **Derived Rate**  | A rate plan priced as an offset from a parent (−10%, −200 THB). Phase 3.                                                                             |
+| **Business Date** | Today's calendar date in the _property's_ timezone. The only "today" the domain knows.                                                               |
+| **Night**         | A calendar date a stay occupies. A stay 12→14 Aug occupies nights 12 and 13.                                                                         |
+| **Stay**          | One room-type × date-range × rate plan × occupancy line within a reservation.                                                                        |
+| **Reservation**   | A booking, containing one or more stays. The aggregate customers talk about.                                                                         |
+| **Guest**         | A person; the CRM record. Distinct from the booker on a reservation.                                                                                 |
+| **Channel**       | A sales channel: an OTA, the direct booking engine, or walk-in/phone.                                                                                |
+| **Mapping**       | The link between a DeeHub room type / rate plan and a channel's own identifiers.                                                                     |
+| **Sync**          | Pushing ARI to a channel or pulling reservations from it.                                                                                            |
+| **No-show**       | A confirmed guest who never arrived.                                                                                                                 |
+| **Pickup**        | Reservations received in a period for future dates.                                                                                                  |
+| **ADR / RevPAR**  | Average Daily Rate / Revenue Per Available Room.                                                                                                     |
 
 ---
 
@@ -98,11 +98,11 @@ invariants always true at commit.
 
 ### 3.1 Identity & Access
 
-| Aggregate | Contents | Key invariants |
-|---|---|---|
-| **Organization** | name, slug, status, plan | Slug unique globally. Suspended org → all access denied. |
-| **User** | email, password hash, status, MFA (later) | Email unique within organization. |
-| **Membership** | user ↔ organization, role, property scope | A user's effective permissions = union of memberships. At least one OWNER per organization must remain. |
+| Aggregate        | Contents                                  | Key invariants                                                                                          |
+| ---------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Organization** | name, slug, status, plan                  | Slug unique globally. Suspended org → all access denied.                                                |
+| **User**         | email, password hash, status, MFA (later) | Email unique within organization.                                                                       |
+| **Membership**   | user ↔ organization, role, property scope | A user's effective permissions = union of memberships. At least one OWNER per organization must remain. |
 
 Roles: `OWNER`, `ADMIN`, `MANAGER` (property-scoped), `FRONT_DESK`
 (property-scoped), `READ_ONLY`. Permissions are checked as capabilities
@@ -110,12 +110,12 @@ Roles: `OWNER`, `ADMIN`, `MANAGER` (property-scoped), `FRONT_DESK`
 
 ### 3.2 Property Setup
 
-| Aggregate | Contents | Key invariants |
-|---|---|---|
-| **Property** | name, timezone (IANA), currency (ISO 4217), address, check-in/out times, tax & service-charge config, business-date rollover | Timezone and currency are immutable after the first reservation exists. |
-| **RoomType** | code, name, description, standard/max occupancy, adult & child capacity, photos | `code` unique per property. `standardOccupancy ≤ maxOccupancy`. Cannot be deleted while future inventory or reservations exist — deactivate instead. |
-| **PhysicalRoom** | number, floor, room type, status (`CLEAN`/`DIRTY`/`INSPECTED`/`OUT_OF_ORDER`) | `number` unique per property. Belongs to exactly one room type. **Count of physical rooms does not constrain allotment** (ADR-0002) — intentional, enables controlled overselling. |
-| **RatePlan** | code, name, room type, parent (nullable), meal plan, cancellation policy, payment policy, is-derived + offset | `code` unique per property. A derived plan's parent must belong to the same room type and must not itself be derived (one level only). |
+| Aggregate        | Contents                                                                                                                     | Key invariants                                                                                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Property**     | name, timezone (IANA), currency (ISO 4217), address, check-in/out times, tax & service-charge config, business-date rollover | Timezone and currency are immutable after the first reservation exists.                                                                                                            |
+| **RoomType**     | code, name, description, standard/max occupancy, adult & child capacity, photos                                              | `code` unique per property. `standardOccupancy ≤ maxOccupancy`. Cannot be deleted while future inventory or reservations exist — deactivate instead.                               |
+| **PhysicalRoom** | number, floor, room type, status (`CLEAN`/`DIRTY`/`INSPECTED`/`OUT_OF_ORDER`)                                                | `number` unique per property. Belongs to exactly one room type. **Count of physical rooms does not constrain allotment** (ADR-0002) — intentional, enables controlled overselling. |
+| **RatePlan**     | code, name, room type, parent (nullable), meal plan, cancellation policy, payment policy, is-derived + offset                | `code` unique per property. A derived plan's parent must belong to the same room type and must not itself be derived (one level only).                                             |
 
 ### 3.3 Inventory — the critical aggregate
 
@@ -125,13 +125,13 @@ Deliberately tiny. A large "inventory calendar" aggregate would serialize
 every booking in the hotel; per-night rows let unrelated bookings proceed in
 parallel while still giving a hard consistency boundary where it matters.
 
-| Field | Notes |
-|---|---|
-| `allotment` | Sellable units. Set by staff; may exceed physical room count (overselling is a business decision). |
-| `booked` | Units held by reservations. **Only the Inventory module writes this.** |
-| `stopSell` | Boolean, closes the night for sale. |
-| `minStay`, `maxStay` | LOS restrictions, evaluated against the whole stay. |
-| `closedToArrival`, `closedToDeparture` | CTA/CTD. |
+| Field                                  | Notes                                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `allotment`                            | Sellable units. Set by staff; may exceed physical room count (overselling is a business decision). |
+| `booked`                               | Units held by reservations. **Only the Inventory module writes this.**                             |
+| `stopSell`                             | Boolean, closes the night for sale.                                                                |
+| `minStay`, `maxStay`                   | LOS restrictions, evaluated against the whole stay.                                                |
+| `closedToArrival`, `closedToDeparture` | CTA/CTD.                                                                                           |
 
 **Invariants**
 
@@ -144,7 +144,7 @@ parallel while still giving a hard consistency boundary where it matters.
    `allotment = 0` — a hotel that has not opened a date cannot sell it.
 
 **Concurrency — the single most important rule in the system.** Holding
-inventory for a stay is *never* read-then-write. It is one guarded statement
+inventory for a stay is _never_ read-then-write. It is one guarded statement
 per booking, inside the reservation transaction:
 
 ```sql
@@ -178,7 +178,7 @@ the job is a safety net and an alarm, not a normal repair path.
 Occupancy-based pricing (single/double/triple) is standard in Thai hotels and
 required by OTAs. Price is a `Money` value object (integer minor units +
 currency, ADR-0003). Derived rate plans compute from the parent at read time;
-what is *sold* is always snapshotted (§3.5).
+what is _sold_ is always snapshotted (§3.5).
 
 ### 3.5 Reservations
 
@@ -226,7 +226,7 @@ On transition to a non-holding state, release only nights **not yet
 consumed** (night date ≥ business date). Consumed nights stay counted so
 occupancy history and revenue reports remain truthful — a guest who no-showed
 still occupied that allotment for the night it was held.
-*Business rule to confirm with the founder.*
+_Business rule to confirm with the founder._
 
 `PENDING` exists for booking-engine holds and expires (default 15 minutes)
 via a scheduled job that releases inventory. Unbounded pending holds are an
@@ -253,30 +253,30 @@ stateDiagram-v2
 
 Transitions not drawn are rejected by the domain, not merely by the UI.
 Modification (dates, room type, occupancy) is a separate operation available
-in `PENDING`/`CONFIRMED`/`CHECKED_IN` and is modeled as *release old nights +
-hold new nights in one transaction* — never as a delete-then-create.
+in `PENDING`/`CONFIRMED`/`CHECKED_IN` and is modeled as _release old nights +
+hold new nights in one transaction_ — never as a delete-then-create.
 
 ### 3.7 Guests
 
-| Aggregate | Contents | Key invariants |
-|---|---|---|
+| Aggregate | Contents                                                                         | Key invariants                                                                                                                                                |
+| --------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Guest** | name, email, phone, nationality, document (encrypted), preferences, stay history | Scoped to organization (shared across that org's properties). Duplicates are expected from OTAs; dedupe/merge is Phase 4 and must preserve reservation links. |
 
 OTAs frequently supply masked or aliased guest email addresses. A reservation
-therefore stores the raw booker contact it received *and* optionally links to
+therefore stores the raw booker contact it received _and_ optionally links to
 a Guest; the link is an enrichment, never a requirement.
 
 ### 3.8 Channel
 
-| Aggregate | Contents | Key invariants |
-|---|---|---|
-| **Channel** | property, type (`AGODA`/`BOOKING_COM`/`MOCK_OTA`/`DIRECT`/`WALK_IN`), credentials (encrypted), status, sync settings | One active channel per (property, type). |
-| **ChannelMapping** | channel, DeeHub room type + rate plan ↔ channel's own IDs | A mapping must exist before ARI is pushed or a reservation is ingested. Unmapped inbound reservations go to an error queue for staff resolution — **never silently dropped**. |
-| **SyncJob** | channel, kind (`ARI_PUSH`/`RESERVATION_PULL`), date range, status, attempts, last error | Idempotent and retryable. Terminal failure raises an alert. |
-| **ChannelReservation** | raw inbound payload, channel reference, dedupe key, mapped reservation ID, status | Dedupe key `(channel, channelReservationId)` is unique — OTAs redeliver, and double-booking from redelivery is unacceptable. |
+| Aggregate              | Contents                                                                                                             | Key invariants                                                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Channel**            | property, type (`AGODA`/`BOOKING_COM`/`MOCK_OTA`/`DIRECT`/`WALK_IN`), credentials (encrypted), status, sync settings | One active channel per (property, type).                                                                                                                                      |
+| **ChannelMapping**     | channel, DeeHub room type + rate plan ↔ channel's own IDs                                                            | A mapping must exist before ARI is pushed or a reservation is ingested. Unmapped inbound reservations go to an error queue for staff resolution — **never silently dropped**. |
+| **SyncJob**            | channel, kind (`ARI_PUSH`/`RESERVATION_PULL`), date range, status, attempts, last error                              | Idempotent and retryable. Terminal failure raises an alert.                                                                                                                   |
+| **ChannelReservation** | raw inbound payload, channel reference, dedupe key, mapped reservation ID, status                                    | Dedupe key `(channel, channelReservationId)` is unique — OTAs redeliver, and double-booking from redelivery is unacceptable.                                                  |
 
 **Sync conflict rule (non-negotiable):** when DeeHub state and channel state
-disagree, resolve toward *never oversell*. Push the lower availability; if an
+disagree, resolve toward _never oversell_. Push the lower availability; if an
 OTA delivers a booking for inventory we no longer have, accept the
 reservation (the guest is real and holds a confirmation) and raise an
 **overbooking alert** for staff. Refusing a real booking silently is worse
@@ -284,11 +284,11 @@ than surfacing it loudly.
 
 ### 3.9 Platform
 
-| Aggregate | Contents | Notes |
-|---|---|---|
-| **AuditLog** | actor, action, entity type/ID, before/after, IP, timestamp, org/property | Append-only. Required by Definition of Done for every state change. |
-| **OutboxEvent** | event type, payload, aggregate ref, published-at | Transactional outbox (see §5). |
-| **Notification** | channel (email/LINE), template, recipient, status | Phase 4. |
+| Aggregate        | Contents                                                                 | Notes                                                               |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| **AuditLog**     | actor, action, entity type/ID, before/after, IP, timestamp, org/property | Append-only. Required by Definition of Done for every state change. |
+| **OutboxEvent**  | event type, payload, aggregate ref, published-at                         | Transactional outbox (see §5).                                      |
+| **Notification** | channel (email/LINE), template, recipient, status                        | Phase 4.                                                            |
 
 ---
 
@@ -297,17 +297,17 @@ than surfacing it loudly.
 Named `<context>.<aggregate>.<past-tense-verb>`. Every event carries
 `organizationId`, `propertyId`, `occurredAt` (UTC), `actor`, and a version.
 
-| Event | Emitted when | Primary consumers |
-|---|---|---|
-| `reservation.created` | Booking confirmed from any channel | Channel (ARI push), Notifications, Analytics |
-| `reservation.modified` | Dates/room/occupancy/price changed | Channel, Notifications |
-| `reservation.cancelled` | Cancelled | Channel, Notifications |
-| `reservation.status_changed` | Any other transition (check-in, no-show…) | Analytics, Operations |
-| `inventory.changed` | Allotment, restrictions, or `booked` changed | **Channel (ARI push)** |
-| `rate.changed` | Rate plan price changed for dates | **Channel (ARI push)** |
-| `channel.reservation_received` | Inbound OTA booking ingested | Reservations |
-| `channel.sync_failed` | Sync job exhausted retries | Notifications, on-call alerting |
-| `channel.overbooking_detected` | Inbound booking exceeds availability | Notifications (urgent), Operations |
+| Event                          | Emitted when                                 | Primary consumers                            |
+| ------------------------------ | -------------------------------------------- | -------------------------------------------- |
+| `reservation.created`          | Booking confirmed from any channel           | Channel (ARI push), Notifications, Analytics |
+| `reservation.modified`         | Dates/room/occupancy/price changed           | Channel, Notifications                       |
+| `reservation.cancelled`        | Cancelled                                    | Channel, Notifications                       |
+| `reservation.status_changed`   | Any other transition (check-in, no-show…)    | Analytics, Operations                        |
+| `inventory.changed`            | Allotment, restrictions, or `booked` changed | **Channel (ARI push)**                       |
+| `rate.changed`                 | Rate plan price changed for dates            | **Channel (ARI push)**                       |
+| `channel.reservation_received` | Inbound OTA booking ingested                 | Reservations                                 |
+| `channel.sync_failed`          | Sync job exhausted retries                   | Notifications, on-call alerting              |
+| `channel.overbooking_detected` | Inbound booking exceeds availability         | Notifications (urgent), Operations           |
 
 `inventory.changed` is the highest-volume event and the heart of the channel
 manager: every allotment edit and every booking must reach the OTAs within
@@ -317,8 +317,8 @@ manager: every allotment edit and every booking must reach the OTAs within
 
 ## 5. Cross-cutting rules
 
-**Transactional outbox.** Events are written to `outbox_event` in the *same
-database transaction* as the state change, then relayed to BullMQ by a
+**Transactional outbox.** Events are written to `outbox_event` in the _same
+database transaction_ as the state change, then relayed to BullMQ by a
 publisher. Enqueueing directly from a service is forbidden: a crash between
 commit and enqueue would leave OTAs permanently stale (silent overbooking
 risk), and an enqueue before a rollback would push phantom availability.

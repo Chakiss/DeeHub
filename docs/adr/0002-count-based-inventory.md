@@ -14,7 +14,7 @@ Room availability can be modeled two ways:
    reservations to physical rooms.
 
 Every major OTA (Agoda, Booking.com, Expedia, Trip.com) exchanges
-availability as *counts per room type per date*. A channel manager that
+availability as _counts per room type per date_. A channel manager that
 derives counts from physical assignments must constantly reconcile the two
 models and makes controlled overselling nearly impossible to express.
 

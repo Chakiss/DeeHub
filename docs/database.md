@@ -14,18 +14,18 @@ versioned migrations in `apps/api/src/database/migrations/`.
 
 ## 1. Conventions
 
-| Rule | Choice | Why |
-|---|---|---|
-| Names | `snake_case`, tables plural | Postgres convention |
-| Primary keys | `uuid` **v7**, generated in the application | Time-ordered, so index locality is close to a bigserial without leaking counts or being guessable. `gen_random_uuid()` only as a DB-side fallback. |
-| Tenancy | every business table has `organization_id uuid NOT NULL` | ADR-0001; repository layer always filters on it |
-| Instants | `timestamptz`, stored UTC | audit, sync, created/updated |
-| Nights | `date` | ADR-0003 — a hotel night is a calendar date in the property's timezone, never a timestamp |
-| Money | `amount_minor bigint` + `currency char(3)` | ADR-0003; no floats. `bigint` because THB satang overflows `int4` at ~21M THB |
-| Percentages | integer **basis points** (`700` = 7.00%) | exact arithmetic for VAT and service charge |
-| Enums | `text` + `CHECK (col IN (...))` | Postgres `ENUM` types cannot drop values and complicate migrations. A CHECK is one migration to change. |
-| Deletes | soft (`is_active`, `status`) for configuration entities | reservations reference room types forever; hard deletes would corrupt history |
-| Timestamps | `created_at`, `updated_at` on every table | `updated_at` maintained by trigger |
+| Rule         | Choice                                                   | Why                                                                                                                                                |
+| ------------ | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Names        | `snake_case`, tables plural                              | Postgres convention                                                                                                                                |
+| Primary keys | `uuid` **v7**, generated in the application              | Time-ordered, so index locality is close to a bigserial without leaking counts or being guessable. `gen_random_uuid()` only as a DB-side fallback. |
+| Tenancy      | every business table has `organization_id uuid NOT NULL` | ADR-0001; repository layer always filters on it                                                                                                    |
+| Instants     | `timestamptz`, stored UTC                                | audit, sync, created/updated                                                                                                                       |
+| Nights       | `date`                                                   | ADR-0003 — a hotel night is a calendar date in the property's timezone, never a timestamp                                                          |
+| Money        | `amount_minor bigint` + `currency char(3)`               | ADR-0003; no floats. `bigint` because THB satang overflows `int4` at ~21M THB                                                                      |
+| Percentages  | integer **basis points** (`700` = 7.00%)                 | exact arithmetic for VAT and service charge                                                                                                        |
+| Enums        | `text` + `CHECK (col IN (...))`                          | Postgres `ENUM` types cannot drop values and complicate migrations. A CHECK is one migration to change.                                            |
+| Deletes      | soft (`is_active`, `status`) for configuration entities  | reservations reference room types forever; hard deletes would corrupt history                                                                      |
+| Timestamps   | `created_at`, `updated_at` on every table                | `updated_at` maintained by trigger                                                                                                                 |
 
 Required extension: `pgcrypto` (for `gen_random_uuid()`).
 
@@ -614,7 +614,7 @@ HAVING COUNT(*) = ($3::date - $2::date)      -- every night has an open row
 ```
 
 `MIN(available)` across the stay is correct: a stay is only sellable if
-*every* night has a free unit. CTA/CTD are checked against the first and last
+_every_ night has a free unit. CTA/CTD are checked against the first and last
 nights separately.
 
 ### 11.3 Nightly reconciliation (drift alarm)
@@ -672,14 +672,14 @@ SELECT * FROM outbox_events
 
 ## 13. Growth and retention
 
-| Table | Rows per property per year | Notes |
-|---|---|---|
-| `inventory_days` | ~11k (30 room types × 365) | trivial; horizon-bounded |
-| `rate_days` | ~33k (rate plans × occupancies × days) | trivial |
-| `reservation_stay_nights` | ~11k at 100% occupancy | bounded by allotment |
-| `audit_logs` | 100k–1M | **the growth table** |
-| `outbox_events` | 100k+ | pruned after publish |
-| `channel_reservations` | one row per OTA booking | raw payloads; largest by bytes |
+| Table                     | Rows per property per year             | Notes                          |
+| ------------------------- | -------------------------------------- | ------------------------------ |
+| `inventory_days`          | ~11k (30 room types × 365)             | trivial; horizon-bounded       |
+| `rate_days`               | ~33k (rate plans × occupancies × days) | trivial                        |
+| `reservation_stay_nights` | ~11k at 100% occupancy                 | bounded by allotment           |
+| `audit_logs`              | 100k–1M                                | **the growth table**           |
+| `outbox_events`           | 100k+                                  | pruned after publish           |
+| `channel_reservations`    | one row per OTA booking                | raw payloads; largest by bytes |
 
 Actions: prune `outbox_events` after 7 days published, `idempotency_keys` at
 expiry, `sync_jobs` after 30 days succeeded. Partition `audit_logs` by month

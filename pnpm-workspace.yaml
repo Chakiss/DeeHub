@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Explicit build-script allowlist. Anything not listed here cannot run
+# postinstall scripts — a supply-chain attack surface we opt into deliberately.
+allowBuilds:
+  # esbuild links its platform binary during install; vitest and drizzle-kit need it.
+  esbuild: true
+  # Analytics telemetry. No functional purpose for us.
+  '@scarf/scarf': false

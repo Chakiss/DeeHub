@@ -1,0 +1,28 @@
+{
+  "name": "deehub-hotel",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @deehub/api db:generate",
+    "db:migrate": "pnpm --filter @deehub/api db:migrate",
+    "infra:up": "docker compose -f infrastructure/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infrastructure/docker-compose.yml down",
+    "infra:reset": "docker compose -f infrastructure/docker-compose.yml down -v && pnpm infra:up"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6",
+    "turbo": "2.10.7",
+    "typescript": "5.9.3"
+  }
+}

@@ -79,4 +79,4 @@ round-trips bookings; zero platform-caused overbookings; sync < 60 s.
 
 - Modular monolith until scale forces otherwise.
 - Every feature meets the Definition of Done in `CLAUDE.md`.
-- Anything that slips, slips to the *next* phase — Milestone 1 scope is fixed.
+- Anything that slips, slips to the _next_ phase — Milestone 1 scope is fixed.

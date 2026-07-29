@@ -39,7 +39,7 @@ CRM, Analytics, AI Assistant.
 ## Technology Stack
 
 | Concern    | Choice                              |
-|------------|-------------------------------------|
+| ---------- | ----------------------------------- |
 | Frontend   | Next.js + TypeScript + TailwindCSS  |
 | Backend    | NestJS + TypeScript                 |
 | Database   | PostgreSQL                          |

@@ -1,0 +1,72 @@
+# Local development stack. Mirrors production services (ADR-0004) closely
+# enough to develop entirely offline: Postgres for Cloud SQL, Redis for
+# Memorystore, MinIO for GCS.
+#
+# Host ports are deliberately in a project-scoped range (154xx/163xx/190xx)
+# rather than the service defaults. Developer machines routinely already run a
+# Postgres on 5432 or 5433, and a silent connection to the wrong database is a
+# genuinely dangerous failure — it looks like it works until it doesn't.
+# Container-internal ports remain standard.
+name: deehub
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: deehub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: deehub
+      POSTGRES_PASSWORD: deehub
+      POSTGRES_DB: deehub
+      # Deterministic collation so index ordering matches production.
+      POSTGRES_INITDB_ARGS: '--locale=C --encoding=UTF8'
+    ports:
+      - '15432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U deehub -d deehub']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: deehub-redis
+    restart: unless-stopped
+    # appendonly keeps queued BullMQ jobs across restarts. Redis is never a
+    # source of truth (architecture.md §7), but losing the queue costs a resync.
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '16379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: deehub-minio
+    restart: unless-stopped
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: deehub
+      MINIO_ROOT_PASSWORD: deehub-secret
+    ports:
+      - '19000:9000'
+      - '19001:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

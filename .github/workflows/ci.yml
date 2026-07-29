@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build, typecheck and test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: deehub
+          POSTGRES_PASSWORD: deehub
+          POSTGRES_DB: deehub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U deehub -d deehub_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+
+    env:
+      NODE_ENV: test
+      # Integration tests MUST run against a real Postgres: the overbooking
+      # guarantee is a database constraint, so a mocked database would prove
+      # nothing. DATABASE_URL being set is what stops them silently skipping.
+      DATABASE_URL: postgresql://deehub:deehub@localhost:5432/deehub_test
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret-that-is-long-enough-to-pass-validation
+      JWT_REFRESH_SECRET: ci-refresh-secret-that-is-long-enough-to-pass-validation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      - name: Verify migrations match the schema
+        # A schema change committed without its generated migration would
+        # deploy an app whose code disagrees with its database.
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain apps/api/src/database/migrations)" ]; then
+            echo "::error::Schema changed without a generated migration. Run 'pnpm db:generate' and commit the result."
+            git --no-pager diff -- apps/api/src/database/migrations
+            exit 1
+          fi
+
+      - name: Test
+        run: pnpm test

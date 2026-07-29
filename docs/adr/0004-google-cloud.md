@@ -14,16 +14,16 @@ and AWS.
 
 Commit to Google Cloud:
 
-| Concern    | Service                                      |
-|------------|----------------------------------------------|
-| API + Web  | Cloud Run (scale-to-zero containers)         |
-| Worker     | Cloud Run (always-on min instance for BullMQ)|
-| Database   | Cloud SQL for PostgreSQL                     |
-| Cache/Queue| Memorystore for Redis                        |
-| Storage    | Google Cloud Storage (S3-compatible access via interop mode; code uses an S3-compatible client) |
-| Secrets    | Secret Manager                               |
-| CI/CD      | GitHub Actions → Artifact Registry → Cloud Run |
-| Monitoring | Sentry + Cloud Logging                       |
+| Concern     | Service                                                                                         |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| API + Web   | Cloud Run (scale-to-zero containers)                                                            |
+| Worker      | Cloud Run (always-on min instance for BullMQ)                                                   |
+| Database    | Cloud SQL for PostgreSQL                                                                        |
+| Cache/Queue | Memorystore for Redis                                                                           |
+| Storage     | Google Cloud Storage (S3-compatible access via interop mode; code uses an S3-compatible client) |
+| Secrets     | Secret Manager                                                                                  |
+| CI/CD       | GitHub Actions → Artifact Registry → Cloud Run                                                  |
+| Monitoring  | Sentry + Cloud Logging                                                                          |
 
 Local development runs entirely on **Docker Compose** (Postgres, Redis,
 MinIO) — no cloud dependency to develop.

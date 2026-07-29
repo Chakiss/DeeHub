@@ -14,7 +14,7 @@ Rationale: a 3-person team with AI as the primary developer cannot afford
 distributed-systems overhead — network partitions between services,
 cross-service transactions, per-service CI/CD, distributed tracing to debug a
 booking. A booking that must atomically touch inventory and reservations is a
-*local transaction* here and would be a saga in microservices. Module
+_local transaction_ here and would be a saga in microservices. Module
 boundaries are enforced in code so that extracting a service later (most
 likely the Sync Engine) is a refactor, not a rewrite.
 
@@ -47,11 +47,11 @@ graph TB
   WRK -.relays outbox.-> RD
 ```
 
-| Process | Responsibility | Scaling |
-|---|---|---|
-| `apps/api` | HTTP: admin dashboard, booking engine, OTA webhooks | Cloud Run, scale to zero, autoscale on requests |
-| `apps/worker` | BullMQ consumers: ARI push, reservation pull, outbox relay, expiry, reconciliation | Cloud Run with `min-instances=1` (must poll Redis) |
-| `apps/admin-web` | Next.js dashboard | Cloud Run (or static + SSR) |
+| Process          | Responsibility                                                                     | Scaling                                            |
+| ---------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `apps/api`       | HTTP: admin dashboard, booking engine, OTA webhooks                                | Cloud Run, scale to zero, autoscale on requests    |
+| `apps/worker`    | BullMQ consumers: ARI push, reservation pull, outbox relay, expiry, reconciliation | Cloud Run with `min-instances=1` (must poll Redis) |
+| `apps/admin-web` | Next.js dashboard                                                                  | Cloud Run (or static + SSR)                        |
 
 Splitting the worker from the API is the one non-negotiable process
 boundary: a burst of OTA sync work must never make the front desk slow, and
@@ -218,8 +218,8 @@ Design notes:
 
 ## 6. OTA connector framework
 
-The master prompt's rule — *never hardcode OTA-specific logic into business
-modules* — is realized as a port/adapter pair:
+The master prompt's rule — _never hardcode OTA-specific logic into business
+modules_ — is realized as a port/adapter pair:
 
 ```ts
 // domain port — business modules depend only on this
@@ -306,34 +306,34 @@ entry point.
 
 ## 10. Cross-cutting concerns
 
-| Concern | Approach |
-|---|---|
-| **AuthN** | JWT access (15 min) + refresh token (30 days, rotating, revocable, stored hashed) |
-| **AuthZ** | Capability-based guard; role → capability map; property-scoped roles |
-| **Tenancy** | `AsyncLocalStorage` context + repository-level scoping; unscoped query throws |
-| **Validation** | zod/class-validator at the edge; domain re-validates its own invariants |
-| **Errors** | Typed domain errors → HTTP status mapping in one filter; never leak internals |
-| **Audit** | Interceptor + explicit domain writes; append-only; actor, before/after, IP |
-| **Logging** | Structured JSON (pino) with request ID, org ID, property ID → Cloud Logging |
-| **Monitoring** | Sentry for errors; metrics on sync latency, queue depth, booking failures |
-| **Secrets** | Secret Manager; OTA credentials encrypted at rest with envelope encryption |
-| **Config** | Typed, validated at boot; the app refuses to start on invalid config |
-| **Rate limits** | Per-IP and per-org on the API; per-channel outbound limits in connectors |
+| Concern         | Approach                                                                          |
+| --------------- | --------------------------------------------------------------------------------- |
+| **AuthN**       | JWT access (15 min) + refresh token (30 days, rotating, revocable, stored hashed) |
+| **AuthZ**       | Capability-based guard; role → capability map; property-scoped roles              |
+| **Tenancy**     | `AsyncLocalStorage` context + repository-level scoping; unscoped query throws     |
+| **Validation**  | zod/class-validator at the edge; domain re-validates its own invariants           |
+| **Errors**      | Typed domain errors → HTTP status mapping in one filter; never leak internals     |
+| **Audit**       | Interceptor + explicit domain writes; append-only; actor, before/after, IP        |
+| **Logging**     | Structured JSON (pino) with request ID, org ID, property ID → Cloud Logging       |
+| **Monitoring**  | Sentry for errors; metrics on sync latency, queue depth, booking failures         |
+| **Secrets**     | Secret Manager; OTA credentials encrypted at rest with envelope encryption        |
+| **Config**      | Typed, validated at boot; the app refuses to start on invalid config              |
+| **Rate limits** | Per-IP and per-org on the API; per-channel outbound limits in connectors          |
 
 ---
 
 ## 11. Known risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| **Overbooking via race condition** | Severe — reputational and financial | Atomic guarded UPDATE + DB CHECK constraint + deterministic lock order + nightly reconciliation (§4) |
-| **Sync stalls silently** | Severe — OTAs sell stale availability | Dead-letter queue, `channel.sync_failed` alerts, per-channel health checks, sync-latency dashboards |
-| **Cross-tenant data leak** | Severe — trust-ending | Repository-level tenant scoping, isolation test per feature, later Postgres RLS |
-| **OTA API changes / certification delays** | Schedule risk | Connectors isolated behind a port; contract tests; Mock OTA proves the framework independent of any real OTA |
-| **Modular monolith erodes into a big ball of mud** | Slows everything | Lint-enforced boundaries, dependency-direction rules in CI (§2) |
-| **Redis loss** | Sync backlog | Outbox is in Postgres — unpublished events survive and replay; Redis rebuild is throughput-only |
-| **Single-region Cloud SQL outage** | Downtime | Accepted for Milestone 1; PITR backups; HA tier when revenue justifies it |
-| **AI-generated code volume outpaces review** | Latent defects | Definition of Done, small commits, tests required, high-risk paths (inventory, money, auth) get human review |
+| Risk                                               | Impact                                | Mitigation                                                                                                   |
+| -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Overbooking via race condition**                 | Severe — reputational and financial   | Atomic guarded UPDATE + DB CHECK constraint + deterministic lock order + nightly reconciliation (§4)         |
+| **Sync stalls silently**                           | Severe — OTAs sell stale availability | Dead-letter queue, `channel.sync_failed` alerts, per-channel health checks, sync-latency dashboards          |
+| **Cross-tenant data leak**                         | Severe — trust-ending                 | Repository-level tenant scoping, isolation test per feature, later Postgres RLS                              |
+| **OTA API changes / certification delays**         | Schedule risk                         | Connectors isolated behind a port; contract tests; Mock OTA proves the framework independent of any real OTA |
+| **Modular monolith erodes into a big ball of mud** | Slows everything                      | Lint-enforced boundaries, dependency-direction rules in CI (§2)                                              |
+| **Redis loss**                                     | Sync backlog                          | Outbox is in Postgres — unpublished events survive and replay; Redis rebuild is throughput-only              |
+| **Single-region Cloud SQL outage**                 | Downtime                              | Accepted for Milestone 1; PITR backups; HA tier when revenue justifies it                                    |
+| **AI-generated code volume outpaces review**       | Latent defects                        | Definition of Done, small commits, tests required, high-risk paths (inventory, money, auth) get human review |
 
 ---
 

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {},
+    "test": {
+      "dependsOn": ["^build"],
+      // Turbo runs tasks in a sanitized environment. Without declaring these,
+      // DATABASE_URL never reaches vitest and the integration tests silently
+      // skip — a green CI run that verified nothing.
+      "env": ["DATABASE_URL", "REDIS_URL", "NODE_ENV", "CI"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

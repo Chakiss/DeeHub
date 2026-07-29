@@ -2,12 +2,14 @@
 node_modules/
 .pnpm-store/
 
-# Builds
+# Builds & tool caches
 dist/
 build/
 .next/
 out/
 coverage/
+.turbo/
+*.tsbuildinfo
 
 # Env & secrets
 .env

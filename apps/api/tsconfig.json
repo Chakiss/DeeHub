@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "types": ["node"],
+    "strictPropertyInitialization": false
+  },
+  // drizzle.config.ts sits outside rootDir and is transpiled by drizzle-kit
+  // itself; CI still exercises it by running db:generate.
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
