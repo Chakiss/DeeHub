@@ -26,8 +26,18 @@ export const envSchema = z.object({
    * Optional. Absent means channel sync is DISABLED: the API and the outbox
    * relay still work, but anything that would enqueue a job fails loudly
    * rather than silently dropping it. Required before connecting any OTA.
+   *
+   * Empty counts as absent. Not leniency for its own sake — a deployment that
+   * runs without Redis has to express "no Redis" somehow, and every mechanism
+   * for doing so produces an empty string rather than an unset variable
+   * (Terraform conditionals, Cloud Run env vars, CI defaults, `.env` lines with
+   * nothing after the `=`). Treating empty as invalid meant the no-Redis
+   * configuration could not boot at all.
    */
-  REDIS_URL: connectionUrl('REDIS_URL', ['redis', 'rediss']).optional(),
+  REDIS_URL: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    connectionUrl('REDIS_URL', ['redis', 'rediss']).optional(),
+  ),
 
   // 32 chars minimum: a short signing secret makes JWTs brute-forceable.
   JWT_ACCESS_SECRET: nonEmpty('JWT_ACCESS_SECRET').min(32),

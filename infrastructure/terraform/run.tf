@@ -89,9 +89,17 @@ resource "google_cloud_run_v2_service" "api" {
       # PORT is deliberately NOT set: Cloud Run injects it from
       # container_port above and rejects the deploy if it is provided
       # explicitly ("reserved env names were provided").
-      env {
-        name  = "REDIS_URL"
-        value = local.redis_url
+
+      # Omitted entirely when there is no Redis, rather than set to "". The app
+      # now reads empty as absent either way, but an unset variable is the
+      # honest encoding of "this deployment has no Redis" and does not depend on
+      # the app being lenient.
+      dynamic "env" {
+        for_each = var.enable_channel_sync ? [1] : []
+        content {
+          name  = "REDIS_URL"
+          value = local.redis_url
+        }
       }
       env {
         name  = "CORS_ORIGINS"
@@ -204,9 +212,14 @@ resource "google_cloud_run_v2_service" "worker" {
         name  = "NODE_ENV"
         value = "production"
       }
-      env {
-        name  = "REDIS_URL"
-        value = local.redis_url
+      # The worker only exists when channel sync is on, so this is always set
+      # here — kept conditional for symmetry with the api and maintenance job.
+      dynamic "env" {
+        for_each = var.enable_channel_sync ? [1] : []
+        content {
+          name  = "REDIS_URL"
+          value = local.redis_url
+        }
       }
 
       dynamic "env" {
@@ -430,9 +443,13 @@ resource "google_cloud_run_v2_job" "maintenance" {
           name  = "NODE_ENV"
           value = "production"
         }
-        env {
-          name  = "REDIS_URL"
-          value = local.redis_url
+        # See the api service.
+        dynamic "env" {
+          for_each = var.enable_channel_sync ? [1] : []
+          content {
+            name  = "REDIS_URL"
+            value = local.redis_url
+          }
         }
 
         dynamic "env" {
