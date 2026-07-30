@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { api } from '@/lib/api';
+import { Wordmark } from '@/components/wordmark';
 import { ChangePasswordForm } from '@/components/change-password-form';
 
 /**
@@ -15,12 +16,12 @@ export default async function AccountPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="bg-ink-900">
         <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-6 py-3">
-          <Link href="/" className="text-base font-semibold tracking-tight text-slate-900">
-            DeeHub
+          <Link href="/" aria-label="DeeHub">
+            <Wordmark tone="light" />
           </Link>
-          <div className="ml-auto text-sm text-slate-500">{me.email}</div>
+          <div className="ml-auto text-sm text-slate-300">{me.email}</div>
         </div>
       </header>
 

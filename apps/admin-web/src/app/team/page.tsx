@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { ApiError, api, type OrganizationUser } from '@/lib/api';
+import { Wordmark } from '@/components/wordmark';
 import { TeamList } from '@/components/team-list';
 
 const ROLES = ['OWNER', 'ADMIN', 'MANAGER', 'FRONT_DESK', 'READ_ONLY'] as const;
@@ -35,12 +36,12 @@ export default async function TeamPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="bg-ink-900">
         <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-6 py-3">
-          <Link href="/" className="text-base font-semibold tracking-tight text-slate-900">
-            DeeHub
+          <Link href="/" aria-label="DeeHub">
+            <Wordmark tone="light" />
           </Link>
-          <Link href="/account" className="ml-auto text-sm text-slate-500 hover:text-slate-900">
+          <Link href="/account" className="ml-auto text-sm text-slate-300 hover:text-white">
             {me.email}
           </Link>
         </div>

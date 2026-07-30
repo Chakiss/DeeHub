@@ -95,7 +95,15 @@ function pathnameIsWorthReturningTo(pathname: string): boolean {
 }
 
 export const config = {
-  // Everything except static assets, so a stale token cannot slip through on a
-  // page that happens not to be listed.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  /*
+   * Everything except static assets, so a stale token cannot slip through on a
+   * page that happens not to be listed.
+   *
+   * `.*\\..*` excludes anything with a file extension, which is what put the
+   * brand mark behind the guard: /logo.png matched, the request was redirected
+   * to /login, and the sign-in page rendered a broken image while the response
+   * still looked like a 200. Files in public/ are public by definition — that
+   * is what the directory means — and every real route here is extensionless.
+   */
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };

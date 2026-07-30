@@ -119,6 +119,24 @@ test.describe('authentication', () => {
     expect(await page.evaluate(() => document.cookie)).not.toContain('deehub_last');
   });
 
+  /**
+   * The logo is served from public/, which `output: standalone` does NOT copy —
+   * the same trap as .next/static. It resolves from the source tree in
+   * development and 404s in the container, so the only place this can be caught
+   * is a request that actually fetches it.
+   */
+  test('serves the brand mark rather than a broken image', async ({ page }) => {
+    await page.goto('/login');
+
+    const logo = page.locator('img[src*="logo"]').first();
+    await expect(logo).toBeVisible();
+
+    const response = await page.request.get('/logo.png');
+    expect(response.status(), 'the logo must be served, not 404').toBe(200);
+    // A 404 page would still be "ok" to the browser; check it is really an image.
+    expect(response.headers()['content-type']).toContain('image');
+  });
+
   test('never exposes a token to client-side JavaScript', async ({ page, context }) => {
     const data = testData();
     await login(page, data.managerEmail);

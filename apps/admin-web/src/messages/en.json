@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "DeeHub",
-    "tagline": "Hotel platform"
+    "tagline": "One Hub. Every Booking."
   },
   "nav": {
     "inventory": "Inventory",
@@ -17,7 +17,7 @@
   },
   "login": {
     "title": "Sign in",
-    "subtitle": "Manage inventory, rates and reservations",
+    "subtitle": "One Hub. Every Booking.",
     "organization": "Organization",
     "organizationHint": "The slug your hotel signed up with",
     "email": "Email",

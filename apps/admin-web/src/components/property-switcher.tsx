@@ -15,7 +15,7 @@ export function PropertySwitcher({
 
   if (properties.length <= 1) {
     return (
-      <span className="text-sm text-slate-500">
+      <span className="text-sm text-slate-400">
         {properties.find((property) => property.id === currentId)?.name ?? ''}
       </span>
     );
@@ -28,7 +28,7 @@ export function PropertySwitcher({
         const section = pathname.split('/')[4] ?? 'inventory';
         router.push(`/properties/${event.target.value}/${section}`);
       }}
-      className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700"
+      className="rounded-md border border-white/20 bg-white/10 px-2 py-1.5 text-sm text-white [&>option]:text-slate-900"
     >
       {properties.map((property) => (
         <option key={property.id} value={property.id}>

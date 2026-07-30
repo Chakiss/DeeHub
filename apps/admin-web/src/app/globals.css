@@ -1,11 +1,53 @@
 @import 'tailwindcss';
 
+/*
+ * Brand palette, taken from the logo.
+ *
+ * The mark runs a gradient from deep navy at its base to bright azure at the
+ * tip, and the wordmark splits the same range: "Dee" in the navy, "Hub" in the
+ * azure. So this is ONE hue family, not two — `brand` is the azure the product
+ * acts in, `ink` is the navy it sits on.
+ *
+ * Chroma is deliberately higher than the slate-blue this replaced. The logo's
+ * blue is saturated, and a washed-out approximation of it reads as a different
+ * product wearing the same name.
+ */
 @theme {
-  --color-brand-50: oklch(0.97 0.02 200);
-  --color-brand-100: oklch(0.93 0.05 200);
-  --color-brand-500: oklch(0.62 0.13 210);
-  --color-brand-600: oklch(0.54 0.13 210);
-  --color-brand-700: oklch(0.46 0.12 210);
+  --color-brand-50: oklch(0.97 0.02 260);
+  --color-brand-100: oklch(0.93 0.05 260);
+  --color-brand-200: oklch(0.87 0.09 260);
+  --color-brand-300: oklch(0.78 0.13 260);
+  --color-brand-400: oklch(0.69 0.17 261);
+  /* The azure of "Hub", and of the tip of the mark. */
+  --color-brand-500: oklch(0.62 0.19 259);
+  --color-brand-600: oklch(0.55 0.22 264);
+  --color-brand-700: oklch(0.48 0.2 264);
+  --color-brand-800: oklch(0.4 0.16 262);
+  --color-brand-900: oklch(0.31 0.11 260);
+  --color-brand-950: oklch(0.22 0.06 258);
+
+  /*
+   * The navy of "Dee" and of the dark lockup card. The top bar uses it, so
+   * every screen is framed the way the logo frames itself.
+   */
+  --color-ink-700: oklch(0.32 0.055 258);
+  --color-ink-800: oklch(0.26 0.05 258);
+  --color-ink-900: oklch(0.21 0.045 258);
+  --color-ink-950: oklch(0.17 0.04 258);
+}
+
+/*
+ * The logo's own gradient: navy at the base, azure at the tip, along the mark's
+ * diagonal. Used sparingly — the sign-in page and the brand mark — because it
+ * is an accent, not a surface. Data screens stay light so the numbers win.
+ */
+.brand-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-ink-900) 0%,
+    var(--color-brand-700) 55%,
+    var(--color-brand-500) 100%
+  );
 }
 
 /*

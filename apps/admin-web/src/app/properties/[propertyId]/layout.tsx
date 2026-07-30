@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { api } from '@/lib/api';
 import { SignOutButton } from '@/components/sign-out-button';
 import { PropertySwitcher } from '@/components/property-switcher';
+import { Wordmark } from '@/components/wordmark';
 
 export default async function PropertyLayout({
   children,
@@ -18,10 +19,12 @@ export default async function PropertyLayout({
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      {/* Navy bar, light content. The brand sheet's dark lockup framing every
+          screen, while the data below stays on white so the numbers win. */}
+      <header className="bg-ink-900">
         <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-6 py-3">
-          <Link href="/" className="text-base font-semibold tracking-tight text-slate-900">
-            DeeHub
+          <Link href="/" aria-label="DeeHub">
+            <Wordmark tone="light" />
           </Link>
 
           <PropertySwitcher
@@ -42,7 +45,7 @@ export default async function PropertyLayout({
           <div className="ml-auto flex items-center gap-3 text-sm">
             <Link
               href="/account"
-              className="hidden text-slate-500 transition hover:text-slate-900 sm:inline"
+              className="hidden text-slate-300 transition hover:text-white sm:inline"
             >
               {me.email}
             </Link>
@@ -68,7 +71,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   return (
     <Link
       href={href}
-      className="rounded-md px-3 py-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+      className="rounded-md px-3 py-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
     >
       {children}
     </Link>

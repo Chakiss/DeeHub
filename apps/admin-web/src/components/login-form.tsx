@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import type { LastAccount } from '@/lib/session-config';
+import { Wordmark } from '@/components/wordmark';
 
 /**
  * Sign in, with the last account on this browser offered back.
@@ -79,11 +80,12 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
+    // The one screen where the brand leads rather than frames: the logo's own
+    // navy-to-azure gradient, with the card floating on it.
+    <main className="brand-gradient flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="text-2xl font-semibold tracking-tight text-slate-900">DeeHub</div>
-          <p className="mt-1 text-sm text-slate-500">{t('subtitle')}</p>
+        <div className="mb-8 flex justify-center">
+          <Wordmark tone="light" size="lg" showTagline />
         </div>
 
         {remembered ? (
@@ -96,7 +98,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
                 password,
               });
             }}
-            className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25"
           >
             <h1 className="text-lg font-medium text-slate-900">{t('welcomeBack')}</h1>
 
@@ -168,7 +170,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
               event.preventDefault();
               void submit({ organizationSlug, email, password });
             }}
-            className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25"
           >
             <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
 

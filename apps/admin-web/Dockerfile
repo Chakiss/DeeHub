@@ -31,6 +31,9 @@ RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S deehub -G nodejs
 # like a blank page with no error anywhere.
 COPY --from=build --chown=deehub:nodejs /app/apps/admin-web/.next/standalone ./
 COPY --from=build --chown=deehub:nodejs /app/apps/admin-web/.next/static ./apps/admin-web/.next/static
+# public/ is the same trap as .next/static and is missed the same way: the logo
+# resolves locally from the source tree and 404s in the container.
+COPY --from=build --chown=deehub:nodejs /app/apps/admin-web/public ./apps/admin-web/public
 
 USER deehub
 EXPOSE 3000

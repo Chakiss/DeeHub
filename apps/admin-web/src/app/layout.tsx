@@ -4,7 +4,7 @@ import { getMessages } from 'next-intl/server';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'DeeHub — Hotel platform',
+  title: 'DeeHub — One Hub. Every Booking.',
   description: 'Reservations, inventory, rates and OTA connectivity.',
 };
 

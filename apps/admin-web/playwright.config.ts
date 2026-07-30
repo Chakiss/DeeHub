@@ -38,12 +38,14 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 
   webServer: {
-    // Production build, not `next dev`: the dev server has different
-    // hydration and caching behaviour, so testing it would test something we
-    // never ship.
-    // `next start` directly, not the package script: that script pins port 3000
-    // and an extra flag lands as a positional argument.
-    command: `pnpm build && npx next start --port ${PORT}`,
+    // The STANDALONE server, which is exactly what Cloud Run runs.
+    //
+    // Not `next dev`, whose hydration and caching differ from production — and
+    // not `next start` either, which Next itself warns is unsupported with
+    // `output: standalone`. It serves pages but not public/, so a missing brand
+    // asset looked like a 200 of HTML. Running the real artifact means the
+    // copy steps that assemble it are covered too.
+    command: `pnpm build && pnpm start:standalone`,
     url: `http://127.0.0.1:${PORT}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
