@@ -13,7 +13,8 @@
     "ratePlans": "Rates",
     "team": "Team",
     "stayView": "Stay view",
-    "rooms": "Rooms"
+    "rooms": "Rooms",
+    "reports": "Reports"
   },
   "login": {
     "title": "Sign in",
@@ -280,5 +281,31 @@
     "arrivals": "Arrivals",
     "departures": "Departures",
     "nothingToday": "Nothing arriving or leaving today."
+  },
+  "reports": {
+    "title": "Performance",
+    "subtitle": "Rooms sold, revenue and the rates behind them.",
+    "roomsSold": "Rooms sold",
+    "roomsSoldHint": "Room-nights across the range.",
+    "revenue": "Room revenue",
+    "adr": "ADR",
+    "adrHint": "Average daily rate — revenue divided by rooms sold.",
+    "occupancy": "Occupancy",
+    "occupancyHint": "Rooms sold over physical rooms, the industry definition.",
+    "revpar": "RevPAR",
+    "revparHint": "Revenue per available room — occupancy multiplied by ADR.",
+    "sellThrough": "Sell-through",
+    "sellThroughHint": "How much of what you offered for sale you actually sold.",
+    "noRooms": "Occupancy and RevPAR need physical rooms",
+    "noRoomsHint": "They are measured against the rooms a hotel has, which is what an owner compares against. Sell-through below is measured against your allotment and is always available.",
+    "addRooms": "Add rooms",
+    "byNight": "By night",
+    "date": "Date",
+    "offered": "Offered",
+    "previous": "Previous",
+    "next": "Next",
+    "last7": "Last 7 days",
+    "last30": "Last 30 days",
+    "noData": "Nothing sold in this range."
   }
 }

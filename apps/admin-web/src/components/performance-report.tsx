@@ -1,0 +1,130 @@
+import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import type { Performance } from '@/lib/api';
+import { dayLabel, formatMoney, formatMoneyCompact, isWeekend, weekdayLabel } from '@/lib/dates';
+
+/**
+ * The screen an owner opens every morning.
+ *
+ * Occupancy and RevPAR are the INDUSTRY definitions, measured against physical
+ * rooms — those are the figures compared against an STR report or a previous
+ * PMS. Sell-through is measured against allotment and answers a different
+ * question: how much of what was offered actually sold. Publishing one number
+ * and calling it "occupancy" would be wrong for somebody either way, and one
+ * figure that does not match costs trust in all of them.
+ */
+export async function PerformanceReport({
+  propertyId,
+  performance,
+}: {
+  propertyId: string;
+  performance: Performance;
+}) {
+  const t = await getTranslations('reports');
+  const { totals, currency } = performance;
+
+  const percent = (value: number | null) =>
+    value === null ? '—' : `${String(Math.round(value * 100))}%`;
+  const money = (value: number | null) =>
+    value === null ? '—' : formatMoney(value, currency, 'en-US');
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <Metric label={t('roomsSold')} hint={t('roomsSoldHint')} value={String(totals.roomsSold)} />
+        <Metric label={t('revenue')} value={money(totals.revenueMinor)} />
+        <Metric label={t('adr')} hint={t('adrHint')} value={money(totals.adrMinor)} />
+        <Metric
+          label={t('occupancy')}
+          hint={t('occupancyHint')}
+          value={percent(totals.occupancy)}
+        />
+        <Metric label={t('revpar')} hint={t('revparHint')} value={money(totals.revParMinor)} />
+      </div>
+
+      {/* Says why two tiles are blank, rather than leaving an owner to wonder
+          whether the number is zero or the report is broken. */}
+      {performance.roomsAvailable === null && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
+          <p className="text-sm font-medium text-sky-900">{t('noRooms')}</p>
+          <p className="mt-1 max-w-2xl text-sm text-sky-800">{t('noRoomsHint')}</p>
+          <Link
+            href={`/properties/${propertyId}/rooms`}
+            className="mt-3 inline-block rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            {t('addRooms')}
+          </Link>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Metric
+          label={t('sellThrough')}
+          hint={t('sellThroughHint')}
+          value={percent(totals.sellThrough)}
+        />
+        <Metric label={t('offered')} value={String(totals.allotment)} />
+      </div>
+
+      <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <h2 className="border-b border-slate-200 px-4 py-2 text-sm font-medium text-slate-800">
+          {t('byNight')}
+        </h2>
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+              <th className="px-3 py-2 font-medium">{t('date')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('roomsSold')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('offered')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('occupancy')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('sellThrough')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('adr')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('revenue')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {performance.nights.map((night) => (
+              <tr
+                key={night.date}
+                className={`border-b border-slate-100 last:border-0 ${
+                  isWeekend(night.date) ? 'bg-slate-50/60' : ''
+                }`}
+              >
+                <td className="px-3 py-2">
+                  <span className="text-xs uppercase tracking-wide text-slate-400">
+                    {weekdayLabel(night.date)}
+                  </span>{' '}
+                  <span className="tabular text-slate-800">{dayLabel(night.date)}</span>
+                </td>
+                <td className="tabular px-3 py-2 text-right text-slate-800">{night.roomsSold}</td>
+                <td className="tabular px-3 py-2 text-right text-slate-500">{night.allotment}</td>
+                <td className="tabular px-3 py-2 text-right text-slate-800">
+                  {percent(night.occupancy)}
+                </td>
+                <td className="tabular px-3 py-2 text-right text-slate-600">
+                  {percent(night.sellThrough)}
+                </td>
+                <td className="tabular px-3 py-2 text-right text-slate-600">
+                  {night.adrMinor === null ? '—' : formatMoneyCompact(night.adrMinor)}
+                </td>
+                <td className="tabular px-3 py-2 text-right font-medium text-slate-800">
+                  {night.revenueMinor === 0 ? '—' : formatMoneyCompact(night.revenueMinor)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  );
+}
+
+function Metric({ label, hint, value }: { label: string; hint?: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="tabular mt-1 text-2xl font-semibold text-slate-900">{value}</div>
+      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
+    </div>
+  );
+}

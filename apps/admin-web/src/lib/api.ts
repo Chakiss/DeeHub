@@ -274,6 +274,35 @@ export interface StayView {
   unassigned: (StayViewOccupancy & { roomTypeId: string; roomTypeName: string })[];
 }
 
+export interface PerformanceNight {
+  date: string;
+  roomsSold: number;
+  revenueMinor: number;
+  allotment: number;
+  adrMinor: number | null;
+  sellThrough: number | null;
+  occupancy: number | null;
+  revParMinor: number | null;
+}
+
+export interface Performance {
+  from: string;
+  to: string;
+  currency: string;
+  /** Null when no physical rooms are set up — occupancy is then unanswerable. */
+  roomsAvailable: number | null;
+  nights: PerformanceNight[];
+  totals: {
+    roomsSold: number;
+    revenueMinor: number;
+    allotment: number;
+    adrMinor: number | null;
+    sellThrough: number | null;
+    occupancy: number | null;
+    revParMinor: number | null;
+  };
+}
+
 // --- Endpoints ---------------------------------------------------------------
 
 export const api = {
@@ -393,6 +422,9 @@ export const api = {
       `/properties/${propertyId}/reservations/${reservationId}/check-out`,
       { method: 'POST', body: JSON.stringify({ version }) },
     ),
+
+  performance: (propertyId: string, from: string, to: string) =>
+    request<Performance>(`/properties/${propertyId}/reports/performance?from=${from}&to=${to}`),
 
   stayView: (propertyId: string, from: string, to: string) =>
     request<StayView>(`/properties/${propertyId}/stay-view?from=${from}&to=${to}`),

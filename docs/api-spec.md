@@ -155,6 +155,26 @@ arrival on the same day are not a conflict. Cancelling a reservation releases
 any room it held; the constraint cannot see reservation status, so without that
 the room would stay blocked for those nights forever.
 
+### Reporting (Phase 4)
+
+| Method | Path                                   | Purpose                                     |
+| ------ | -------------------------------------- | ------------------------------------------- |
+| `GET`  | `/properties/{id}/reports/performance` | rooms sold, revenue, ADR, RevPAR, occupancy |
+
+Two denominators are reported, deliberately. `occupancy` and `revPar` use
+PHYSICAL rooms — the industry definitions, and the figures an owner compares
+against an STR report or a previous PMS — and are **null** until rooms exist,
+because a property can operate on allotment alone and reporting 0% would be a
+lie. `sellThrough` uses allotment and answers "how much of what I offered did I
+sell", which is always computable. `adr` needs no denominator choice.
+
+Rooms sold counts the same statuses the inventory grid counts as booked. A
+report that disagreed with the grid on the same refresh would make an operator
+distrust both.
+
+One approximation: the room count is today's, applied to past dates. No history
+of room additions is kept.
+
 ## 4. Errors
 
 Every non-2xx response uses one envelope:
