@@ -318,6 +318,25 @@ export interface Guest {
   possibleDuplicates: number;
 }
 
+export interface AuditEntry {
+  id: string;
+  createdAt: string;
+  actorType: string;
+  actorLabel: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  reason: string | null;
+  before: unknown;
+  after: unknown;
+  requestId: string | null;
+}
+
+export interface AuditPage {
+  items: AuditEntry[];
+  pageInfo: { nextCursor: string | null; hasMore: boolean };
+}
+
 // --- Endpoints ---------------------------------------------------------------
 
 export const api = {
@@ -442,6 +461,11 @@ export const api = {
     request<{ items: Guest[] }>(
       `/properties/${propertyId}/guests${q ? `?q=${encodeURIComponent(q)}` : ''}`,
     ).then((body) => body.items),
+
+  audit: (propertyId: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request<AuditPage>(`/properties/${propertyId}/audit${query ? `?${query}` : ''}`);
+  },
 
   performance: (propertyId: string, from: string, to: string) =>
     request<Performance>(`/properties/${propertyId}/reports/performance?from=${from}&to=${to}`),

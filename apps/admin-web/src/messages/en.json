@@ -15,7 +15,8 @@
     "stayView": "Stay view",
     "rooms": "Rooms",
     "reports": "Reports",
-    "guests": "Guests"
+    "guests": "Guests",
+    "audit": "Activity"
   },
   "login": {
     "title": "Sign in",
@@ -325,5 +326,21 @@
     "duplicate": "Shares an email with {count} other profile",
     "duplicates": "Shares an email with {count} other profiles",
     "duplicateHint": "Two people can share an address, so these are flagged rather than merged. Merging is not available yet."
+  },
+  "audit": {
+    "title": "Activity",
+    "subtitle": "Who changed what, and when.",
+    "when": "When",
+    "who": "Who",
+    "what": "What",
+    "entity": "Record",
+    "reason": "Reason",
+    "empty": "Nothing recorded yet.",
+    "emptyFiltered": "Nothing matches this filter.",
+    "loadMore": "Load more",
+    "allActions": "All activity",
+    "system": "System",
+    "channel": "Channel",
+    "details": "Details"
   }
 }

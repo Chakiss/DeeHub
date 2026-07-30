@@ -60,4 +60,19 @@ Both can run at once. See errors meanwhile at
 Anything listed here was either out of reach or a decision I judged yours to
 make. Nothing is silently missing.
 
+## 4. The audit trail is readable by every role, including READ_ONLY
+
+`audit:read` is granted by a blanket rule — READ_ONLY receives every
+capability ending in `:read` — so shipping the viewer means a front-desk clerk
+can see who changed which rates and whose role was changed.
+
+I did **not** narrow it. Changing the role bundles affects existing users and
+is a permissions decision, not a side effect of adding a screen. Most of what
+the trail shows (guests, rates, bookings) is already visible on other screens
+to the same people; the genuinely new exposure is team administration.
+
+To restrict it to Admin and Owner, remove `audit:read` from the blanket
+`:read` rule in `apps/api/src/modules/auth/domain/capabilities.ts` and add it
+explicitly to `ADMIN_CAPABILITIES`.
+
 _(Updated as the session continues.)_
