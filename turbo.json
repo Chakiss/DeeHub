@@ -9,7 +9,6 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "lint": {},
     "test": {
       "dependsOn": ["^build"],
       // Turbo runs tasks in a sanitized environment. Without declaring these,

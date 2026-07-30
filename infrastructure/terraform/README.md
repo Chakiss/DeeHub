@@ -10,8 +10,9 @@ Terraform for Google Cloud. Full runbook: [docs/deployment.md](../../docs/deploy
 | Terraform state bucket `deehub-hotel-tfstate` | done — versioned, public access blocked                             |
 | Deployer service account `deehub-deployer`    | done — `run.admin`, `artifactregistry.writer`, `serviceAccountUser` |
 | Workload Identity **pool** `github`           | done                                                                |
-| Workload Identity **provider**                | **pending — needs the GitHub repository path**                      |
-| `terraform apply`                             | not yet run                                                         |
+| Workload Identity **provider**                | done — pinned to `Chakiss/DeeHub`                                   |
+| `terraform apply`                             | done — 47 resources, `plan` clean                                   |
+| GitHub repository secrets                     | **pending — the three below must be set by hand**                   |
 
 ## Running it
 
@@ -80,18 +81,19 @@ values. Apply, run `../set-secrets.sh`, apply again.
 
 Each of these cost a failed apply to discover:
 
-| Constraint                                                                               | Why the config looks the way it does                                                               |
-| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Cloud SQL defaults new instances to **ENTERPRISE_PLUS**, which rejects shared-core tiers | `edition = "ENTERPRISE"` is set explicitly, or `db-f1-micro` fails with "Invalid Tier for Edition" |
-| Cloud Run **injects `PORT`** and rejects it as an explicit env var                       | The API service sets `container_port` only                                                         |
-| Cloud Run will not start a container whose **secret has no version**                     | Hence the two-pass first apply                                                                     |
-| `secret_key_ref` names the secret **container**, so the version is not an implicit dependency | Every Cloud Run resource `depends_on` the `database_url` version, or a fresh apply races and fails |
-| Secret Manager **rejects an empty payload**                                              | An unconfigured Sentry stores `disabled`; the app treats a non-URL as off                          |
-| VPC peering needs more than `roles/editor`                                               | `servicenetworking.networksAdmin` + `compute.networkAdmin`                                         |
-| ADC's quota project is separate from `gcloud config`                                     | Wrong one gives `UNAUTHENTICATED`, not a permission error                                          |
-| `roles/editor` can create a Cloud Run service but not set its IAM policy                 | Making the api and dashboard public needs `roles/run.admin` as well                                |
-| Artifact Registry has **immutable tags**, and a BuildKit attestation index writes the tag twice | Images are built `--provenance=false --sbom=false`, or the push fails after the image has landed |
-| Terraform must not own the container **image**                                            | `ignore_changes` on all five, or the next apply reverts production to the placeholder             |
+| Constraint                                                                                      | Why the config looks the way it does                                                                |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Cloud SQL defaults new instances to **ENTERPRISE_PLUS**, which rejects shared-core tiers        | `edition = "ENTERPRISE"` is set explicitly, or `db-f1-micro` fails with "Invalid Tier for Edition"  |
+| Cloud Run **injects `PORT`** and rejects it as an explicit env var                              | The API service sets `container_port` only                                                          |
+| Cloud Run will not start a container whose **secret has no version**                            | Hence the two-pass first apply                                                                      |
+| `secret_key_ref` names the secret **container**, so the version is not an implicit dependency   | Every Cloud Run resource `depends_on` the `database_url` version, or a fresh apply races and fails  |
+| Secret Manager **rejects an empty payload**                                                     | An unconfigured Sentry stores `disabled`; the app treats a non-URL as off                           |
+| VPC peering needs more than `roles/editor`                                                      | `servicenetworking.networksAdmin` + `compute.networkAdmin`                                          |
+| ADC's quota project is separate from `gcloud config`                                            | Wrong one gives `UNAUTHENTICATED`, not a permission error                                           |
+| `roles/editor` can create a Cloud Run service but not set its IAM policy                        | Making the api and dashboard public needs `roles/run.admin` as well                                 |
+| Artifact Registry has **immutable tags**, and a BuildKit attestation index writes the tag twice | Images are built `--provenance=false --sbom=false`, or the push fails after the image has landed    |
+| Terraform must not own the container **image**                                                  | `ignore_changes` on all five, or the next apply reverts production to the placeholder               |
+| An env var set to `""` is not the same as an unset one                                          | `REDIS_URL` is omitted entirely when `enable_channel_sync = false`; empty made the API fail to boot |
 
 ## A note on IAM propagation
 

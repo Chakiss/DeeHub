@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
-    "lint": "next lint",
     "test": "vitest run --passWithNoTests",
     "start:standalone": "cp -r .next/static .next/standalone/apps/admin-web/.next/static && node .next/standalone/apps/admin-web/server.js",
     "test:e2e": "playwright test",
