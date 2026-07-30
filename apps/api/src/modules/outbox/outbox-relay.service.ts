@@ -1,6 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
-import type { Queue } from 'bullmq';
 import type Redis from 'ioredis';
 import { dateRange, EVENT_TYPES, toIsoDate, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../database/database.module';
@@ -11,6 +10,7 @@ import {
   ariJobId,
   deliveryJobId,
   type AriSyncJob,
+  type JobQueue,
   type ReservationDeliveryJob,
 } from '../../queue/queues';
 
@@ -52,9 +52,9 @@ export class OutboxRelayService {
 
   constructor(
     @Inject(DATABASE) private readonly db: Database,
-    @Inject(REDIS) private readonly redis: Redis,
-    @Inject(ARI_SYNC_QUEUE) private readonly ariSyncQueue: Queue,
-    @Inject(RESERVATION_DELIVERY_QUEUE) private readonly deliveryQueue: Queue,
+    @Inject(REDIS) private readonly redis: Redis | null,
+    @Inject(ARI_SYNC_QUEUE) private readonly ariSyncQueue: JobQueue,
+    @Inject(RESERVATION_DELIVERY_QUEUE) private readonly deliveryQueue: JobQueue,
   ) {}
 
   /**
@@ -183,6 +183,15 @@ export class OutboxRelayService {
       // No channel connected yet. Not an error: a hotel running direct-only
       // still books rooms, and the event is simply consumed.
       return;
+    }
+
+    if (!this.redis) {
+      // A channel is active but this deployment has no Redis. Fail loudly: the
+      // event stays unpublished with the error recorded, rather than the OTA
+      // quietly never hearing about the change.
+      throw new Error(
+        'Channel sync is active but REDIS_URL is not configured; cannot schedule an ARI push',
+      );
     }
 
     for (const channel of activeChannels) {

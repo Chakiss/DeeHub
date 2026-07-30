@@ -16,7 +16,8 @@
     "db:seed": "tsx src/database/seed.ts",
     "start:worker": "node dist/worker.js",
     "dev:worker": "tsx watch src/worker.ts",
-    "db:seed-channel": "tsx src/database/seed-channel.ts"
+    "db:seed-channel": "tsx src/database/seed-channel.ts",
+    "maintenance": "node dist/maintenance.js"
   },
   "dependencies": {
     "@deehub/shared": "workspace:*",

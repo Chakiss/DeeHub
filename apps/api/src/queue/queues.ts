@@ -18,6 +18,17 @@ export const QUEUE_NAMES = {
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
+/**
+ * The slice of a queue that production code actually uses.
+ *
+ * Narrow on purpose: it lets the queues be genuinely absent when a deployment
+ * has no channels connected, without the relay needing to know. A real BullMQ
+ * Queue satisfies this structurally, so tests can still use the full API.
+ */
+export interface JobQueue {
+  add(name: string, data: unknown, opts?: Record<string, unknown>): Promise<unknown>;
+}
+
 export interface AriSyncJob {
   readonly organizationId: string;
   readonly propertyId: string;

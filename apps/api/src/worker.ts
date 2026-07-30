@@ -38,6 +38,17 @@ async function bootstrap(): Promise<void> {
 
   const logger = new Logger('Worker');
   const env = app.get<Env>(ENV);
+
+  if (!env.REDIS_URL) {
+    // Silently idling would look healthy while nothing synced. Use the
+    // maintenance entrypoint for deployments with no channels.
+    logger.error(
+      'REDIS_URL is not configured. The worker consumes queues and cannot run without it — ' +
+        'use `node dist/maintenance.js` for a deployment with no channels connected.',
+    );
+    await app.close();
+    process.exit(1);
+  }
   const redis = app.get<Redis>(REDIS);
   const relay = app.get(OutboxRelayService);
   const expireHolds = app.get(ExpireHoldsUseCase);

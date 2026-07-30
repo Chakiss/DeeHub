@@ -7,7 +7,36 @@ Cloud ([ADR-0004](adr/0004-google-cloud.md)).
 
 ## 1. What runs where
 
-Two images, three services, one job.
+Two images, and — depending on `enable_channel_sync` — two or three services
+plus two jobs.
+
+### Two modes
+
+|                 | `enable_channel_sync = false`  | `= true`            |
+| --------------- | ------------------------------ | ------------------- |
+| Memorystore     | not created                    | 1GB Basic           |
+| Worker service  | not created                    | always-on, min 1    |
+| Maintenance job | hourly (the only housekeeping) | hourly (safety net) |
+| OTA sync        | **none**                       | full two-way        |
+| Cost            | **~$22/month**                 | ~$70–83/month       |
+
+`false` is correct only until the first OTA is connected. The API, dashboard
+and scheduled maintenance all work: a property can take bookings, manage
+inventory and rates, and inventory drift is still checked nightly. Nothing is
+pushed to a channel.
+
+If a channel is activated anyway the relay **fails loudly** — the event stays
+unpublished with the error recorded, and the maintenance job exits non-zero so
+the scheduler surfaces it. That is a visible failure, not a silent one, but it
+is still a failure: **set `enable_channel_sync = true` before activating any
+channel.**
+
+Verified behaviour with no Redis configured: the API boots and serves normally;
+the relay publishes events for properties with no active channel; the worker
+refuses to start rather than idling; and an event for an active channel is
+preserved with its error rather than dropped.
+
+### Processes
 
 | Workload   | Image              | Command                         | Scaling                              |
 | ---------- | ------------------ | ------------------------------- | ------------------------------------ |

@@ -22,7 +22,12 @@ export const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
   DATABASE_URL: connectionUrl('DATABASE_URL', ['postgresql', 'postgres']),
-  REDIS_URL: connectionUrl('REDIS_URL', ['redis', 'rediss']),
+  /**
+   * Optional. Absent means channel sync is DISABLED: the API and the outbox
+   * relay still work, but anything that would enqueue a job fails loudly
+   * rather than silently dropping it. Required before connecting any OTA.
+   */
+  REDIS_URL: connectionUrl('REDIS_URL', ['redis', 'rediss']).optional(),
 
   // 32 chars minimum: a short signing secret makes JWTs brute-forceable.
   JWT_ACCESS_SECRET: nonEmpty('JWT_ACCESS_SECRET').min(32),

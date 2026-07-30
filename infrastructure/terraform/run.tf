@@ -5,8 +5,18 @@
 
 locals {
   # Shared configuration. Secrets are referenced, never inlined.
-  redis_url  = "redis://${google_redis_instance.main.host}:${google_redis_instance.main.port}"
+  # Empty when channel sync is off: the API treats a missing REDIS_URL as
+  # "channels disabled" and refuses to enqueue rather than dropping work.
+  redis_url  = var.enable_channel_sync ? "redis://${google_redis_instance.main[0].host}:${google_redis_instance.main[0].port}" : ""
   vpc_egress = "PRIVATE_RANGES_ONLY" # public egress (OTAs) still goes direct
+
+  api_secret_env = {
+    DATABASE_URL       = "database-url"
+    JWT_ACCESS_SECRET  = "jwt-access-secret"
+    JWT_REFRESH_SECRET = "jwt-refresh-secret"
+    CREDENTIALS_KEY    = "credentials-key"
+    SENTRY_DSN         = "sentry-dsn"
+  }
 }
 
 resource "google_cloud_run_v2_service" "api" {
@@ -73,13 +83,7 @@ resource "google_cloud_run_v2_service" "api" {
       }
 
       dynamic "env" {
-        for_each = {
-          DATABASE_URL       = "database-url"
-          JWT_ACCESS_SECRET  = "jwt-access-secret"
-          JWT_REFRESH_SECRET = "jwt-refresh-secret"
-          CREDENTIALS_KEY    = "credentials-key"
-          SENTRY_DSN         = "sentry-dsn"
-        }
+        for_each = local.api_secret_env
         content {
           name = env.key
           value_source {
@@ -120,6 +124,11 @@ resource "google_cloud_run_v2_service" "api" {
 }
 
 resource "google_cloud_run_v2_service" "worker" {
+  # See var.enable_channel_sync. Without channels there is nothing to consume,
+  # and an always-on instance is the most expensive line in the stack; the
+  # maintenance job below covers the housekeeping instead.
+  count = var.enable_channel_sync ? 1 : 0
+
   name     = "deehub-worker-${local.suffix}"
   location = var.region
   # No public traffic: the worker is driven by Redis, not by HTTP.
@@ -153,11 +162,12 @@ resource "google_cloud_run_v2_service" "worker" {
 
       resources {
         limits = {
-          cpu    = "1"
-          memory = "1Gi"
+          cpu    = var.worker_cpu
+          memory = var.worker_memory
         }
         # The worker runs between requests, so it needs CPU always allocated —
-        # with cpu_idle the relay loop would be throttled to a crawl.
+        # with cpu_idle the relay loop would be throttled to a crawl. It is also
+        # why this service is billed for every second of the month.
         cpu_idle = false
       }
 
@@ -171,13 +181,7 @@ resource "google_cloud_run_v2_service" "worker" {
       }
 
       dynamic "env" {
-        for_each = {
-          DATABASE_URL       = "database-url"
-          JWT_ACCESS_SECRET  = "jwt-access-secret"
-          JWT_REFRESH_SECRET = "jwt-refresh-secret"
-          CREDENTIALS_KEY    = "credentials-key"
-          SENTRY_DSN         = "sentry-dsn"
-        }
+        for_each = local.api_secret_env
         content {
           name = env.key
           value_source {
@@ -324,4 +328,109 @@ resource "google_cloud_run_v2_service_iam_member" "web_public" {
   location = google_cloud_run_v2_service.web.location
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# --- Scheduled maintenance ----------------------------------------------------
+# Drains the outbox, expires lapsed holds and reconciles inventory, then exits.
+#
+# This runs in BOTH modes. With channels connected the worker handles the queues
+# with sub-minute latency and this is a safety net; without them it is the only
+# thing keeping the outbox drained and, more importantly, running the inventory
+# drift check — the alarm for booking-path bugs.
+
+resource "google_cloud_run_v2_job" "maintenance" {
+  name     = "deehub-maintenance-${local.suffix}"
+  location = var.region
+
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = google_service_account.worker.email
+      # One attempt: a genuine failure should surface, not be masked by a retry
+      # that happens to succeed.
+      max_retries = 0
+      timeout     = "600s"
+
+      vpc_access {
+        network_interfaces {
+          network    = google_compute_network.main.id
+          subnetwork = google_compute_subnetwork.main.id
+        }
+        egress = local.vpc_egress
+      }
+
+      containers {
+        image   = var.api_image
+        command = ["node"]
+        args    = ["dist/maintenance.js"]
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "512Mi"
+          }
+        }
+
+        env {
+          name  = "NODE_ENV"
+          value = "production"
+        }
+        env {
+          name  = "REDIS_URL"
+          value = local.redis_url
+        }
+
+        dynamic "env" {
+          for_each = local.api_secret_env
+          content {
+            name = env.key
+            value_source {
+              secret_key_ref {
+                secret  = google_secret_manager_secret.api[env.value].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "google_service_account" "scheduler" {
+  account_id   = "deehub-scheduler-${local.suffix}"
+  display_name = "DeeHub maintenance scheduler"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "scheduler_runs_maintenance" {
+  name     = google_cloud_run_v2_job.maintenance.name
+  location = google_cloud_run_v2_job.maintenance.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.scheduler.email}"
+}
+
+resource "google_cloud_scheduler_job" "maintenance" {
+  name      = "deehub-maintenance-${local.suffix}"
+  region    = var.region
+  schedule  = var.maintenance_schedule
+  time_zone = "Asia/Bangkok"
+
+  # A missed run is not worth retrying: the next tick does the same work.
+  retry_config {
+    retry_count = 0
+  }
+
+  http_target {
+    http_method = "POST"
+    uri = format(
+      "https://%s-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/%s/jobs/%s:run",
+      var.region, var.project_id, google_cloud_run_v2_job.maintenance.name,
+    )
+    oauth_token {
+      service_account_email = google_service_account.scheduler.email
+    }
+  }
+
+  depends_on = [google_project_service.enabled]
 }

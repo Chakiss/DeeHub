@@ -31,6 +31,7 @@ locals {
     "artifactregistry.googleapis.com",
     "servicenetworking.googleapis.com",
     "vpcaccess.googleapis.com",
+    "cloudscheduler.googleapis.com",
   ]
 }
 

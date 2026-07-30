@@ -122,9 +122,13 @@ docker build -f apps/admin-web/Dockerfile -t deehub-web .  # dashboard
 executes migrations as a Cloud Run job, deploys, and smoke-tests
 `/health/ready`. Infrastructure is Terraform in `infrastructure/terraform`.
 
-Nothing here has been applied to GCP yet — the config validates and both images
-have been built and run locally against a real database, but the first apply
-should be treated as a first apply.
+`enable_channel_sync` defaults to false, which omits Memorystore and the
+always-on worker — around $22/month instead of $70–83. Set it true before
+connecting the first OTA.
+
+Nothing here has been applied to GCP yet — the config validates, `plan` shows
+47 resources, and both images have been built and run locally against a real
+database, but the first apply should be treated as a first apply.
 
 ## The one thing to know
 

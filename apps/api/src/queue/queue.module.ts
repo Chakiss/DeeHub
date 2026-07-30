@@ -1,13 +1,43 @@
-import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
+import { Global, Inject, Module, Optional, type OnApplicationShutdown } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
+import { DomainError } from '@deehub/shared';
 import { ENV, type Env } from '../config/env';
-import { QUEUE_NAMES, type QueueName } from './queues';
+import { QUEUE_NAMES, type JobQueue, type QueueName } from './queues';
 
 export const REDIS = Symbol('REDIS');
 export const ARI_SYNC_QUEUE = Symbol('ARI_SYNC_QUEUE');
 export const RESERVATION_DELIVERY_QUEUE = Symbol('RESERVATION_DELIVERY_QUEUE');
 export const MAINTENANCE_QUEUE = Symbol('MAINTENANCE_QUEUE');
+
+/** True when this deployment is configured to talk to channels at all. */
+export function channelSyncEnabled(env: Env): boolean {
+  return Boolean(env.REDIS_URL);
+}
+
+/**
+ * Stand-in used when REDIS_URL is absent.
+ *
+ * It THROWS rather than silently discarding. A deployment with no channels
+ * connected never reaches it — the relay checks for active channels before
+ * enqueueing anything — so hitting this means a channel was activated without
+ * Redis being configured. Failing loudly leaves the outbox row unpublished
+ * with an error recorded, which is exactly the alarm we want; a no-op would
+ * lose the booking silently.
+ */
+class DisabledQueue implements JobQueue {
+  constructor(private readonly name: QueueName) {}
+
+  add(): Promise<never> {
+    return Promise.reject(
+      new DomainError(
+        'INTERNAL_ERROR',
+        `Queue "${this.name}" is disabled because REDIS_URL is not configured. ` +
+          'Set it (and run the worker) before activating any channel.',
+      ),
+    );
+  }
+}
 
 function createQueue(connection: Redis, name: QueueName): Queue {
   return new Queue(name, {
@@ -33,11 +63,18 @@ function createQueue(connection: Redis, name: QueueName): Queue {
   });
 }
 
+function queueProvider(name: QueueName) {
+  return (connection: Redis | null): JobQueue =>
+    connection ? createQueue(connection, name) : new DisabledQueue(name);
+}
+
 /**
  * BullMQ queues and the shared Redis connection.
  *
  * Redis is never a source of truth (architecture.md §7): the outbox lives in
- * Postgres, so losing Redis costs throughput and a resync, never data.
+ * Postgres, so losing Redis costs throughput and a resync, never data. That is
+ * also why it can be omitted entirely on a deployment with no channels — see
+ * docs/deployment.md.
  */
 @Global()
 @Module({
@@ -45,43 +82,42 @@ function createQueue(connection: Redis, name: QueueName): Queue {
     {
       provide: REDIS,
       inject: [ENV],
-      useFactory: (env: Env): Redis =>
-        new Redis(env.REDIS_URL, {
-          // Required by BullMQ: it must not give up on a command mid-job.
-          maxRetriesPerRequest: null,
-          enableReadyCheck: true,
-        }),
+      useFactory: (env: Env): Redis | null =>
+        env.REDIS_URL
+          ? new Redis(env.REDIS_URL, {
+              // Required by BullMQ: it must not give up on a command mid-job.
+              maxRetriesPerRequest: null,
+              enableReadyCheck: true,
+            })
+          : null,
     },
-    {
-      provide: ARI_SYNC_QUEUE,
-      inject: [REDIS],
-      useFactory: (connection: Redis): Queue => createQueue(connection, QUEUE_NAMES.ARI_SYNC),
-    },
+    { provide: ARI_SYNC_QUEUE, inject: [REDIS], useFactory: queueProvider(QUEUE_NAMES.ARI_SYNC) },
     {
       provide: RESERVATION_DELIVERY_QUEUE,
       inject: [REDIS],
-      useFactory: (connection: Redis): Queue =>
-        createQueue(connection, QUEUE_NAMES.RESERVATION_DELIVERY),
+      useFactory: queueProvider(QUEUE_NAMES.RESERVATION_DELIVERY),
     },
     {
       provide: MAINTENANCE_QUEUE,
       inject: [REDIS],
-      useFactory: (connection: Redis): Queue => createQueue(connection, QUEUE_NAMES.MAINTENANCE),
+      useFactory: queueProvider(QUEUE_NAMES.MAINTENANCE),
     },
   ],
   exports: [REDIS, ARI_SYNC_QUEUE, RESERVATION_DELIVERY_QUEUE, MAINTENANCE_QUEUE],
 })
 export class QueueModule implements OnApplicationShutdown {
   constructor(
-    @Inject(REDIS) private readonly redis: Redis,
-    @Inject(ARI_SYNC_QUEUE) private readonly ariSync: Queue,
-    @Inject(RESERVATION_DELIVERY_QUEUE) private readonly delivery: Queue,
-    @Inject(MAINTENANCE_QUEUE) private readonly maintenance: Queue,
+    @Optional() @Inject(REDIS) private readonly redis: Redis | null,
+    @Inject(ARI_SYNC_QUEUE) private readonly ariSync: JobQueue,
+    @Inject(RESERVATION_DELIVERY_QUEUE) private readonly delivery: JobQueue,
+    @Inject(MAINTENANCE_QUEUE) private readonly maintenance: JobQueue,
   ) {}
 
   /** Close queues before the connection so in-flight commands finish. */
   async onApplicationShutdown(): Promise<void> {
-    await Promise.all([this.ariSync.close(), this.delivery.close(), this.maintenance.close()]);
-    this.redis.disconnect();
+    for (const queue of [this.ariSync, this.delivery, this.maintenance]) {
+      if (queue instanceof Queue) await queue.close();
+    }
+    this.redis?.disconnect();
   }
 }

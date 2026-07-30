@@ -18,6 +18,11 @@ output "database_instance" {
   description = "Cloud SQL instance name."
 }
 
+output "channel_sync_enabled" {
+  value       = var.enable_channel_sync
+  description = "Whether Memorystore and the always-on worker exist. Must be true before connecting an OTA."
+}
+
 output "service_accounts" {
   value = {
     api    = google_service_account.api.email

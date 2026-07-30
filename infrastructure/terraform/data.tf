@@ -46,7 +46,7 @@ resource "google_sql_database_instance" "main" {
   settings {
     tier              = var.db_tier
     availability_type = "ZONAL"
-    disk_size         = 20
+    disk_size         = var.db_disk_gb
     disk_autoresize   = true
 
     backup_configuration {
@@ -112,6 +112,10 @@ resource "google_secret_manager_secret_version" "database_url" {
 # --- Redis -------------------------------------------------------------------
 
 resource "google_redis_instance" "main" {
+  # Only created when channels are connected — it is the single largest line
+  # item, and a property not yet selling through an OTA has no queue to hold.
+  count = var.enable_channel_sync ? 1 : 0
+
   name           = "deehub-${local.suffix}"
   tier           = "BASIC"
   memory_size_gb = var.redis_memory_gb
