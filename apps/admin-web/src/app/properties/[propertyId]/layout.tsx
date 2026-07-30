@@ -5,6 +5,7 @@ import { SignOutButton } from '@/components/sign-out-button';
 import { PropertySwitcher } from '@/components/property-switcher';
 import { MainNav } from '@/components/main-nav';
 import { Wordmark } from '@/components/wordmark';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 
 export default async function PropertyLayout({
   children,
@@ -60,6 +61,7 @@ export default async function PropertyLayout({
             >
               {me.email}
             </Link>
+            <LocaleSwitcher />
             <SignOutButton label={t('signOut')} />
           </div>
         </div>

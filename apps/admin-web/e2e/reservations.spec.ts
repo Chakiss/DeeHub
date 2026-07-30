@@ -98,7 +98,10 @@ test.describe('reservations', () => {
 
     // A filter change must drop the cursor; keeping it would page into a
     // different result set and skip rows.
-    await page.locator('select').selectOption('CONFIRMED');
+    //
+    // Scoped to the page body: the header carries a language switcher, so a
+    // bare select matches two things.
+    await page.getByRole('main').getByRole('combobox').selectOption('CONFIRMED');
     await expect(page).toHaveURL(/status=CONFIRMED/);
     await expect(page).not.toHaveURL(/cursor=/);
   });

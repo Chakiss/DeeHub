@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import type { LastAccount } from '@/lib/session-config';
 import { Wordmark } from '@/components/wordmark';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 
 /**
  * Sign in, with the last account on this browser offered back.
@@ -84,8 +85,11 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
     // navy-to-azure gradient, with the card floating on it.
     <main className="brand-gradient flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex justify-center">
+        <div className="mb-8 flex flex-col items-center gap-3">
           <Wordmark tone="light" size="lg" showTagline />
+          {/* Before signing in, not after: this is the first screen a Thai
+              receptionist meets. */}
+          <LocaleSwitcher />
         </div>
 
         {remembered ? (
