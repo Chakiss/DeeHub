@@ -181,6 +181,18 @@ gcloud auth application-default set-quota-project deehub-hotel
 
 Worth checking first on any machine that touches more than one GCP project.
 
+### Platform constraints
+
+Two more that the configuration already encodes, noted because the error
+messages point somewhere unhelpful:
+
+- **Cloud SQL** defaults new instances to `ENTERPRISE_PLUS`, which rejects
+  shared-core tiers. `edition = "ENTERPRISE"` is set explicitly so
+  `db-f1-micro` is accepted.
+- **Cloud Run injects `PORT`** and refuses a deploy that also sets it. The
+  service declares `container_port` and nothing else; the app reads `PORT` from
+  the environment Cloud Run provides.
+
 Region is `asia-southeast1` (Singapore) — the closest Google region to Thailand,
 and the one that keeps guest data nearest the market it serves.
 

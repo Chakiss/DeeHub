@@ -44,6 +44,10 @@ resource "google_sql_database_instance" "main" {
   deletion_protection = true
 
   settings {
+    # ENTERPRISE explicitly: Cloud SQL now defaults new instances to
+    # ENTERPRISE_PLUS, which rejects shared-core tiers outright. Without this,
+    # db-f1-micro fails with "Invalid Tier for Edition".
+    edition           = "ENTERPRISE"
     tier              = var.db_tier
     availability_type = "ZONAL"
     disk_size         = var.db_disk_gb

@@ -76,6 +76,19 @@ gcloud auth application-default set-quota-project deehub-hotel
 job whose secret has no version, and Terraform deliberately never writes secret
 values. Apply, run `../set-secrets.sh`, apply again.
 
+## Platform constraints this configuration encodes
+
+Each of these cost a failed apply to discover:
+
+| Constraint                                                                               | Why the config looks the way it does                                                               |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Cloud SQL defaults new instances to **ENTERPRISE_PLUS**, which rejects shared-core tiers | `edition = "ENTERPRISE"` is set explicitly, or `db-f1-micro` fails with "Invalid Tier for Edition" |
+| Cloud Run **injects `PORT`** and rejects it as an explicit env var                       | The API service sets `container_port` only                                                         |
+| Cloud Run will not start a container whose **secret has no version**                     | Hence the two-pass first apply                                                                     |
+| Secret Manager **rejects an empty payload**                                              | An unconfigured Sentry stores `disabled`; the app treats a non-URL as off                          |
+| VPC peering needs more than `roles/editor`                                               | `servicenetworking.networksAdmin` + `compute.networkAdmin`                                         |
+| ADC's quota project is separate from `gcloud config`                                     | Wrong one gives `UNAUTHENTICATED`, not a permission error                                          |
+
 ## A note on IAM propagation
 
 Newly granted roles can take up to a minute to take effect. A

@@ -65,10 +65,9 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "NODE_ENV"
         value = "production"
       }
-      env {
-        name  = "PORT"
-        value = "3001"
-      }
+      # PORT is deliberately NOT set: Cloud Run injects it from
+      # container_port above and rejects the deploy if it is provided
+      # explicitly ("reserved env names were provided").
       env {
         name  = "REDIS_URL"
         value = local.redis_url
