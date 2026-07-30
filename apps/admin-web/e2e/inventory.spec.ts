@@ -48,6 +48,44 @@ test.describe('inventory grid', () => {
     expect(deluxe).toContain('0/5');
   });
 
+  /**
+   * Without a visible selected state a menu is just a row of links. Asserted
+   * through aria-current rather than a colour, so it also holds for anyone
+   * navigating by screen reader.
+   */
+  test('marks the current section in the menu', async ({ page }) => {
+    const data = testData();
+    const nav = page.getByRole('navigation', { name: 'Main' });
+
+    await expect(nav.getByRole('link', { name: 'Inventory' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(nav.getByRole('link', { name: 'Rooms', exact: true })).not.toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    await page.goto(`/properties/${data.propertyId}/rooms`);
+    await expect(nav.getByRole('link', { name: 'Rooms', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    // Exactly one, never two. A matcher that lights up several items is as
+    // useless as one that lights up none, and this is the assertion that
+    // actually fails if the comparison is wrong.
+    await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+  });
+
+  test('separates the hotel name from the menu', async ({ page }) => {
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    // The property name belongs to the context strip above, not among the
+    // menu items — which is what made it read as one of them.
+    await expect(nav.getByText('E2E Test Resort')).toHaveCount(0);
+    await expect(page.getByRole('banner').getByText('E2E Test Resort')).toBeVisible();
+  });
+
   test('shows the price in the same cell as the availability', async ({ page }) => {
     const deluxe = await cellText(page, 'Deluxe Double', testData().dates[0]!);
     // 250000 minor units in THB, compact and without a repeated symbol.

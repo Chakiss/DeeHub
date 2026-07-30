@@ -13,12 +13,12 @@ export function PropertySwitcher({
   const router = useRouter();
   const pathname = usePathname();
 
+  const current = properties.find((property) => property.id === currentId)?.name ?? '';
+
+  // One hotel: it is context, not a choice, so it reads as a label rather than
+  // pretending to be a control that does nothing when clicked.
   if (properties.length <= 1) {
-    return (
-      <span className="text-sm text-slate-400">
-        {properties.find((property) => property.id === currentId)?.name ?? ''}
-      </span>
-    );
+    return <span className="truncate text-sm font-medium text-white">{current}</span>;
   }
 
   return (
