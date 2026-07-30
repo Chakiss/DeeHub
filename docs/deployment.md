@@ -103,17 +103,85 @@ terraform apply \
 Region is `asia-southeast1` (Singapore) — the closest Google region to Thailand,
 and the one that keeps guest data nearest the market it serves.
 
+### Project bootstrap
+
+Run once, before Terraform. Requires an **open** billing account
+(`gcloud billing accounts list` — the `OPEN` column must be `True`).
+
+```bash
+export PROJECT=deehub-prod          # must be globally unique
+export BILLING=XXXXXX-XXXXXX-XXXXXX
+export REGION=asia-southeast1
+
+gcloud projects create "$PROJECT" --name="DeeHub Hotel"
+gcloud billing projects link "$PROJECT" --billing-account="$BILLING"
+gcloud config set project "$PROJECT"
+
+# Terraform enables the rest; these two are needed to create anything at all.
+gcloud services enable cloudresourcemanager.googleapis.com iam.googleapis.com
+```
+
+A **separate project** rather than an existing one: it makes billing legible,
+lets IAM be scoped to this product alone, and means deleting the project is a
+complete, reliable teardown.
+
 ### GitHub → GCP authentication
 
 CI uses **Workload Identity Federation**, not a service-account key. GitHub
 mints a short-lived token per run, so there is no long-lived credential in
-repository secrets to leak or rotate. Repository secrets needed:
+repository secrets to leak or rotate.
+
+```bash
+export REPO=YOUR_GITHUB_ORG/deehub-hotel
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')
+
+gcloud iam service-accounts create deehub-deployer \
+  --display-name="DeeHub CI deployer"
+DEPLOYER="deehub-deployer@${PROJECT}.iam.gserviceaccount.com"
+
+# Enough to push images and move Cloud Run traffic — not to read secrets or
+# reach the database.
+for ROLE in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding "$PROJECT" \
+    --member="serviceAccount:${DEPLOYER}" --role="$ROLE" --condition=None
+done
+
+gcloud iam workload-identity-pools create github \
+  --location=global --display-name="GitHub Actions"
+
+gcloud iam workload-identity-pools providers create-oidc github \
+  --location=global --workload-identity-pool=github \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --attribute-condition="assertion.repository=='${REPO}'"
+
+# The attribute condition above is the security boundary: without it ANY
+# GitHub repository in the world could mint a token for this service account.
+gcloud iam service-accounts add-iam-policy-binding "$DEPLOYER" \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/attribute.repository/${REPO}"
+
+echo "GCP_WORKLOAD_IDENTITY_PROVIDER=projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/providers/github"
+echo "GCP_DEPLOY_SERVICE_ACCOUNT=${DEPLOYER}"
+echo "GCP_PROJECT_ID=${PROJECT}"
+```
+
+Set those three as repository secrets (Settings → Secrets and variables →
+Actions).
 
 | Secret                           | Value                          |
 | -------------------------------- | ------------------------------ |
 | `GCP_PROJECT_ID`                 | Project id                     |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full provider resource name    |
 | `GCP_DEPLOY_SERVICE_ACCOUNT`     | Deployer service-account email |
+
+### Prerequisites on the operator's machine
+
+- **Terraform ≥ 1.9** (`terraform version`). The config declares this because
+  it uses provider features older releases reject.
+- **gcloud** authenticated as a user with project-creation and billing rights.
+- A **GitHub remote** — the deploy pipeline runs on GitHub Actions, so the
+  repository has to be pushed somewhere before any of it fires.
 
 ---
 
