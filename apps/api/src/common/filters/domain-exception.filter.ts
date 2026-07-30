@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch, HttpException, Logger, type ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Sentry } from '../../observability/sentry';
+import { reportError } from '../../observability/error-reporting';
 import {
   DateError,
   DomainError,
@@ -84,6 +85,17 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
     // Only genuinely unexpected failures are reported. Domain errors above are
     // normal outcomes — alerting on "room sold out" would bury the real ones.
+    //
+    // Cloud Error Reporting first, because it works with no account configured
+    // and is therefore what actually catches things today. Sentry runs too when
+    // a DSN exists.
+    reportError(exception, {
+      requestId,
+      method: request.method,
+      url: request.url,
+      userId: (request as { principal?: { id?: string } }).principal?.id ?? null,
+    });
+
     Sentry.withScope((scope) => {
       scope.setTag('requestId', requestId);
       scope.setContext('request', { method: request.method, url: request.url });

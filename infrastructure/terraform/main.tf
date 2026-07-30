@@ -32,6 +32,8 @@ locals {
     "servicenetworking.googleapis.com",
     "vpcaccess.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "monitoring.googleapis.com",
+    "clouderrorreporting.googleapis.com",
   ]
 }
 

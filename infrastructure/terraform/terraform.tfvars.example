@@ -9,3 +9,6 @@ web_image = "gcr.io/cloudrun/placeholder"
 
 # Set once the dashboard has a URL, so the API will accept its requests.
 cors_origins = ""
+
+# Where monitoring alerts are emailed.
+alert_email = "ops@example.com"

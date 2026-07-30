@@ -87,3 +87,8 @@ variable "cors_origins" {
   type        = string
   default     = ""
 }
+
+variable "alert_email" {
+  type        = string
+  description = "Where alerts go. Google emails a confirmation link that must be clicked before anything is delivered."
+}
