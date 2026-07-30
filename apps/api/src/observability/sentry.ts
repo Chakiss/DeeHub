@@ -12,7 +12,10 @@ import * as Sentry from '@sentry/node';
  */
 export function initSentry(component: 'api' | 'worker'): void {
   const dsn = process.env['SENTRY_DSN'];
-  if (!dsn) return;
+  // A real DSN is a URL. Secret Manager rejects an empty payload, so a
+  // deployment with no Sentry stores a placeholder instead — treat anything
+  // that is not a URL as "disabled" rather than letting the SDK choke on it.
+  if (!dsn || !dsn.startsWith('http')) return;
 
   Sentry.init({
     dsn,

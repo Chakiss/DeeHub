@@ -61,6 +61,21 @@ Then set these as GitHub repository secrets:
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/241535067762/locations/global/workloadIdentityPools/github/providers/github` |
 | `GCP_DEPLOY_SERVICE_ACCOUNT`     | `deehub-deployer@deehub-hotel.iam.gserviceaccount.com`                                 |
 
+## Two traps worth knowing
+
+**ADC quota project.** Terraform uses Application Default Credentials, which do
+not follow `gcloud config set project`. If yours points elsewhere, creating the
+private-services peering fails with `UNAUTHENTICATED` (code 16), which reads
+like an auth problem rather than a configuration one:
+
+```bash
+gcloud auth application-default set-quota-project deehub-hotel
+```
+
+**The first apply needs two passes.** Cloud Run will not create a service or
+job whose secret has no version, and Terraform deliberately never writes secret
+values. Apply, run `../set-secrets.sh`, apply again.
+
 ## A note on IAM propagation
 
 Newly granted roles can take up to a minute to take effect. A

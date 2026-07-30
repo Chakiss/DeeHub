@@ -123,11 +123,63 @@ terraform apply \
   -var api_image=gcr.io/cloudrun/placeholder \
   -var web_image=gcr.io/cloudrun/placeholder
 
-# 3. Secret values (section 3).
+# 3. Secret values (section 3) — REQUIRED between the two applies, see below.
 
-# 4. Seed the first organization and owner. There is no self-service signup
-#    yet, so this is currently a manual step against the production database.
+# 4. Re-apply. Cloud Run resources can now resolve their secrets.
+terraform apply -var project_id=PROJECT \
+  -var api_image=gcr.io/cloudrun/placeholder \
+  -var web_image=gcr.io/cloudrun/placeholder
+
+# 5. Build and deploy the real images.
+./infrastructure/first-deploy.sh
+
+# 6. Create the first organization and owner.
+pnpm --filter @deehub/api db:create-org -- \
+  --name "Hotel Group" --slug hotel-group \
+  --owner owner@hotel.example --property "Hotel Name"
 ```
+
+### The first apply takes two passes
+
+This is not optional, and it is not a bug to work around:
+
+**Cloud Run refuses to create a service or job whose secret has no version.**
+Terraform creates the secret _containers_ but deliberately never their values,
+so on a clean project the first apply gets as far as Cloud Run and stops. Run
+`set-secrets.sh`, then apply again.
+
+`database-url` is the exception — Terraform generates the password and writes
+that version itself — but it depends on Cloud SQL, which depends on the VPC
+peering, so it only appears once the network is up.
+
+### Permissions the operator needs
+
+`roles/editor` is not sufficient. Creating the private-services peering also
+requires:
+
+- `roles/servicenetworking.networksAdmin`
+- `roles/compute.networkAdmin`
+
+and managing IAM, service accounts and secrets requires
+`roles/resourcemanager.projectIamAdmin`, `roles/iam.serviceAccountAdmin`,
+`roles/iam.workloadIdentityPoolAdmin` and `roles/secretmanager.admin`.
+
+Newly granted roles take up to a minute to propagate. A `PERMISSION_DENIED`
+immediately after a grant is usually timing, not the wrong role.
+
+### Point ADC at this project
+
+Terraform authenticates with Application Default Credentials, which carry their
+own quota project — and it does **not** follow `gcloud config set project`. On a
+machine that has worked on other projects it will still point at whichever one
+was configured last, and service networking then fails with a confusing
+`UNAUTHENTICATED` (error code 16) rather than a permission error:
+
+```bash
+gcloud auth application-default set-quota-project deehub-hotel
+```
+
+Worth checking first on any machine that touches more than one GCP project.
 
 Region is `asia-southeast1` (Singapore) — the closest Google region to Thailand,
 and the one that keeps guest data nearest the market it serves.
