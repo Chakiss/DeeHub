@@ -29,6 +29,27 @@ interface Options {
   countryCode: string;
 }
 
+/**
+ * Environment fallback for each flag.
+ *
+ * Command-line flags are the nicer interface and win when present, but they are
+ * not usable everywhere this has to run. A Cloud Run job takes its arguments as
+ * a single delimited list that rejects a repeated value — so an organization and
+ * its property cannot share a name — and every candidate delimiter collides with
+ * the `@` in an owner's email address. Environment variables have neither
+ * problem, and the database itself is only reachable from inside the VPC, so a
+ * job is how this runs against production.
+ */
+const ENV_FALLBACK: Record<string, string> = {
+  name: 'DEEHUB_ORG_NAME',
+  slug: 'DEEHUB_ORG_SLUG',
+  owner: 'DEEHUB_OWNER_EMAIL',
+  property: 'DEEHUB_PROPERTY_NAME',
+  timezone: 'DEEHUB_TIMEZONE',
+  currency: 'DEEHUB_CURRENCY',
+  country: 'DEEHUB_COUNTRY',
+};
+
 function parseArgs(argv: string[]): Options {
   const flags = new Map<string, string>();
   for (let i = 0; i < argv.length; i += 1) {
@@ -42,13 +63,19 @@ function parseArgs(argv: string[]): Options {
     }
   }
 
+  for (const [flag, variable] of Object.entries(ENV_FALLBACK)) {
+    const value = process.env[variable];
+    if (!flags.has(flag) && value) flags.set(flag, value);
+  }
+
   const required = ['name', 'slug', 'owner', 'property'] as const;
   const missing = required.filter((key) => !flags.get(key));
   if (missing.length > 0) {
     throw new Error(
       `Missing required option(s): ${missing.map((key) => `--${key}`).join(', ')}\n` +
         'Usage: --name "Hotel Group" --slug hotel-group --owner owner@example.com ' +
-        '--property "Hotel Name" [--timezone Asia/Bangkok] [--currency THB] [--country TH]',
+        '--property "Hotel Name" [--timezone Asia/Bangkok] [--currency THB] [--country TH]\n' +
+        `Or set: ${missing.map((key) => ENV_FALLBACK[key]).join(', ')}`,
     );
   }
 
