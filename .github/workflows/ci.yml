@@ -1,11 +1,15 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
   # Lets the deploy workflow require a green build of the exact commit it ships.
   workflow_call:
+
+# Deliberately NOT triggered by push to main. Deploy already calls this workflow
+# for every main commit, and running both put two jobs in the same concurrency
+# group at once, so one cancelled the other — leaving a permanently "cancelled"
+# CI check on main that looked like a broken pipeline. Verification still runs
+# on every main commit; it just runs once, inside Deploy.
 
 concurrency:
   group: ci-${{ github.ref }}
