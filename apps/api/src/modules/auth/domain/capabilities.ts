@@ -107,6 +107,23 @@ export function capabilitiesFor(role: Role): ReadonlySet<Capability> {
   return ROLE_CAPABILITIES[role];
 }
 
+/**
+ * Seniority, from ROLES order: OWNER is 0 and the most senior.
+ *
+ * Used to stop privilege escalation. Capabilities alone cannot express it —
+ * an ADMIN holds `user:invite`, and nothing in the capability check says the
+ * invitee may not be made an OWNER, which would hand away more authority than
+ * the inviter has.
+ */
+export function roleRank(role: Role): number {
+  return ROLES.indexOf(role);
+}
+
+/** True when `actor` is at least as senior as `target`. */
+export function outranksOrEquals(actor: Role, target: Role): boolean {
+  return roleRank(actor) <= roleRank(target);
+}
+
 export interface Membership {
   readonly role: Role;
   /** null = organization-wide. */

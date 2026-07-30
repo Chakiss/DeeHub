@@ -24,6 +24,11 @@ export interface TestData {
   frontDeskEmail: string;
   /** Dedicated to the change-password spec, which mutates its credential. */
   passwordUserEmail: string;
+  /**
+   * Organization-wide OWNER. Every other fixture user is scoped to a property,
+   * which deliberately confers no authority over other people.
+   */
+  ownerEmail: string;
   dates: string[];
 }
 
@@ -72,6 +77,7 @@ export async function seed(): Promise<TestData> {
     managerEmail: `manager-${short}@e2e.test`,
     frontDeskEmail: `frontdesk-${short}@e2e.test`,
     passwordUserEmail: `password-${short}@e2e.test`,
+    ownerEmail: `owner-${short}@e2e.test`,
     // Far future so these never collide with seed data or a real booking.
     dates: ['2030-04-01', '2030-04-02', '2030-04-03', '2030-04-04', '2030-04-05', '2030-04-06'],
   };
@@ -123,6 +129,19 @@ export async function seed(): Promise<TestData> {
         [randomUUID(), data.organizationId, userId, data.propertyId, role],
       );
     }
+
+    // Organization-wide (propertyId NULL), so this one can administer people.
+    const ownerId = randomUUID();
+    await pool.query(
+      `INSERT INTO users (id, organization_id, email, password_hash, full_name)
+       VALUES ($1, $2, $3, $4, $3)`,
+      [ownerId, data.organizationId, data.ownerEmail, passwordHash],
+    );
+    await pool.query(
+      `INSERT INTO memberships (id, organization_id, user_id, property_id, role)
+       VALUES ($1, $2, $3, NULL, 'OWNER')`,
+      [randomUUID(), data.organizationId, ownerId],
+    );
 
     // Only the Deluxe room type gets inventory. The Standard is deliberately
     // left with no rows, so the grid's "not open for sale" state is exercised.

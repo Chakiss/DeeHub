@@ -5,6 +5,8 @@ import {
   capabilitiesFor,
   effectiveCapabilities,
   grantedCapabilities,
+  outranksOrEquals,
+  roleRank,
   ROLES,
   type Membership,
 } from './capabilities';
@@ -146,5 +148,34 @@ describe('canAccessProperty()', () => {
 
   it('denies a user with no memberships', () => {
     expect(canAccessProperty([], PROPERTY_A)).toBe(false);
+  });
+});
+
+describe('role seniority', () => {
+  it('ranks OWNER most senior and READ_ONLY least', () => {
+    expect(roleRank('OWNER')).toBeLessThan(roleRank('ADMIN'));
+    expect(roleRank('ADMIN')).toBeLessThan(roleRank('MANAGER'));
+    expect(roleRank('MANAGER')).toBeLessThan(roleRank('FRONT_DESK'));
+    expect(roleRank('FRONT_DESK')).toBeLessThan(roleRank('READ_ONLY'));
+  });
+
+  it('lets a role act on its own level', () => {
+    expect(outranksOrEquals('ADMIN', 'ADMIN')).toBe(true);
+  });
+
+  /**
+   * The rule capabilities cannot express. An ADMIN holds `user:invite`, and
+   * without this an ADMIN could create an OWNER — handing away more authority
+   * than they hold.
+   */
+  it('refuses to let a junior role act on a senior one', () => {
+    expect(outranksOrEquals('ADMIN', 'OWNER')).toBe(false);
+    expect(outranksOrEquals('MANAGER', 'ADMIN')).toBe(false);
+    expect(outranksOrEquals('READ_ONLY', 'FRONT_DESK')).toBe(false);
+  });
+
+  it('lets a senior role act on a junior one', () => {
+    expect(outranksOrEquals('OWNER', 'READ_ONLY')).toBe(true);
+    expect(outranksOrEquals('ADMIN', 'MANAGER')).toBe(true);
   });
 });

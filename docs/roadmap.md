@@ -48,15 +48,28 @@ Goal: the 90-day milestone — production-ready core with connector framework.
 **Milestone 1 exit criteria:** pilot hotels manage real inventory; Mock OTA
 round-trips bookings; zero platform-caused overbookings; sync < 60 s.
 
-**Status (2026-07-30).** Everything in Phases 0–2 is built and verified
-locally: the booking core with its proven overbooking guard, auth and the HTTP
-API, the worker with outbox relay and reconciliation, the OTA connector
-framework with a two-way Mock OTA round trip, the dashboard, and the deployment
-pipeline. Remaining before a pilot property can be onboarded:
+**Status (2026-07-30). Phase 2 is complete and deployed.** The three items
+that were outstanding are done: the infrastructure is applied (47 resources,
+clean plan), the first organization exists, and the dashboard has its own
+browser suite. Pushes to `main` build, verify and deploy on their own.
 
-1. Apply the Terraform and run the first real deploy (nothing has touched GCP).
-2. Dashboard tests — the backend has 282; the UI has none.
-3. Seed the first real organization; there is no self-service signup.
+Since then, and beyond the original Phase 2 scope, the product also has: room
+types, rate plans and nightly pricing through the UI — the whole path from an
+empty property to a sellable one — a password change that revokes every other
+session, and team administration with a one-time credential.
+
+**What a pilot property still cannot do**, in the order it will hurt:
+
+1. **Recover a forgotten password.** `forgot-password` / `reset-password` are
+   specified but not built, so an operator has to intervene. This is the first
+   thing to fix before hotel staff use the product daily.
+2. **Assign guests to physical rooms.** Rooms exist in the schema; there is no
+   Stay View, no housekeeping status, no check-in. That is Phase 4, and it is
+   what a front desk actually does all day.
+3. **Sell through an OTA.** The connector framework and Mock OTA work end to
+   end, but no real channel is connected — and doing so requires
+   `enable_channel_sync`, which adds Redis and an always-on worker (roughly
+   $80/month on top of the current ~$22).
 
 ## Phase 3 — First Real OTA + Booking Engine (Months 4–6)
 

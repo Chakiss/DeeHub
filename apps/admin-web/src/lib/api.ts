@@ -216,6 +216,20 @@ export interface RateUpdate {
   prices: { occupancy: number; amount: number }[];
 }
 
+export interface OrganizationUser {
+  id: string;
+  email: string;
+  fullName: string;
+  status: string;
+  lastLoginAt: string | null;
+  memberships: { role: string; propertyId: string | null }[];
+}
+
+/** Only ever present on the invite response — never stored, never re-fetchable. */
+export interface InvitedUser extends OrganizationUser {
+  temporaryPassword: string;
+}
+
 // --- Endpoints ---------------------------------------------------------------
 
 export const api = {
@@ -228,6 +242,17 @@ export const api = {
       memberships: { role: string; propertyId: string | null }[];
       capabilities: string[];
     }>('/auth/me'),
+
+  users: () => request<{ items: OrganizationUser[] }>('/users').then((body) => body.items),
+
+  inviteUser: (input: { email: string; fullName: string; role: string }) =>
+    request<InvitedUser>('/users', { method: 'POST', body: JSON.stringify(input) }),
+
+  updateUser: (
+    userId: string,
+    input: { fullName?: string; role?: string; status?: 'ACTIVE' | 'DISABLED' },
+  ) =>
+    request<OrganizationUser>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
   properties: () =>
     request<{ id: string; code: string; name: string; timezone: string; currency: string }[]>(

@@ -70,15 +70,18 @@ with no pagination — a property has tens of these, not thousands.
 JWT access token (15 min) in `Authorization: Bearer`, refresh token (30 days,
 rotating) in an httpOnly cookie for the dashboard.
 
-| Method | Path                    | Purpose                                                                             |
-| ------ | ----------------------- | ----------------------------------------------------------------------------------- |
-| `POST` | `/auth/login`           | email + password → access token + refresh cookie                                    |
-| `POST` | `/auth/refresh`         | rotate refresh token → new access token                                             |
-| `POST` | `/auth/logout`          | revoke the current refresh token                                                    |
-| `GET`  | `/auth/me`              | current user, memberships, accessible properties                                    |
-| `POST` | `/auth/change-password` | change your own password; revokes every other session                               |
-| `POST` | `/auth/forgot-password` | **planned** — send reset email (always 202, never reveals whether the email exists) |
-| `POST` | `/auth/reset-password`  | **planned** — consume reset token                                                   |
+| Method  | Path                    | Purpose                                                                             |
+| ------- | ----------------------- | ----------------------------------------------------------------------------------- |
+| `POST`  | `/auth/login`           | email + password → access token + refresh cookie                                    |
+| `POST`  | `/auth/refresh`         | rotate refresh token → new access token                                             |
+| `POST`  | `/auth/logout`          | revoke the current refresh token                                                    |
+| `GET`   | `/auth/me`              | current user, memberships, accessible properties                                    |
+| `POST`  | `/auth/change-password` | change your own password; revokes every other session                               |
+| `GET`   | `/users`                | people in the organization and their roles                                          |
+| `POST`  | `/users`                | create an account; returns a one-time password (no outbound email yet)              |
+| `PATCH` | `/users/{id}`           | change name, role or status; `DISABLED` replaces deletion                           |
+| `POST`  | `/auth/forgot-password` | **planned** — send reset email (always 202, never reveals whether the email exists) |
+| `POST`  | `/auth/reset-password`  | **planned** — consume reset token                                                   |
 
 Everything above without a **planned** marker is implemented. The two reset
 endpoints are not, which has a consequence worth stating plainly: a user who

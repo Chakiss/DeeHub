@@ -10,7 +10,8 @@
     "property": "Property",
     "account": "Account",
     "roomTypes": "Room types",
-    "ratePlans": "Rates"
+    "ratePlans": "Rates",
+    "team": "Team"
   },
   "login": {
     "title": "Sign in",
@@ -174,5 +175,45 @@
     "HALF_BOARD": "Half board",
     "FULL_BOARD": "Full board",
     "ALL_INCLUSIVE": "All inclusive"
+  },
+  "team": {
+    "title": "Team",
+    "subtitle": "Who can sign in, and what they are allowed to do.",
+    "invite": "Add colleague",
+    "email": "Email",
+    "fullName": "Full name",
+    "role": "Role",
+    "status": "Status",
+    "lastLogin": "Last sign-in",
+    "never": "Never",
+    "active": "Active",
+    "disabled": "Disabled",
+    "invited": "Invited",
+    "disable": "Disable",
+    "enable": "Enable",
+    "edit": "Edit",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "emailTaken": "That email already has an account in this organization.",
+    "failed": "Could not save.",
+    "noDelete": "Accounts are never deleted — audit entries and reservations point at who did what. Disable instead.",
+    "passwordTitle": "Account created",
+    "passwordIntro": "Give these to {name}. This password is shown once and cannot be retrieved again.",
+    "passwordAdvise": "Ask them to change it at Account as soon as they sign in.",
+    "copied": "Copied",
+    "copy": "Copy",
+    "cannotSelf": "You cannot change your own role or status.",
+    "roleHint": "You can only assign roles at or below your own.",
+    "noAccess": "You do not have access to the team list",
+    "noAccessHint": "Managing colleagues is an organization-wide permission. Someone with an organization-wide Admin or Owner role can grant it."
+  },
+  "roles": {
+    "OWNER": "Owner",
+    "ADMIN": "Admin",
+    "MANAGER": "Manager",
+    "FRONT_DESK": "Front desk",
+    "READ_ONLY": "Read only"
   }
 }
