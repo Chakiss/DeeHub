@@ -47,15 +47,23 @@ graph TB
   WRK -.relays outbox.-> RD
 ```
 
-| Process          | Responsibility                                                                     | Scaling                                            |
-| ---------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `apps/api`       | HTTP: admin dashboard, booking engine, OTA webhooks                                | Cloud Run, scale to zero, autoscale on requests    |
-| `apps/worker`    | BullMQ consumers: ARI push, reservation pull, outbox relay, expiry, reconciliation | Cloud Run with `min-instances=1` (must poll Redis) |
-| `apps/admin-web` | Next.js dashboard                                                                  | Cloud Run (or static + SSR)                        |
+| Process   | Entry point               | Responsibility                                                                     | Scaling                                            |
+| --------- | ------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------- |
+| API       | `apps/api/dist/main.js`   | HTTP: admin dashboard, booking engine, OTA webhooks                                | Cloud Run, scale to zero, autoscale on requests    |
+| Worker    | `apps/api/dist/worker.js` | BullMQ consumers: ARI push, reservation pull, outbox relay, expiry, reconciliation | Cloud Run with `min-instances=1` (must poll Redis) |
+| Admin web | `apps/admin-web`          | Next.js dashboard                                                                  | Cloud Run (or static + SSR)                        |
 
 Splitting the worker from the API is the one non-negotiable process
 boundary: a burst of OTA sync work must never make the front desk slow, and
 the two have opposite scaling profiles.
+
+**Two entry points, one build.** The worker is `apps/api/src/worker.ts` with
+its own root module (`WorkerModule`: no controllers, no HTTP guard, no request
+middleware), not a separate `apps/worker` package. Deployment is unchanged —
+two Cloud Run services from the same image, different commands, independent
+scaling — but a separate package would have to import the API package, whose
+entry point self-starts an HTTP server. Sharing the build avoids that
+awkwardness and guarantees both processes run identical domain code.
 
 ---
 
@@ -286,8 +294,9 @@ interface ChannelConnector {
 ```
 apps/
   api/            NestJS — modules per bounded context
+                  main.ts   → HTTP entry point
+                  worker.ts → BullMQ entry point (same build, own root module)
   admin-web/      Next.js dashboard
-  worker/         BullMQ consumers (imports api modules as a library)
   mock-ota/       Mock OTA service (Phase 2)
 packages/
   shared/         Money, DateRange, event contracts, zod schemas, error types
@@ -298,9 +307,9 @@ docs/             this documentation set
 ```
 
 Tooling: **pnpm workspaces + Turborepo** (fast, cached, well-suited to
-Next.js + NestJS in one repo). The worker imports application services from
-the API package rather than duplicating logic — same domain code, different
-entry point.
+Next.js + NestJS in one repo). The worker is a second entry point inside
+`apps/api` rather than its own package, so both processes share one build and
+one copy of the domain code (see §1).
 
 ---
 

@@ -9,3 +9,7 @@ allowBuilds:
   esbuild: true
   # Analytics telemetry. No functional purpose for us.
   '@scarf/scarf': false
+  # Optional native accelerator for BullMQ's job serialization. Declined: it
+  # would put build tooling back in the Docker image for a throughput gain we
+  # do not need at this scale, and msgpackr falls back to pure JS.
+  msgpackr-extract: false
