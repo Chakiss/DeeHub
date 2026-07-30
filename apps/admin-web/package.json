@@ -1,0 +1,30 @@
+{
+  "name": "@deehub/admin-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "test": "vitest run --passWithNoTests",
+    "start:standalone": "cp -r .next/static .next/standalone/apps/admin-web/.next/static && node .next/standalone/apps/admin-web/server.js"
+  },
+  "dependencies": {
+    "@deehub/shared": "workspace:*",
+    "next": "16.2.12",
+    "next-intl": "^4.13.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

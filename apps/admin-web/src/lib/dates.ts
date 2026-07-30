@@ -1,0 +1,71 @@
+/**
+ * Calendar-date helpers for the UI.
+ *
+ * Mirrors the rules in ADR-0003: a hotel night is a calendar date, and all
+ * arithmetic goes through UTC so a date never shifts because of the viewer's
+ * timezone or a daylight-saving boundary.
+ */
+
+const MILLIS_PER_DAY = 86_400_000;
+
+export function addDays(date: string, days: number): string {
+  const utc = Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)) - 1,
+    Number(date.slice(8, 10)) + days,
+  );
+  return new Date(utc).toISOString().slice(0, 10);
+}
+
+/** Today in the PROPERTY's timezone, never the server's or the browser's. */
+export function businessDate(timeZone: string, now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+  return parts;
+}
+
+export function weekdayLabel(date: string): string {
+  const utc = Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)) - 1,
+    Number(date.slice(8, 10)),
+  );
+  return new Date(utc).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+}
+
+export function dayLabel(date: string): string {
+  const utc = Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)) - 1,
+    Number(date.slice(8, 10)),
+  );
+  return new Date(utc).toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+}
+
+export function isWeekend(date: string): boolean {
+  const utc = Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)) - 1,
+    Number(date.slice(8, 10)),
+  );
+  const day = new Date(utc).getUTCDay();
+  return day === 5 || day === 6;
+}
+
+/** Integer minor units to a display string. Never divides by 100 as a float. */
+export function formatMoney(amount: number, currency: string, locale = 'en-US'): string {
+  const negative = amount < 0;
+  const absolute = Math.abs(amount);
+  const major = Math.trunc(absolute / 100);
+  const minor = absolute % 100;
+  const value = Number(`${negative ? '-' : ''}${String(major)}.${String(minor).padStart(2, '0')}`);
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value);
+}

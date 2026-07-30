@@ -13,19 +13,34 @@ import type { UserPrincipal } from '../../modules/auth/domain/auth.repository';
 import {
   canAccessProperty,
   effectiveCapabilities,
+  grantedCapabilities,
   type Capability,
 } from '../../modules/auth/domain/capabilities';
 import { setPropertyScope, setTenantScope } from '../tenant/tenant-context';
 
 const PUBLIC_KEY = 'deehub:public';
 const CAPABILITY_KEY = 'deehub:capability';
+const ANY_SCOPE_KEY = 'deehub:any-scope';
 
 /** Marks a route as reachable without a token (login, health, webhooks). */
 export const Public = (): CustomDecorator => SetMetadata(PUBLIC_KEY, true);
 
-/** Declares the capability a route requires. */
+/** Declares the capability a route requires, in the route's own scope. */
 export const RequireCapability = (capability: Capability): CustomDecorator =>
   SetMetadata(CAPABILITY_KEY, capability);
+
+/**
+ * Marks a route as SELF-SCOPING: the capability need only be held in some
+ * scope, and the handler is responsible for filtering results to what the
+ * caller may actually see.
+ *
+ * Needed because an organization-level route has no property in scope, so a
+ * property-scoped manager holds no capabilities there — which would make
+ * "list the properties I can access" permanently forbidden to exactly the
+ * people who need it. Kept as a separate, explicit decorator so this weaker
+ * check is visible in review rather than hidden inside the guard.
+ */
+export const SelfScoped = (): CustomDecorator => SetMetadata(ANY_SCOPE_KEY, true);
 
 export interface AuthenticatedRequest extends Request {
   principal?: UserPrincipal;
@@ -83,8 +98,15 @@ export class AuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (required && !capabilities.has(required)) {
-      throw errors.forbidden(required);
+    if (required) {
+      const selfScoped = this.reflector.getAllAndOverride<boolean>(ANY_SCOPE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+      const permitted = selfScoped
+        ? grantedCapabilities(principal.memberships).has(required)
+        : capabilities.has(required);
+      if (!permitted) throw errors.forbidden(required);
     }
 
     return true;

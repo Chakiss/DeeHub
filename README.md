@@ -17,7 +17,8 @@ pnpm infra:up          # Postgres, Redis, MinIO
 pnpm db:migrate        # apply migrations
 pnpm db:seed           # demo hotel, rates, a year of inventory, three users
 pnpm test              # unit + integration tests
-pnpm --filter @deehub/api dev        # HTTP API
+pnpm --filter @deehub/api dev        # HTTP API      :3001
+pnpm --filter @deehub/admin-web dev  # dashboard     :3000
 pnpm --filter @deehub/api dev:worker # background worker
 pnpm --filter @deehub/mock-ota dev   # stand-in OTA on :4001
 pnpm db:seed-channel                 # connect the demo hotel to it
@@ -66,6 +67,7 @@ a Postgres or Redis you already run: Postgres `15432`, Redis `16379`, MinIO
 apps/
   api/            NestJS — modular monolith, one module per bounded context
                   (main.ts = HTTP, worker.ts = background jobs)
+  admin-web/      Next.js dashboard — inventory grid, reservations
   mock-ota/       Stand-in OTA: the harness every connector is certified against
 packages/
   shared/         Money, hotel-night dates, error taxonomy, event contracts
@@ -84,6 +86,24 @@ docs/             design documentation (see below)
 | [database.md](docs/database.md)         | Schema, constraints, indexes, the queries that matter       |
 | [api-spec.md](docs/api-spec.md)         | REST contract, error taxonomy, idempotency                  |
 | [adr/](docs/adr/)                       | Architecture decision records                               |
+
+## Dashboard notes
+
+The dashboard is a **backend-for-frontend**: the browser never holds a DeeHub
+token. `/api/session/login` proxies to the API and stores tokens in httpOnly
+cookies on the dashboard's own origin; middleware refreshes them silently and
+rotates the refresh token. There is no CORS, and an XSS bug in a component
+cannot exfiltrate a session.
+
+Two things to know before deploying it:
+
+- `output: 'standalone'` does **not** include static assets. They must be
+  copied to `.next/standalone/apps/admin-web/.next/static` — the Dockerfile does
+  this. Without it the app serves HTML whose scripts and styles all 404, which
+  looks like a blank page with no error anywhere.
+- The API client in `src/lib/api.ts` is hand-written. architecture.md §8 calls
+  for one generated from the OpenAPI document with a CI drift check; that is
+  deferred until the endpoint surface settles.
 
 ## The one thing to know
 

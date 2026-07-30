@@ -276,8 +276,16 @@ interface ChannelConnector {
 
 - Server Components for data-heavy list/detail screens; Client Components for
   the interactive inventory calendar grid.
-- API access through a generated typed SDK (`packages/sdk`) produced from the
-  OpenAPI spec — no hand-written fetch calls, no client/server type drift.
+- API access through a typed client. The target is a generated SDK
+  (`packages/sdk`) produced from the OpenAPI document with a CI drift check;
+  **today it is hand-written** in `apps/admin-web/src/lib/api.ts` while the
+  endpoint surface is still moving. Recorded here rather than left implicit so
+  the deviation does not quietly become permanent.
+- The dashboard is a **backend-for-frontend**: the browser never holds a DeeHub
+  token. Login goes through the app's own route handler, which stores tokens in
+  httpOnly cookies on the dashboard origin; server components call the API and
+  middleware refreshes silently. This removes CORS entirely and means an XSS bug
+  in a component cannot exfiltrate a session.
 - Server-side state: TanStack Query. Forms: react-hook-form + zod, sharing
   validation schemas with the API through `packages/shared`.
 - Auth: JWT in httpOnly cookies, refresh handled in middleware; tokens never

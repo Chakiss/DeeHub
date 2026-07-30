@@ -13,3 +13,10 @@ allowBuilds:
   # would put build tooling back in the Docker image for a throughput gain we
   # do not need at this scale, and msgpackr falls back to pure JS.
   msgpackr-extract: false
+  # Next.js compiles with SWC; without this the dashboard cannot build.
+  '@swc/core': true
+  # Native file watching for `next dev`. Dev-only, no production surface.
+  '@parcel/watcher': true
+  # Image optimization. Declined until we actually serve room photos — it adds a
+  # native binary to the runtime image for a feature nothing uses yet.
+  sharp: false

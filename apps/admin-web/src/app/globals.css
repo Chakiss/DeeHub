@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: oklch(0.97 0.02 200);
+  --color-brand-100: oklch(0.93 0.05 200);
+  --color-brand-500: oklch(0.62 0.13 210);
+  --color-brand-600: oklch(0.54 0.13 210);
+  --color-brand-700: oklch(0.46 0.12 210);
+}
+
+/*
+ * The inventory grid is the screen staff live in. Tabular figures keep the
+ * numbers in a column from jittering as they change, which matters when you are
+ * scanning ninety cells for the one that is wrong.
+ */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+html {
+  color-scheme: light;
+}

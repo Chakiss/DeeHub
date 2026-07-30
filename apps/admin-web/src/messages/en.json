@@ -1,0 +1,70 @@
+{
+  "app": {
+    "name": "DeeHub",
+    "tagline": "Hotel platform"
+  },
+  "nav": {
+    "inventory": "Inventory",
+    "reservations": "Reservations",
+    "signOut": "Sign out",
+    "property": "Property"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Manage inventory, rates and reservations",
+    "organization": "Organization",
+    "organizationHint": "The slug your hotel signed up with",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "failed": "Sign in failed"
+  },
+  "inventory": {
+    "title": "Inventory",
+    "subtitle": "Rooms available to sell, by night",
+    "allotment": "Allotment",
+    "booked": "Booked",
+    "available": "Available",
+    "closed": "Closed",
+    "notOpen": "Not open for sale",
+    "minStay": "Minimum stay",
+    "stopSell": "Stop sell",
+    "edit": "Bulk edit",
+    "editTitle": "Update a date range",
+    "roomType": "Room type",
+    "from": "From",
+    "to": "To (exclusive)",
+    "weekdays": "Only these days",
+    "apply": "Apply",
+    "applying": "Applying…",
+    "cancel": "Cancel",
+    "updated": "{nights} night(s) updated",
+    "leaveUnchanged": "Leave unchanged",
+    "previous": "Previous",
+    "next": "Next",
+    "today": "Today"
+  },
+  "reservations": {
+    "title": "Reservations",
+    "subtitle": "Every booking for this property",
+    "code": "Reference",
+    "guest": "Guest",
+    "stay": "Stay",
+    "rooms": "Rooms",
+    "nights": "Nights",
+    "status": "Status",
+    "source": "Source",
+    "total": "Total",
+    "created": "Booked",
+    "search": "Search by reference, guest, email or phone",
+    "empty": "No reservations match these filters",
+    "loadMore": "Load more",
+    "allStatuses": "All statuses"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "allotmentBelowBooked": "Allotment cannot be lower than the rooms already sold",
+    "forbidden": "You do not have permission to do that"
+  }
+}
