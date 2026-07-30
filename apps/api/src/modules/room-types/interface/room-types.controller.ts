@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { RequireCapability, type AuthenticatedRequest } from '../../../common/guards/auth.guard';
-import type { AuditActor } from '../../../common/audit/audit.service';
+import { actorFrom } from '../../inventory/interface/inventory.controller';
 import { ListRoomTypesQuery } from '../application/list-room-types.query';
 import { CreateRoomTypeUseCase } from '../application/create-room-type.usecase';
 import { UpdateRoomTypeUseCase } from '../application/update-room-type.usecase';
@@ -77,7 +77,7 @@ export class RoomTypesController {
     @Body(new ZodValidationPipe(createSchema)) body: CreateBody,
     @Req() request: AuthenticatedRequest,
   ) {
-    return present(await this.create.execute({ propertyId, ...body }, actorOf(request)));
+    return present(await this.create.execute({ propertyId, ...body }, actorFrom(request)));
   }
 
   // No DELETE. Inventory, rates, reservations and channel mappings reference a
@@ -94,7 +94,7 @@ export class RoomTypesController {
     @Req() request: AuthenticatedRequest,
   ) {
     return present(
-      await this.update.execute({ propertyId, roomTypeId, fields: body }, actorOf(request)),
+      await this.update.execute({ propertyId, roomTypeId, fields: body }, actorFrom(request)),
     );
   }
 }
@@ -112,16 +112,5 @@ function present(row: RoomTypeRecord) {
     maxChildren: row.maxChildren,
     sortOrder: row.sortOrder,
     isActive: row.isActive,
-  };
-}
-
-function actorOf(request: AuthenticatedRequest): AuditActor {
-  const principal = request.principal;
-  return {
-    type: 'USER',
-    id: principal?.id ?? null,
-    label: principal?.email ?? 'unknown',
-    ip: request.ip ?? null,
-    userAgent: request.headers['user-agent'] ?? null,
   };
 }

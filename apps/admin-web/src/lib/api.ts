@@ -1,5 +1,6 @@
 import 'server-only';
 import { apiBaseUrl, getAccessToken } from './session';
+import type { MealPlan } from './meal-plans';
 
 /**
  * Typed client for the DeeHub API.
@@ -180,6 +181,41 @@ export type UpdateRoomTypeInput = Partial<Omit<CreateRoomTypeInput, 'code'>> & {
   isActive?: boolean;
 };
 
+export interface RatePlan {
+  id: string;
+  roomTypeId: string;
+  code: string;
+  name: string;
+  mealPlan: string;
+  isRefundable: boolean;
+  isActive: boolean;
+}
+
+export interface CreateRatePlanInput {
+  roomTypeId: string;
+  code: string;
+  name: string;
+  mealPlan: MealPlan;
+  isRefundable: boolean;
+}
+
+/** Neither code nor roomTypeId: both are fixed once the plan exists. */
+export interface UpdateRatePlanInput {
+  name?: string;
+  mealPlan?: MealPlan;
+  isRefundable?: boolean;
+  isActive?: boolean;
+}
+
+export interface RateUpdate {
+  ratePlanId: string;
+  from: string;
+  to: string;
+  daysOfWeek?: string[];
+  /** One entry per occupancy; amounts are integer minor units (ADR-0003). */
+  prices: { occupancy: number; amount: number }[];
+}
+
 // --- Endpoints ---------------------------------------------------------------
 
 export const api = {
@@ -213,6 +249,29 @@ export const api = {
     request<RoomType>(`/properties/${propertyId}/room-types/${roomTypeId}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
+    }),
+
+  ratePlans: (propertyId: string) =>
+    request<{ items: RatePlan[] }>(`/properties/${propertyId}/rate-plans`).then(
+      (body) => body.items,
+    ),
+
+  createRatePlan: (propertyId: string, input: CreateRatePlanInput) =>
+    request<RatePlan>(`/properties/${propertyId}/rate-plans`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateRatePlan: (propertyId: string, ratePlanId: string, input: UpdateRatePlanInput) =>
+    request<RatePlan>(`/properties/${propertyId}/rate-plans/${ratePlanId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  updateRates: (propertyId: string, updates: RateUpdate[]) =>
+    request<{ nightsUpdated: number }>(`/properties/${propertyId}/rates`, {
+      method: 'PATCH',
+      body: JSON.stringify({ updates }),
     }),
 
   inventoryGrid: (propertyId: string, from: string, to: string) =>
