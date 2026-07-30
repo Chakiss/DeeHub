@@ -34,6 +34,34 @@ export interface RateRepository {
     ratePlanIds: readonly string[],
     dates: readonly IsoDate[],
   ): Promise<readonly RateRow[]>;
+
+  /**
+   * The lowest active price per room type per night, at that room type's
+   * standard occupancy — the "from" price a guest sees.
+   *
+   * Lowest rather than a nominated plan: a room type usually carries several
+   * (non-refundable, breakfast included, and so on), and the cheapest is what
+   * an OTA advertises, so it is the number an operator is deciding against.
+   * `planCount` says how many plans priced that night, because a single figure
+   * standing for five plans is worth knowing about.
+   *
+   * A night missing from the result has NO price. That is not the same as free:
+   * a night with allotment and no rate cannot be booked at all.
+   */
+  findLeadRates(
+    tx: Executor,
+    propertyId: string,
+    roomTypeIds: readonly string[],
+    dates: readonly IsoDate[],
+  ): Promise<readonly LeadRate[]>;
+}
+
+export interface LeadRate {
+  readonly roomTypeId: string;
+  readonly date: IsoDate;
+  readonly amountMinor: number;
+  readonly currency: string;
+  readonly planCount: number;
 }
 
 export interface RateRow {

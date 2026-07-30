@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { InventoryGrid as Grid, InventoryDay } from '@/lib/api';
-import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
+import { addDays, dayLabel, formatMoneyCompact, isWeekend, weekdayLabel } from '@/lib/dates';
 import { BulkEditDialog } from './bulk-edit-dialog';
 
 export function InventoryGrid({
@@ -78,7 +78,7 @@ export function InventoryGrid({
               {dates.map((date) => (
                 <th
                   key={date}
-                  className={`min-w-[62px] border-b border-slate-200 px-1 py-2 text-center font-medium ${
+                  className={`min-w-[68px] border-b border-slate-200 px-1 py-2 text-center font-medium ${
                     isWeekend(date) ? 'bg-slate-100 text-slate-700' : 'bg-slate-50 text-slate-600'
                   }`}
                 >
@@ -103,10 +103,13 @@ export function InventoryGrid({
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <OccupancyRow grid={grid} dates={dates} />
+          </tfoot>
         </table>
       </div>
 
-      <Legend />
+      <Legend currency={currencyOf(grid)} />
 
       {editing && (
         <BulkEditDialog
@@ -139,32 +142,68 @@ function Cell({ day }: { day: InventoryDay }) {
 
   const soldOut = day.available === 0;
   const tight = !soldOut && day.available <= 2;
+  // Rooms to sell and no price to sell them at. Every other screen shows this
+  // night as bookable; it fails only when a guest tries.
+  const unsellable = day.allotment > 0 && day.rate === null;
+
+  const tooltip = [
+    `${t('allotment')} ${String(day.allotment)}`,
+    `${t('booked')} ${String(day.booked)}`,
+    day.rate
+      ? `${t('rate')} ${formatMoneyCompact(day.rate.amountMinor)} ${day.rate.currency}`
+      : t('noRateWarning'),
+    day.rate && day.rate.planCount > 1
+      ? t('plansPriced', { count: day.rate.planCount })
+      : undefined,
+    day.stopSell ? t('stopSell') : undefined,
+    day.minStay > 1 ? `${t('minStay')} ${String(day.minStay)}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <td
-      title={`${t('allotment')} ${String(day.allotment)} · ${t('booked')} ${String(day.booked)}${
-        day.stopSell ? ` · ${t('stopSell')}` : ''
-      }${day.minStay > 1 ? ` · ${t('minStay')} ${String(day.minStay)}` : ''}`}
-      className={`border-b border-slate-100 px-1 py-2 text-center ${
+      title={tooltip}
+      className={`border-b border-slate-100 px-1 py-1.5 text-center ${
         day.stopSell
           ? 'bg-rose-50'
-          : soldOut
-            ? 'bg-amber-50'
-            : isWeekend(day.date)
-              ? 'bg-slate-50/60'
-              : ''
+          : unsellable
+            ? 'bg-orange-50'
+            : soldOut
+              ? 'bg-amber-50'
+              : isWeekend(day.date)
+                ? 'bg-slate-50/60'
+                : ''
       }`}
     >
       <div
-        className={`tabular text-sm font-medium ${
+        className={`tabular text-sm font-medium leading-tight ${
           soldOut ? 'text-amber-700' : tight ? 'text-orange-600' : 'text-slate-800'
         }`}
       >
         {day.available}
       </div>
-      <div className="tabular text-[10px] text-slate-400">
+      <div className="tabular text-[10px] leading-tight text-slate-400">
         {day.booked}/{day.allotment}
       </div>
+
+      {/* Price in the same cell as availability, so "can I sell it" and "for
+          how much" are one glance rather than two rows apart. */}
+      {day.rate ? (
+        <div className="tabular text-[11px] leading-tight text-slate-600">
+          {formatMoneyCompact(day.rate.amountMinor)}
+          {day.rate.planCount > 1 && <span className="text-slate-300"> +</span>}
+        </div>
+      ) : (
+        <div
+          className={`text-[10px] leading-tight ${
+            unsellable ? 'font-medium text-orange-700' : 'text-slate-300'
+          }`}
+        >
+          {t('noRate')}
+        </div>
+      )}
+
       {(day.stopSell || day.minStay > 1) && (
         <div className="mt-0.5 flex justify-center gap-0.5">
           {day.stopSell && <Badge tone="rose">×</Badge>}
@@ -172,6 +211,61 @@ function Cell({ day }: { day: InventoryDay }) {
         </div>
       )}
     </td>
+  );
+}
+
+/**
+ * Occupancy across the room types currently shown.
+ *
+ * Sold over allotment, not over physical rooms: allotment is what the property
+ * chose to sell that night, so it is the number the percentage should be
+ * measured against (ADR-0002).
+ */
+function OccupancyRow({ grid, dates }: { grid: Grid; dates: string[] }) {
+  const t = useTranslations('inventory');
+
+  return (
+    <tr className="border-t-2 border-slate-200 bg-slate-50">
+      <th className="sticky left-0 z-10 border-r border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-medium text-slate-600">
+        {t('occupancy')}
+      </th>
+      {dates.map((date, index) => {
+        let booked = 0;
+        let allotment = 0;
+        for (const row of grid.roomTypes) {
+          const day = row.days[index];
+          if (day?.open) {
+            booked += day.booked;
+            allotment += day.allotment;
+          }
+        }
+
+        // No allotment is not 0% occupancy — nothing was offered, so there is
+        // no ratio to report.
+        const percent = allotment === 0 ? null : Math.round((booked / allotment) * 100);
+
+        return (
+          <td key={date} className="px-1 py-2 text-center align-bottom">
+            {percent === null ? (
+              <span className="text-[10px] text-slate-300">—</span>
+            ) : (
+              <>
+                <div className="mx-auto h-1 w-8 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className={`h-full ${percent >= 90 ? 'bg-amber-500' : 'bg-brand-500'}`}
+                    style={{ width: `${String(Math.min(percent, 100))}%` }}
+                  />
+                </div>
+                <div className="tabular mt-0.5 text-[10px] text-slate-500">{percent}%</div>
+                <div className="tabular text-[9px] text-slate-400">
+                  {booked}/{allotment}
+                </div>
+              </>
+            )}
+          </td>
+        );
+      })}
+    </tr>
   );
 }
 
@@ -187,18 +281,32 @@ function Badge({ tone, children }: { tone: 'rose' | 'slate'; children: React.Rea
   );
 }
 
-function Legend() {
+function Legend({ currency }: { currency: string | null }) {
   const t = useTranslations('inventory');
   return (
-    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
       <LegendItem className="bg-amber-50 text-amber-700">0</LegendItem>
       <span>{t('available')} 0</span>
       <LegendItem className="bg-rose-50 text-rose-700">×</LegendItem>
       <span>{t('stopSell')}</span>
       <LegendItem className="bg-slate-100 text-slate-400">—</LegendItem>
       <span>{t('notOpen')}</span>
+      <LegendItem className="bg-orange-50 text-orange-700">!</LegendItem>
+      <span>{t('noRateWarning')}</span>
+      {/* Stated once here rather than repeated in every cell. */}
+      {currency && <span className="ml-auto">{t('pricesIn', { currency })}</span>}
     </div>
   );
+}
+
+/** The property's currency, read off the first priced night in the grid. */
+function currencyOf(grid: Grid): string | null {
+  for (const row of grid.roomTypes) {
+    for (const day of row.days) {
+      if (day.rate) return day.rate.currency;
+    }
+  }
+  return null;
 }
 
 function LegendItem({ className, children }: { className: string; children: React.ReactNode }) {

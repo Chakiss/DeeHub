@@ -60,6 +60,25 @@ export function isWeekend(date: string): boolean {
   return day === 5 || day === 6;
 }
 
+/**
+ * Compact money for a calendar cell: "2,500", or "1,990.50" when there are
+ * cents.
+ *
+ * No currency symbol — every price in the grid is in the property's own
+ * currency (ADR-0003), so repeating it 21 times across a row costs width that
+ * the availability numbers need. The currency is stated once, in the legend.
+ */
+export function formatMoneyCompact(amount: number, locale = 'en-US'): string {
+  const negative = amount < 0;
+  const absolute = Math.abs(amount);
+  const major = Math.trunc(absolute / 100);
+  const minor = absolute % 100;
+
+  const majorText = new Intl.NumberFormat(locale).format(major);
+  const text = minor === 0 ? majorText : `${majorText}.${String(minor).padStart(2, '0')}`;
+  return negative ? `-${text}` : text;
+}
+
 /** Integer minor units to a display string. Never divides by 100 as a float. */
 export function formatMoney(amount: number, currency: string, locale = 'en-US'): string {
   const negative = amount < 0;

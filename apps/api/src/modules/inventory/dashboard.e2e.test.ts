@@ -185,6 +185,100 @@ describeIfDb('dashboard endpoints', () => {
       expect(row.days[0]).toMatchObject({ open: false, available: 0, allotment: 0 });
     });
 
+    it('carries the lead price at the room type standard occupancy', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/properties/${propertyId}/inventory?from=2027-03-01&to=2027-03-02`)
+        .set(auth(frontDeskToken))
+        .expect(200);
+
+      const deluxe = response.body.roomTypes.find((row: { code: string }) => row.code === 'DLX');
+      // Standard occupancy is 2, and only the occupancy-2 price is the one a
+      // guest would be quoted for the room as sold.
+      expect(deluxe.days[0].rate).toMatchObject({
+        amountMinor: 250000,
+        currency: 'THB',
+        planCount: 1,
+      });
+    });
+
+    /**
+     * The combination worth catching. A night with rooms and no price looks
+     * bookable everywhere else and then fails with RATE_MISSING when a guest
+     * tries, so the grid has to be able to say so.
+     */
+    it('reports a night that is open for sale but has no price', async () => {
+      await pool.query(
+        `INSERT INTO inventory_days (organization_id, property_id, room_type_id, date, allotment, booked)
+         VALUES ($1, $2, $3, '2027-03-01', 4, 0)`,
+        [orgId, propertyId, otherRoomTypeId],
+      );
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/properties/${propertyId}/inventory?from=2027-03-01&to=2027-03-02`)
+        .set(auth(frontDeskToken))
+        .expect(200);
+
+      const standard = response.body.roomTypes.find((row: { code: string }) => row.code === 'STD');
+      expect(standard.days[0]).toMatchObject({ open: true, available: 4, rate: null });
+    });
+
+    it('takes the lowest price when several plans plan the same night', async () => {
+      const cheaperPlanId = crypto.randomUUID();
+      await pool.query(
+        `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name)
+         VALUES ($1, $2, $3, $4, 'NRF', 'Non-refundable')`,
+        [cheaperPlanId, orgId, propertyId, roomTypeId],
+      );
+      await pool.query(
+        `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date, occupancy, amount_minor, currency)
+         VALUES ($1, $2, $3, '2027-03-01', 2, 199000, 'THB')`,
+        [orgId, propertyId, cheaperPlanId],
+      );
+
+      try {
+        const response = await request(app.getHttpServer())
+          .get(`/api/v1/properties/${propertyId}/inventory?from=2027-03-01&to=2027-03-02`)
+          .set(auth(frontDeskToken))
+          .expect(200);
+
+        const deluxe = response.body.roomTypes.find((row: { code: string }) => row.code === 'DLX');
+        // The "from" price an OTA advertises, and planCount so a single figure
+        // standing for several plans is visible as such.
+        expect(deluxe.days[0].rate).toMatchObject({ amountMinor: 199000, planCount: 2 });
+      } finally {
+        await pool.query('DELETE FROM rate_days WHERE rate_plan_id = $1', [cheaperPlanId]);
+        await pool.query('DELETE FROM rate_plans WHERE id = $1', [cheaperPlanId]);
+      }
+    });
+
+    it('ignores a deactivated rate plan', async () => {
+      const retiredId = crypto.randomUUID();
+      await pool.query(
+        `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name, is_active)
+         VALUES ($1, $2, $3, $4, 'OLD', 'Retired', false)`,
+        [retiredId, orgId, propertyId, roomTypeId],
+      );
+      await pool.query(
+        `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date, occupancy, amount_minor, currency)
+         VALUES ($1, $2, $3, '2027-03-01', 2, 1000, 'THB')`,
+        [orgId, propertyId, retiredId],
+      );
+
+      try {
+        const response = await request(app.getHttpServer())
+          .get(`/api/v1/properties/${propertyId}/inventory?from=2027-03-01&to=2027-03-02`)
+          .set(auth(frontDeskToken))
+          .expect(200);
+
+        const deluxe = response.body.roomTypes.find((row: { code: string }) => row.code === 'DLX');
+        // A price nobody can book must not become the number on the screen.
+        expect(deluxe.days[0].rate).toMatchObject({ amountMinor: 250000, planCount: 1 });
+      } finally {
+        await pool.query('DELETE FROM rate_days WHERE rate_plan_id = $1', [retiredId]);
+        await pool.query('DELETE FROM rate_plans WHERE id = $1', [retiredId]);
+      }
+    });
+
     it('rejects an inverted or oversized range', async () => {
       await request(app.getHttpServer())
         .get(`/api/v1/properties/${propertyId}/inventory?from=2027-03-05&to=2027-03-01`)

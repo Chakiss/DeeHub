@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { money, toIsoDate, type IsoDate, type Money } from '@deehub/shared';
-import { rateDays } from '../../../database/schema';
+import { ratePlans, rateDays, roomTypes } from '../../../database/schema';
 import type { Executor } from '../../../database/executor';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
-import type { RateRepository, RateRow } from '../domain/rate.repository';
+import type { LeadRate, RateRepository, RateRow } from '../domain/rate.repository';
 
 @Injectable()
 export class DrizzleRateRepository implements RateRepository {
@@ -61,6 +61,56 @@ export class DrizzleRateRepository implements RateRepository {
         ),
       )
       .orderBy(rateDays.date, rateDays.occupancy);
+
+    return rows.map((row) => ({ ...row, date: toIsoDate(row.date) }));
+  }
+
+  async findLeadRates(
+    tx: Executor,
+    propertyId: string,
+    roomTypeIds: readonly string[],
+    dates: readonly IsoDate[],
+  ): Promise<readonly LeadRate[]> {
+    if (roomTypeIds.length === 0 || dates.length === 0) return [];
+    const organizationId = requireOrganizationId();
+
+    const rows = await tx
+      .select({
+        roomTypeId: ratePlans.roomTypeId,
+        date: rateDays.date,
+        amountMinor: sql<number>`min(${rateDays.amountMinor})::int`,
+        currency: rateDays.currency,
+        planCount: sql<number>`count(distinct ${ratePlans.id})::int`,
+      })
+      .from(rateDays)
+      // Inactive plans are excluded: a price nobody can book should not be the
+      // number an operator reads off the grid.
+      .innerJoin(
+        ratePlans,
+        and(eq(ratePlans.id, rateDays.ratePlanId), eq(ratePlans.isActive, true)),
+      )
+      // Joined to compare occupancy against each room type's OWN standard.
+      // A fixed occupancy would silently show nothing for a family room whose
+      // standard is 4.
+      .innerJoin(
+        roomTypes,
+        and(
+          eq(roomTypes.id, ratePlans.roomTypeId),
+          eq(rateDays.occupancy, roomTypes.standardOccupancy),
+        ),
+      )
+      .where(
+        and(
+          eq(rateDays.organizationId, organizationId),
+          eq(rateDays.propertyId, propertyId),
+          inArray(ratePlans.roomTypeId, [...roomTypeIds]),
+          inArray(rateDays.date, [...dates]),
+        ),
+      )
+      // Currency is grouped, not aggregated: a property has one currency
+      // (ADR-0003), so a second row here would mean data we should not average
+      // over anyway.
+      .groupBy(ratePlans.roomTypeId, rateDays.date, rateDays.currency);
 
     return rows.map((row) => ({ ...row, date: toIsoDate(row.date) }));
   }

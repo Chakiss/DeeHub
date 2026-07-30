@@ -48,7 +48,14 @@
     "today": "Today",
     "noRoomTypes": "No room types yet",
     "noRoomTypesHint": "Availability is held per room type, so there is nothing to load until you have at least one.",
-    "goToRoomTypes": "Add a room type"
+    "goToRoomTypes": "Add a room type",
+    "rate": "Rate",
+    "noRate": "no rate",
+    "noRateWarning": "Open for sale with no price — these nights cannot be booked.",
+    "plansPriced": "{count} rate plans priced this night",
+    "occupancy": "Occupancy",
+    "sold": "sold",
+    "pricesIn": "Prices in {currency}"
   },
   "reservations": {
     "title": "Reservations",

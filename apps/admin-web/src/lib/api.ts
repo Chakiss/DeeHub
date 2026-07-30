@@ -83,6 +83,11 @@ export interface InventoryDay {
   closedToArrival: boolean;
   closedToDeparture: boolean;
   open: boolean;
+  /**
+   * Lowest active price at standard occupancy, or null when the night has no
+   * price at all. Null with allotment means the night cannot actually be sold.
+   */
+  rate: { amountMinor: number; currency: string; planCount: number } | null;
 }
 
 export interface InventoryRow {
