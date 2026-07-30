@@ -70,14 +70,22 @@ with no pagination — a property has tens of these, not thousands.
 JWT access token (15 min) in `Authorization: Bearer`, refresh token (30 days,
 rotating) in an httpOnly cookie for the dashboard.
 
-| Method | Path                    | Purpose                                                               |
-| ------ | ----------------------- | --------------------------------------------------------------------- |
-| `POST` | `/auth/login`           | email + password → access token + refresh cookie                      |
-| `POST` | `/auth/refresh`         | rotate refresh token → new access token                               |
-| `POST` | `/auth/logout`          | revoke the current refresh token                                      |
-| `GET`  | `/auth/me`              | current user, memberships, accessible properties                      |
-| `POST` | `/auth/forgot-password` | send reset email (always 202, never reveals whether the email exists) |
-| `POST` | `/auth/reset-password`  | consume reset token                                                   |
+| Method | Path                    | Purpose                                                                             |
+| ------ | ----------------------- | ----------------------------------------------------------------------------------- |
+| `POST` | `/auth/login`           | email + password → access token + refresh cookie                                    |
+| `POST` | `/auth/refresh`         | rotate refresh token → new access token                                             |
+| `POST` | `/auth/logout`          | revoke the current refresh token                                                    |
+| `GET`  | `/auth/me`              | current user, memberships, accessible properties                                    |
+| `POST` | `/auth/change-password` | change your own password; revokes every other session                               |
+| `POST` | `/auth/forgot-password` | **planned** — send reset email (always 202, never reveals whether the email exists) |
+| `POST` | `/auth/reset-password`  | **planned** — consume reset token                                                   |
+
+Everything above without a **planned** marker is implemented. The two reset
+endpoints are not, which has a consequence worth stating plainly: a user who
+forgets their password cannot recover it themselves today. An operator has to
+create a new account or update the hash directly. `POST /auth/change-password`
+covers the case that matters at onboarding — replacing the generated password a
+hotel is handed — but it requires knowing the current one.
 
 ```jsonc
 // POST /auth/login → 200
