@@ -64,6 +64,40 @@ export async function updateRoom(
  * overlapping nights — the API refuses it at the database, and the message
  * names the dates so the front desk can act on it.
  */
+/**
+ * Check in. The API refuses unless every room is assigned and the booking
+ * arrives today or earlier — those messages are passed through so the front
+ * desk sees which condition failed.
+ */
+export async function checkIn(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+): Promise<AssignResult> {
+  try {
+    await api.checkIn(propertyId, reservationId, version);
+    revalidate(propertyId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Check out, which also hands the rooms to housekeeping as DIRTY. */
+export async function checkOut(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+): Promise<AssignResult> {
+  try {
+    await api.checkOut(propertyId, reservationId, version);
+    revalidate(propertyId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export async function assignRoom(
   propertyId: string,
   stayId: string,

@@ -49,6 +49,13 @@ export const reservations = pgTable(
     totalMinor: bigint('total_minor', { mode: 'number' }).notNull().default(0),
     /** PENDING holds expire and release inventory; unbounded holds are a denial vector. */
     holdExpiresAt: timestamp('hold_expires_at', { withTimezone: true }),
+    /**
+     * When the guest actually arrived and left, as opposed to the dates they
+     * booked. Reports on early arrivals, late departures and same-day turnover
+     * need the real times, and the audit trail is not a place to aggregate over.
+     */
+    checkedInAt: timestamp('checked_in_at', { withTimezone: true }),
+    checkedOutAt: timestamp('checked_out_at', { withTimezone: true }),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
     cancellationReason: text('cancellation_reason'),
     specialRequests: text('special_requests'),

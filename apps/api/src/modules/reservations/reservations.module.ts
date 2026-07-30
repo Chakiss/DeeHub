@@ -3,6 +3,8 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { PropertiesModule } from '../properties/properties.module';
 import { RatesModule } from '../rates/rates.module';
 import { CancelReservationUseCase } from './application/cancel-reservation.usecase';
+import { CheckInUseCase } from './application/check-in.usecase';
+import { CheckOutUseCase } from './application/check-out.usecase';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
 import { GetReservationQuery } from './application/get-reservation.query';
 import { ListReservationsQuery } from './application/list-reservations.query';
@@ -24,6 +26,8 @@ import { ReservationsController } from './interface/reservations.controller';
     { provide: RESERVATION_REPOSITORY, useClass: DrizzleReservationRepository },
     CreateReservationUseCase,
     CancelReservationUseCase,
+    CheckInUseCase,
+    CheckOutUseCase,
     GetReservationQuery,
     ListReservationsQuery,
   ],

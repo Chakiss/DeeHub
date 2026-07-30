@@ -43,6 +43,47 @@ async function book(
   expect(response.ok(), await response.text()).toBeTruthy();
 }
 
+/**
+ * Open allotment and price a range.
+ *
+ * The fixture only seeds far-future dates, so a test that needs to book for
+ * TODAY — check-in refuses a future arrival — has to open today first, exactly
+ * as a hotel would.
+ */
+async function openForSale(
+  request: import('@playwright/test').APIRequestContext,
+  token: string,
+  from: string,
+  to: string,
+): Promise<void> {
+  const data = testData();
+  const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+
+  const inventory = await request.patch(`${API}/properties/${data.propertyId}/inventory`, {
+    headers,
+    data: { updates: [{ roomTypeId: data.roomTypeId, from, to, allotment: 3 }] },
+  });
+  expect(inventory.ok(), await inventory.text()).toBeTruthy();
+
+  const rates = await request.patch(`${API}/properties/${data.propertyId}/rates`, {
+    headers,
+    data: {
+      updates: [
+        {
+          ratePlanId: data.ratePlanId,
+          from,
+          to,
+          prices: [
+            { occupancy: 1, amount: 90000 },
+            { occupancy: 2, amount: 120000 },
+          ],
+        },
+      ],
+    },
+  });
+  expect(rates.ok(), await rates.text()).toBeTruthy();
+}
+
 /** Options read "201 — Deluxe Double", so pick by value rather than by label. */
 async function selectRoom(
   dialog: import('@playwright/test').Locator,
@@ -148,6 +189,46 @@ test.describe('rooms and stay view', () => {
     await dialog.getByRole('button', { name: 'Assign' }).click();
 
     await expect(dialog.getByRole('alert')).toContainText('201');
+  });
+
+  /**
+   * The front desk's day: a guest arrives, gets a key, leaves, and the room
+   * goes to housekeeping without anyone typing it in.
+   */
+  test('checks a guest in, then out, and the room becomes dirty', async ({ page, request }) => {
+    const data = testData();
+    // Arriving today: the API refuses a check-in for a future arrival.
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    const tomorrow = new Date(`${today}T00:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+    const stop = tomorrow.toISOString().slice(0, 10);
+    const guest = `Arrival ${Date.now().toString(36)}`;
+    const token = await apiToken(request);
+    await openForSale(request, token, today, stop);
+    await book(request, token, guest, today, stop);
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/stay-view?from=${today}`);
+
+    const worklist = page.getByRole('listitem').filter({ hasText: guest });
+    await worklist.getByRole('button', { name: 'Assign' }).click();
+    const dialog = page.getByRole('dialog', { name: new RegExp(guest) });
+    await selectRoom(dialog, '202');
+    await dialog.getByRole('button', { name: 'Assign' }).click();
+
+    const row = page.getByRole('row', { name: /202/ });
+    await expect(row).toContainText(guest);
+
+    await row.getByRole('button', { name: 'Check in' }).click();
+    await expect.poll(async () => row.textContent()).toContain('Check out');
+
+    await row.getByRole('button', { name: 'Check out' }).click();
+    await expect.poll(async () => row.textContent()).toContain('Departed');
+
+    // The handover that makes check-out worth modelling.
+    await page.goto(`/properties/${data.propertyId}/rooms`);
+    await expect(page.getByRole('row', { name: /202/ })).toContainText('Dirty');
   });
 
   /**

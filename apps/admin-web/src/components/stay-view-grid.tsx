@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import type { StayView, StayViewOccupancy } from '@/lib/api';
-import { assignRoom } from '@/app/properties/[propertyId]/rooms/actions';
+import { assignRoom, checkIn, checkOut } from '@/app/properties/[propertyId]/rooms/actions';
 import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
 
 const HOUSEKEEPING_DOT: Record<string, string> = {
@@ -43,6 +43,22 @@ export function StayViewGrid({
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  function arrive(stay: StayViewOccupancy) {
+    setError(null);
+    startTransition(async () => {
+      const result = await checkIn(propertyId, stay.reservationId, stay.version);
+      if (!result.ok) setError(result.error?.message ?? t('failed'));
+    });
+  }
+
+  function depart(stay: StayViewOccupancy) {
+    setError(null);
+    startTransition(async () => {
+      const result = await checkOut(propertyId, stay.reservationId, stay.version);
+      if (!result.ok) setError(result.error?.message ?? t('failed'));
+    });
+  }
 
   function release(stayId: string) {
     setError(null);
@@ -222,9 +238,13 @@ export function StayViewGrid({
                       <span
                         title={`${starting.reservationCode} · ${starting.checkIn} → ${starting.checkOut}`}
                         className={`flex items-center gap-1 truncate rounded px-2 py-1 text-xs font-medium ${
-                          starting.upgraded
-                            ? 'bg-violet-100 text-violet-800'
-                            : 'bg-brand-100 text-brand-800'
+                          starting.status === 'CHECKED_OUT'
+                            ? 'bg-slate-100 text-slate-500'
+                            : starting.status === 'CHECKED_IN'
+                              ? 'bg-emerald-100 text-emerald-900'
+                              : starting.upgraded
+                                ? 'bg-violet-100 text-violet-800'
+                                : 'bg-brand-100 text-brand-800'
                         }`}
                       >
                         <span className="truncate">
@@ -234,15 +254,46 @@ export function StayViewGrid({
                           <span className="shrink-0 text-[10px] uppercase">{t('upgraded')}</span>
                         )}
                         {canAssign && (
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => release(starting.stayId)}
-                            aria-label={`${t('release')} ${starting.reservationCode}`}
-                            className="ml-auto shrink-0 rounded px-1 text-[10px] text-slate-500 hover:bg-white/60 disabled:opacity-60"
-                          >
-                            ✕
-                          </button>
+                          <span className="ml-auto flex shrink-0 items-center gap-1">
+                            {/* The action the front desk needs on this row,
+                                driven by where the booking actually is. */}
+                            {starting.status === 'CONFIRMED' && (
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() => arrive(starting)}
+                                className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-white disabled:opacity-60"
+                              >
+                                {t('checkIn')}
+                              </button>
+                            )}
+                            {starting.status === 'CHECKED_IN' && (
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() => depart(starting)}
+                                className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-white disabled:opacity-60"
+                              >
+                                {t('checkOut')}
+                              </button>
+                            )}
+                            {starting.status === 'CHECKED_OUT' && (
+                              <span className="text-[10px] text-slate-500">{t('departed')}</span>
+                            )}
+                            {/* Releasing a room only makes sense before arrival;
+                                afterwards the assignment is history. */}
+                            {starting.status === 'CONFIRMED' && (
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() => release(starting.stayId)}
+                                aria-label={`${t('release')} ${starting.reservationCode}`}
+                                className="rounded px-1 text-[10px] text-slate-500 hover:bg-white/60 disabled:opacity-60"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </span>
                         )}
                       </span>
                     </td>

@@ -271,6 +271,14 @@
     "next": "Next",
     "nights": "{count} nights",
     "failed": "Could not assign the room.",
-    "outOfService": "Out of service"
+    "outOfService": "Out of service",
+    "checkIn": "Check in",
+    "checkOut": "Check out",
+    "inHouse": "In house",
+    "departed": "Departed",
+    "arrivingToday": "Arriving today",
+    "arrivals": "Arrivals",
+    "departures": "Departures",
+    "nothingToday": "Nothing arriving or leaving today."
   }
 }

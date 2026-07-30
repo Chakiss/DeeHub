@@ -430,6 +430,255 @@ describeIfDb('Rooms and stay view', () => {
     });
   });
 
+  describe('check-in and check-out', () => {
+    /** Today in the property timezone, so "arrives today" is deterministic. */
+    function today(): string {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    }
+
+    function daysFromToday(days: number): string {
+      const base = new Date(`${today()}T00:00:00Z`);
+      base.setUTCDate(base.getUTCDate() + days);
+      return base.toISOString().slice(0, 10);
+    }
+
+    it('checks in a booking whose rooms are all assigned', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(today(), daysFromToday(2));
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(200);
+
+      expect(response.body.status).toBe('CHECKED_IN');
+      expect(response.body.checkedInAt).toBeTypeOf('string');
+    });
+
+    /**
+     * Otherwise a guest is checked in with nowhere to sleep, and the front desk
+     * discovers it while handing over a key.
+     */
+    it('refuses to check in when a room is still unassigned', async () => {
+      const { reservationId } = await createStay(today(), daysFromToday(2));
+
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(422);
+
+      expect(response.body.error.message).toMatch(/assign a room/i);
+    });
+
+    it('refuses to check in a booking that arrives later', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(daysFromToday(7), daysFromToday(9));
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(422);
+
+      expect(response.body.error.message).toMatch(/arrives on/i);
+    });
+
+    // Early arrival on the day is ordinary; a guest turning up at 9am has not
+    // done anything unusual.
+    it('allows an early arrival on the arrival day', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(today(), daysFromToday(1));
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(200);
+    });
+
+    it('refuses to check in a cancelled booking', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(today(), daysFromToday(2));
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/cancel`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(200);
+
+      // An illegal transition is a CONFLICT, not a validation failure: the
+      // request was well-formed, the reservation is simply not in that state.
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 1 })
+        .expect(409);
+    });
+
+    it('refuses a stale version', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(today(), daysFromToday(2));
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 7 })
+        .expect(409);
+    });
+
+    /**
+     * The reason check-out is worth modelling rather than flipping a status: a
+     * departed room cannot be given to anyone until it is cleaned.
+     */
+    it('checks out and hands the rooms to housekeeping', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(today(), daysFromToday(2));
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(200);
+
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-out`)
+        .set(auth())
+        .send({ version: 1 })
+        .expect(200);
+
+      expect(response.body.status).toBe('CHECKED_OUT');
+
+      const { rows } = await pool.query<{ housekeeping_status: string }>(
+        'SELECT housekeeping_status FROM physical_rooms WHERE id = $1',
+        [roomId],
+      );
+      expect(rows[0]?.housekeeping_status).toBe('DIRTY');
+    });
+
+    // Housekeeping owns that state; a departure does not quietly put a broken
+    // room back into circulation.
+    it('leaves an out-of-order room out of order', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(today(), daysFromToday(2));
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/rooms/${roomId}`)
+        .set(auth())
+        .send({ housekeepingStatus: 'OUT_OF_ORDER' })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-out`)
+        .set(auth())
+        .send({ version: 1 })
+        .expect(200);
+
+      const { rows } = await pool.query<{ housekeeping_status: string }>(
+        'SELECT housekeeping_status FROM physical_rooms WHERE id = $1',
+        [roomId],
+      );
+      expect(rows[0]?.housekeeping_status).toBe('OUT_OF_ORDER');
+    });
+
+    it('refuses to check out a booking that never checked in', async () => {
+      const { reservationId } = await createStay(today(), daysFromToday(2));
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-out`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(409);
+    });
+
+    /**
+     * The guest occupied those nights. Releasing them would make historical
+     * occupancy lie and let a past date be resold.
+     */
+    it('keeps the room assignment and the nights after check-out', async () => {
+      const roomId = await createRoom();
+      const { reservationId, stayId } = await createStay(today(), daysFromToday(2));
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-out`)
+        .set(auth())
+        .send({ version: 1 })
+        .expect(200);
+
+      const { rows } = await pool.query<{ assigned_room_id: string | null }>(
+        'SELECT assigned_room_id FROM reservation_stays WHERE id = $1',
+        [stayId],
+      );
+      // "Who was in 302 last Tuesday" is a question hotels genuinely ask.
+      expect(rows[0]?.assigned_room_id).toBe(roomId);
+    });
+
+    it('forbids a READ_ONLY user from checking in', async () => {
+      const { reservationId } = await createStay(today(), daysFromToday(2));
+      const token = await tokenFor(`reader-${orgSlug}@e2e.test`);
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/check-in`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ version: 0 })
+        .expect(403);
+
+      expect(response.body.error.details.capability).toBe('reservation:checkin');
+    });
+  });
+
   describe('stay view', () => {
     it('shows who is in which room, and what still needs one', async () => {
       const roomId = await createRoom({ roomNumber: '401' });

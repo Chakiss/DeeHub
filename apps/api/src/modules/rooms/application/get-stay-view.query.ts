@@ -11,6 +11,8 @@ export interface StayViewOccupancy {
   readonly reservationCode: string;
   readonly guestName: string | null;
   readonly status: string;
+  /** Needed to check in or out: those endpoints take an expected version. */
+  readonly version: number;
   readonly checkIn: IsoDate;
   readonly checkOut: IsoDate;
   /** True when the guest is in a different room type than they booked. */
@@ -94,6 +96,7 @@ export class GetStayViewQuery {
         guestName: reservationStays.guestName,
         bookerName: reservations.bookerName,
         status: reservations.status,
+        version: reservations.version,
         checkIn: reservationStays.checkIn,
         checkOut: reservationStays.checkOut,
         assignedRoomId: reservationStays.assignedRoomId,
@@ -130,6 +133,7 @@ export class GetStayViewQuery {
         // desk needs a person, not a reservation code.
         guestName: row.guestName ?? row.bookerName,
         status: row.status,
+        version: row.version,
         checkIn: toIsoDate(row.checkIn),
         checkOut: toIsoDate(row.checkOut),
         upgraded: row.assignedRoomTypeId !== null && row.assignedRoomTypeId !== row.stayRoomTypeId,

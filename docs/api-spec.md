@@ -136,6 +136,18 @@ the hotel changes no number an OTA sees; allotment is what the property chose to
 sell, which is what makes controlled overselling a decision rather than an
 accident of how many keys exist.
 
+Check-in refuses unless EVERY stay on the booking has a room — checking in a
+three-room party with two rooms assigned leaves a guest in reception with
+nowhere to sleep — and refuses a booking that arrives later, which is someone
+clicking the wrong row. Early arrival on the arrival day is allowed. Status
+lives on the reservation, so a multi-room booking arrives as one party.
+
+Check-out marks the rooms DIRTY, which is the point of modelling it at all, and
+leaves a room somebody took OUT_OF_ORDER alone. It does NOT release inventory —
+the guest occupied those nights, and giving them back would make historical
+occupancy lie — and it does NOT clear the room assignment, because "who was in
+302 last Tuesday" is a question hotels ask.
+
 Two bookings cannot hold the same room on overlapping nights, and that is
 enforced by an `EXCLUDE` constraint rather than a read-then-write — so it holds
 when two people assign at once. Nights are half-open, so a departure and an

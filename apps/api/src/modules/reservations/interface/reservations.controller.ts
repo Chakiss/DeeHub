@@ -7,6 +7,8 @@ import { RequireCapability, type AuthenticatedRequest } from '../../../common/gu
 import type { AuditActor } from '../../../common/audit/audit.service';
 import { CreateReservationUseCase } from '../application/create-reservation.usecase';
 import { CancelReservationUseCase } from '../application/cancel-reservation.usecase';
+import { CheckInUseCase } from '../application/check-in.usecase';
+import { CheckOutUseCase } from '../application/check-out.usecase';
 import { GetReservationQuery } from '../application/get-reservation.query';
 import { ListReservationsQuery } from '../application/list-reservations.query';
 
@@ -65,6 +67,11 @@ const cancelSchema = z
 type CreateBody = z.infer<typeof createReservationSchema>;
 type CancelBody = z.infer<typeof cancelSchema>;
 
+/** Optimistic locking, same as cancel: a stale tab must not act on old state. */
+const versionSchema = z.object({ version: z.number().int().min(0) }).strict();
+
+type VersionBody = z.infer<typeof versionSchema>;
+
 function presentMoney(value: Money): { amount: number; currency: string } {
   return { amount: value.amount, currency: value.currency };
 }
@@ -75,6 +82,8 @@ export class ReservationsController {
   constructor(
     private readonly createReservation: CreateReservationUseCase,
     private readonly cancelReservation: CancelReservationUseCase,
+    private readonly checkInReservation: CheckInUseCase,
+    private readonly checkOutReservation: CheckOutUseCase,
     private readonly getReservation: GetReservationQuery,
     private readonly listReservations: ListReservationsQuery,
   ) {}
@@ -190,6 +199,38 @@ export class ReservationsController {
       throw errors.notFound('Reservation', id);
     }
     return reservation;
+  }
+
+  @Post(':id/check-in')
+  @HttpCode(200)
+  @RequireCapability('reservation:checkin')
+  @ApiOperation({ summary: 'Check a booking in; every room must be assigned first' })
+  async checkIn(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(versionSchema)) body: VersionBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.checkInReservation.execute(
+      { propertyId, reservationId: id, expectedVersion: body.version },
+      this.actor(request),
+    );
+  }
+
+  @Post(':id/check-out')
+  @HttpCode(200)
+  @RequireCapability('reservation:checkout')
+  @ApiOperation({ summary: 'Check a booking out and hand its rooms to housekeeping' })
+  async checkOut(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(versionSchema)) body: VersionBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.checkOutReservation.execute(
+      { propertyId, reservationId: id, expectedVersion: body.version },
+      this.actor(request),
+    );
   }
 
   @Post(':id/cancel')

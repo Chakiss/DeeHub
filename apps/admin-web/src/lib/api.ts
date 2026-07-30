@@ -248,6 +248,8 @@ export interface StayViewOccupancy {
   reservationCode: string;
   guestName: string | null;
   status: string;
+  /** Check-in and check-out take an expected version (optimistic locking). */
+  version: number;
   checkIn: string;
   checkOut: string;
   upgraded: boolean;
@@ -379,6 +381,18 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ roomId }),
     }),
+
+  checkIn: (propertyId: string, reservationId: string, version: number) =>
+    request<{ id: string; status: string; rooms: string[] }>(
+      `/properties/${propertyId}/reservations/${reservationId}/check-in`,
+      { method: 'POST', body: JSON.stringify({ version }) },
+    ),
+
+  checkOut: (propertyId: string, reservationId: string, version: number) =>
+    request<{ id: string; status: string; roomsToClean: string[] }>(
+      `/properties/${propertyId}/reservations/${reservationId}/check-out`,
+      { method: 'POST', body: JSON.stringify({ version }) },
+    ),
 
   stayView: (propertyId: string, from: string, to: string) =>
     request<StayView>(`/properties/${propertyId}/stay-view?from=${from}&to=${to}`),

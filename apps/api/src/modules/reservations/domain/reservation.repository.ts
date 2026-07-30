@@ -84,7 +84,12 @@ export interface ReservationRepository {
     reservationId: string,
     expectedVersion: number,
     status: ReservationStatus,
-    patch?: { cancelledAt?: Date; cancellationReason?: string },
+    patch?: {
+      cancelledAt?: Date;
+      cancellationReason?: string;
+      checkedInAt?: Date;
+      checkedOutAt?: Date;
+    },
   ): Promise<number>;
 }
 
