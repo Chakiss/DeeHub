@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq, isNotNull } from 'drizzle-orm';
 import { businessDate, errors, EVENT_TYPES, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
+import { reservationStays } from '../../../database/schema';
 import { requireTenant } from '../../../common/tenant/tenant-context';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { OutboxService, type OutboxEventInput } from '../../../common/outbox/outbox.service';
@@ -103,6 +105,21 @@ export class CancelReservationUseCase {
         touchedRoomTypes.set(stay.roomTypeId, [...existing, ...releasable]);
       }
 
+      // Release any room the booking was holding. A cancelled stay must not
+      // keep a room out of use — and the exclusion constraint that stops two
+      // bookings sharing a room does not know about reservation status, so
+      // leaving the assignment would block the room for those nights forever.
+      const releasedRooms = await tx
+        .update(reservationStays)
+        .set({ assignedRoomId: null, updatedAt: now })
+        .where(
+          and(
+            eq(reservationStays.organizationId, tenant.organizationId),
+            eq(reservationStays.reservationId, reservation.id),
+            isNotNull(reservationStays.assignedRoomId),
+          ),
+        );
+
       const updated = await this.reservations.updateStatus(
         tx,
         reservation.id,
@@ -126,6 +143,7 @@ export class CancelReservationUseCase {
           status: 'CANCELLED',
           releasedNights,
           retainedNights,
+          roomsReleased: releasedRooms.rowCount ?? 0,
         },
         reason: input.reason ?? null,
       });

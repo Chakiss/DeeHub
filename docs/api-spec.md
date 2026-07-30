@@ -121,6 +121,28 @@ takes effect immediately rather than after token expiry.
 
 ---
 
+### Rooms and the stay view (Phase 4)
+
+| Method  | Path                                   | Purpose                                               |
+| ------- | -------------------------------------- | ----------------------------------------------------- |
+| `GET`   | `/properties/{id}/rooms`               | physical rooms, by floor then number                  |
+| `POST`  | `/properties/{id}/rooms`               | add a room                                            |
+| `PATCH` | `/properties/{id}/rooms/{roomId}`      | rename, take out of service, set housekeeping status  |
+| `PATCH` | `/properties/{id}/stays/{stayId}/room` | assign a booking to a room, or release it with `null` |
+| `GET`   | `/properties/{id}/stay-view`           | who is in which room, plus what still needs one       |
+
+Physical rooms never influence availability (ADR-0002). Assigning every room in
+the hotel changes no number an OTA sees; allotment is what the property chose to
+sell, which is what makes controlled overselling a decision rather than an
+accident of how many keys exist.
+
+Two bookings cannot hold the same room on overlapping nights, and that is
+enforced by an `EXCLUDE` constraint rather than a read-then-write — so it holds
+when two people assign at once. Nights are half-open, so a departure and an
+arrival on the same day are not a conflict. Cancelling a reservation releases
+any room it held; the constraint cannot see reservation status, so without that
+the room would stay blocked for those nights forever.
+
 ## 4. Errors
 
 Every non-2xx response uses one envelope:

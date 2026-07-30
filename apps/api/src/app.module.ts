@@ -13,6 +13,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { RatesModule } from './modules/rates/rates.module';
 import { RoomTypesModule } from './modules/room-types/room-types.module';
+import { RoomsModule } from './modules/rooms/rooms.module';
 import { RatePlansModule } from './modules/rate-plans/rate-plans.module';
 import { UsersModule } from './modules/users/users.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
@@ -34,6 +35,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
     HealthModule,
     PropertiesModule,
     RoomTypesModule,
+    RoomsModule,
     RatePlansModule,
     RatesModule,
     InventoryModule,
