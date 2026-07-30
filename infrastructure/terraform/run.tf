@@ -37,8 +37,14 @@ resource "google_cloud_run_v2_service" "api" {
   # set it — we scale per-revision, in template.scaling below. Without this,
   # every plan forever shows this block being removed and every apply is a
   # no-op, which is how people learn to stop reading plans.
+  #
+  # `image` is ignored because Terraform does not own it. var.api_image only
+  # bootstraps the service with a placeholder so it can exist before any image
+  # is built; every deploy after that is `gcloud run deploy` from CI. Without
+  # this, the next apply for any unrelated change would quietly roll production
+  # back to gcr.io/cloudrun/placeholder.
   lifecycle {
-    ignore_changes = [scaling]
+    ignore_changes = [scaling, template[0].containers[0].image]
   }
 
   template {
@@ -146,8 +152,13 @@ resource "google_cloud_run_v2_service" "worker" {
   name     = "deehub-worker-${local.suffix}"
   location = var.region
 
-  # See the api service: the secret version is not an implicit dependency.
+  # See the api service: the secret version is not an implicit dependency, and
+  # the image belongs to the deploy pipeline rather than to Terraform.
   depends_on = [google_secret_manager_secret_version.database_url]
+
+  lifecycle {
+    ignore_changes = [scaling, template[0].containers[0].image]
+  }
 
   # No public traffic: the worker is driven by Redis, not by HTTP.
   ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
@@ -223,7 +234,7 @@ resource "google_cloud_run_v2_service" "web" {
 
   # See the api service.
   lifecycle {
-    ignore_changes = [scaling]
+    ignore_changes = [scaling, template[0].containers[0].image]
   }
 
   template {
@@ -291,6 +302,13 @@ resource "google_cloud_run_v2_job" "migrate" {
 
   # See the api service: the secret version is not an implicit dependency.
   depends_on = [google_secret_manager_secret_version.database_url]
+
+  # Jobs nest one level deeper than services. The image is the deploy
+  # pipeline's, not Terraform's — reverting it here would mean migrations run
+  # from the placeholder image, which has no migrations in it.
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image]
+  }
 
   template {
     template {
@@ -372,6 +390,13 @@ resource "google_cloud_run_v2_job" "maintenance" {
 
   # See the api service: the secret version is not an implicit dependency.
   depends_on = [google_secret_manager_secret_version.database_url]
+
+  # See the migrate job. Reverting this one to the placeholder would be quieter
+  # and worse: the hourly pass would stop draining the outbox and stop
+  # reconciling inventory, and nothing would report an error.
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image]
+  }
 
   template {
     template {
