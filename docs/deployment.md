@@ -258,23 +258,78 @@ from point-in-time recovery — which is the reason PITR is enabled.
 
 ## 8. Cost
 
-Rough monthly, one small property, at the tiers in `variables.tf`:
+Estimates for `asia-southeast1`, one small property, at published on-demand
+rates. Verify against the [pricing calculator](https://cloud.google.com/products/calculator)
+before committing — regional rates move.
 
-| Item                                      | Approx.      |
-| ----------------------------------------- | ------------ |
-| Cloud SQL `db-g1-small`, 20GB, PITR       | $35–50       |
-| Memorystore Basic 1GB                     | $35          |
-| Cloud Run worker (min 1, always-on CPU)   | $15–25       |
-| Cloud Run API + dashboard (scale to zero) | $0–10        |
-| Artifact Registry, storage, logging       | $5           |
-| **Total**                                 | **~$90–125** |
+### What the current configuration costs
 
-The two fixed costs are Cloud SQL and Memorystore. The worker's always-on
-instance is the price of never silently missing an OTA sync, which is not
-somewhere to economise. Dev and staging can share one Cloud SQL instance with
-separate databases.
+| Item                                                            | Approx./month |
+| --------------------------------------------------------------- | ------------- |
+| Cloud SQL `db-g1-small`, 20GB SSD, PITR                         | $35–45        |
+| Memorystore Basic 1GB                                           | $36           |
+| Cloud Run worker — min 1 instance, 1 vCPU, always-allocated CPU | $52           |
+| Cloud Run API + dashboard (scale to zero, pilot traffic)        | $1–5          |
+| Artifact Registry, storage, logging                             | $3–5          |
+| **Total**                                                       | **~$127–143** |
 
----
+The worker dominates, and that is easy to get wrong. An always-on Cloud Run
+instance is billed for every second of the month: 1 vCPU at the
+always-allocated rate is 2,592,000 seconds × $0.000018 ≈ **$47 of CPU alone**.
+Scale-to-zero services are nearly free by comparison; a `min_instance_count` of
+1 is the single most expensive line in the stack.
+
+### Cheaper configurations
+
+**A — Smaller tiers, same architecture. ~$70/month.**
+
+| Change                        | Saves |
+| ----------------------------- | ----- |
+| Cloud SQL `db-f1-micro`, 10GB | ~$25  |
+| Worker to 0.25 vCPU / 256MiB  | ~$39  |
+
+0.6GB of RAM is tight for PostgreSQL but adequate for one or two pilot
+properties. Keep PITR: losing a day of bookings costs more than $5 of storage.
+No code changes; two variables in `variables.tf`.
+
+**B — Drop Memorystore, queue in PostgreSQL. ~$34/month.**
+
+BullMQ requires Redis, so removing Memorystore means changing queue technology.
+The outbox is already a Postgres queue drained with `FOR UPDATE SKIP LOCKED`;
+the same pattern covers the ARI and delivery queues, and the Redis dirty-date
+set becomes a table.
+
+At pilot volume — a few hundred jobs a day — Postgres is comfortably enough,
+and it removes an entire managed service from the stack. Roughly one to two
+days of work, and it must not be rushed: the debounce and the drain-during-push
+race were subtle enough in Redis to be worth re-testing carefully.
+
+**C — Also make the worker request-driven. ~$20–25/month.**
+
+Scale the worker to zero and wake it with Cloud Tasks (1M free operations per
+month) when the outbox is written. Near-instant, and no idle billing.
+A larger change: the relay loop becomes a handler, and the sync-latency target
+then depends on task delivery rather than on a loop we control.
+
+### Recommendation
+
+Start with **A**, and do **B** before the third property is onboarded. A gets
+production running this week for the price of two variables; B halves the bill
+again and simplifies the architecture, but is engineering time better spent
+after a real hotel is using the system.
+
+Avoid the tempting non-answers: a free-tier hosted Postgres that sleeps is
+wrong for a booking system, and Compute Engine's Always Free tier does not
+cover Singapore.
+
+### Other levers
+
+- **$300 / 90-day trial credit** on a new billing account covers the whole
+  pilot. Worth checking before paying anything.
+- **Dev and staging share the production Cloud SQL instance** with separate
+  databases rather than a second instance.
+- **Delete unused revisions and images.** Artifact Registry bills for storage,
+  and every deploy adds two images.
 
 ## 9. Known gaps
 
