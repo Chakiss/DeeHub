@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars for local runs. CI passes these as -var flags.
+project_id = "deehub-hotel"
+region     = "asia-southeast1"
+
+# Placeholders for the FIRST apply only. Every deploy after that supplies the
+# real, SHA-tagged images built by CI.
+api_image = "gcr.io/cloudrun/placeholder"
+web_image = "gcr.io/cloudrun/placeholder"
+
+# Set once the dashboard has a URL, so the API will accept its requests.
+cors_origins = ""

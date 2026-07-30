@@ -29,5 +29,7 @@ coverage/
 .terraform/
 *.tfstate
 *.tfstate.*
+# May carry environment-specific values; the .example is the committed template.
+terraform.tfvars
 .terraform.lock.hcl
 crash.log
