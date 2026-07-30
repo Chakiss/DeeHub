@@ -23,6 +23,17 @@ pnpm --filter @deehub/mock-ota dev   # stand-in OTA on :4001
 pnpm db:seed-channel                 # connect the demo hotel to it
 ```
 
+To watch a booking flow in from the channel, start the Mock OTA with
+`MOCK_OTA_WEBHOOK_URL=http://127.0.0.1:3001/api/v1/webhooks/channels/<channelId>`
+and simulate a guest booking:
+
+```bash
+curl -X POST http://127.0.0.1:4001/api/simulate/booking \
+  -H 'x-api-key: mock-ota-dev-key' -H 'content-type: application/json' \
+  -d '{"hotelCode":"DEEHUB-DEMO","roomId":"OTA-DLX",
+       "arrival":"20261020","departure":"20261022","guestName":"Ploy"}'
+```
+
 The **worker** is a second entry point in the same package
 (`apps/api/src/worker.ts`). It runs the outbox relay, debounced ARI pushes,
 hold expiry every minute, and inventory reconciliation nightly at 03:00.

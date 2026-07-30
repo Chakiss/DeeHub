@@ -4,6 +4,7 @@ import { Logger, type INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { DomainExceptionFilter } from './common/filters/domain-exception.filter';
@@ -36,6 +37,18 @@ async function bootstrap(): Promise<void> {
   // Refresh tokens live in an httpOnly cookie, so they are unreadable from
   // client-side JavaScript (api-spec.md §3).
   app.use(cookieParser());
+
+  // Keep the raw body so webhook signatures can be verified over the exact
+  // bytes received. Re-serializing the parsed JSON changes key order and
+  // whitespace, and the HMAC would never match.
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buf) => {
+        (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
 
   // Request correlation and the tenant scope are established by
   // RequestScopeMiddleware, registered in AppModule so it runs before guards.

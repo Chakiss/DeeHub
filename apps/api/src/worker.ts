@@ -8,12 +8,14 @@ import type Redis from 'ioredis';
 import { ENV, type Env } from './config/env';
 import { WorkerModule } from './worker.module';
 import { ARI_SYNC_QUEUE, MAINTENANCE_QUEUE, REDIS } from './queue/queue.module';
+import { DeliverReservationUseCase } from './modules/channels/application/deliver-reservation.usecase';
 import {
   MAINTENANCE_JOBS,
   QUEUE_NAMES,
   ariDirtyKey,
   ariJobId,
   type AriSyncJob,
+  type ReservationDeliveryJob,
 } from './queue/queues';
 import { OutboxRelayService } from './modules/outbox/outbox-relay.service';
 import { ExpireHoldsUseCase } from './modules/inventory/application/expire-holds.usecase';
@@ -35,6 +37,7 @@ async function bootstrap(): Promise<void> {
   const expireHolds = app.get(ExpireHoldsUseCase);
   const reconcile = app.get(ReconcileInventoryUseCase);
   const pushAri = app.get(PushAriUseCase);
+  const deliverReservation = app.get(DeliverReservationUseCase);
   const maintenanceQueue = app.get<Queue>(MAINTENANCE_QUEUE);
   const ariQueue = app.get<Queue>(ARI_SYNC_QUEUE);
 
@@ -99,6 +102,20 @@ async function bootstrap(): Promise<void> {
     { connection: redis, concurrency: 5 },
   );
 
+  // --- Inbound reservation delivery ---------------------------------------
+  const deliveryWorker = new Worker<ReservationDeliveryJob>(
+    QUEUE_NAMES.RESERVATION_DELIVERY,
+    async (job: Job<ReservationDeliveryJob>) => {
+      const outcome = await deliverReservation.execute({
+        channelReservationId: job.data.channelReservationId,
+      });
+      // A mapping failure is recorded on the row and surfaced to staff, not
+      // retried forever: retrying cannot invent a missing room-type mapping.
+      return outcome;
+    },
+    { connection: redis, concurrency: 3 },
+  );
+
   // --- Maintenance --------------------------------------------------------
   const maintenanceWorker = new Worker(
     QUEUE_NAMES.MAINTENANCE,
@@ -139,7 +156,7 @@ async function bootstrap(): Promise<void> {
     })();
   });
 
-  for (const worker of [ariWorker, maintenanceWorker]) {
+  for (const worker of [ariWorker, deliveryWorker, maintenanceWorker]) {
     worker.on('failed', (job, error) => {
       logger.error(`Job ${job?.name ?? 'unknown'} (${job?.id ?? '?'}) failed: ${error.message}`);
     });
@@ -160,14 +177,16 @@ async function bootstrap(): Promise<void> {
     { repeat: { pattern: '0 3 * * *' }, jobId: 'repeat:reconcile-inventory' },
   );
 
-  logger.log(`DeeHub worker started (${env.NODE_ENV}): outbox relay + ARI sync + maintenance`);
+  logger.log(
+    `DeeHub worker started (${env.NODE_ENV}): outbox relay + ARI sync + reservation delivery + maintenance`,
+  );
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.log(`Received ${signal}, draining…`);
     running = false;
     // Close workers before the app context so in-flight jobs finish before the
     // database pool goes away.
-    await Promise.all([ariWorker.close(), maintenanceWorker.close()]);
+    await Promise.all([ariWorker.close(), deliveryWorker.close(), maintenanceWorker.close()]);
     await relayLoop;
     await app.close();
     process.exit(0);

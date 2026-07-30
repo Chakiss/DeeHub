@@ -56,7 +56,13 @@ export function ariDirtyKey(channelId: string, roomTypeId: string): string {
  * waiting. This is the debounce.
  */
 export function ariJobId(channelId: string, roomTypeId: string): string {
-  return `ari:${channelId}:${roomTypeId}`;
+  // Hyphens, not colons: BullMQ rejects ':' in a custom job id because it
+  // separates its own Redis key segments.
+  return `ari-${channelId}-${roomTypeId}`;
+}
+
+export function deliveryJobId(channelReservationId: string): string {
+  return `delivery-${channelReservationId}`;
 }
 
 export interface AriDateSpan {

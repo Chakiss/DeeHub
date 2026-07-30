@@ -84,7 +84,16 @@ export class MockOta {
 
   async listen(port = 0): Promise<number> {
     this.server = createServer((req, res) => {
-      void this.handle(req, res);
+      // Never let a handler rejection escape: an unhandled rejection takes the
+      // whole process down, and a webhook receiver being unreachable is an
+      // ordinary condition, not a reason for the OTA to die.
+      this.handle(req, res).catch((error: unknown) => {
+        if (!res.headersSent) {
+          this.json(res, 500, { error: 'internal_error', detail: String(error) });
+        } else {
+          res.end();
+        }
+      });
     });
     await new Promise<void>((resolve) => this.server?.listen(port, '127.0.0.1', resolve));
     const address = this.server.address();
@@ -159,7 +168,18 @@ export class MockOta {
     this.bookings.set(booking.bookingRef, booking);
 
     if (this.options.webhookUrl) {
-      await this.deliverWebhook(booking);
+      // Recorded as a failed delivery rather than thrown: a real OTA keeps the
+      // booking and retries even when the hotel's endpoint is down.
+      await this.deliverWebhook(booking).catch((error: unknown) => {
+        this.webhookDeliveries.push({
+          url: this.options.webhookUrl ?? '',
+          status: 0,
+          bookingRef: booking.bookingRef,
+        });
+        process.stderr.write(
+          `Webhook delivery failed for ${booking.bookingRef}: ${String(error)}\n`,
+        );
+      });
     }
     return booking;
   }
@@ -209,6 +229,24 @@ export class MockOta {
 
     if (req.method === 'POST' && url.pathname === '/api/ari') {
       return this.receiveAri(req, res);
+    }
+
+    // Lets a developer simulate a guest booking on the OTA, which is what a
+    // real channel's extranet would do. Delivers the webhook if configured.
+    if (req.method === 'POST' && url.pathname === '/api/simulate/booking') {
+      let input: Parameters<MockOta['createBooking']>[0];
+      try {
+        input = JSON.parse(await this.readBody(req)) as typeof input;
+      } catch {
+        return this.json(res, 400, { error: 'invalid_json' });
+      }
+      if (!input.hotelCode || !input.roomId || !input.arrival || !input.departure) {
+        return this.json(res, 400, {
+          error: 'hotelCode, roomId, arrival and departure are required',
+        });
+      }
+      const booking = await this.createBooking(input);
+      return this.json(res, 201, { booking, delivered: this.webhookDeliveries.at(-1) ?? null });
     }
 
     if (req.method === 'GET' && url.pathname === '/api/bookings') {

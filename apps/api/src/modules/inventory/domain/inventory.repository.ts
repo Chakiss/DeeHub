@@ -36,6 +36,27 @@ export interface InventoryRepository {
    */
   hold(tx: Executor, roomTypeId: string, dates: readonly IsoDate[], units: number): Promise<number>;
 
+  /**
+   * Make room for units that a channel has ALREADY sold.
+   *
+   * Creates any missing night and raises allotment to `booked + units` where
+   * capacity is short, returning the dates it had to touch.
+   *
+   * Only for inbound OTA bookings (domain-model.md §3.8). A guest holding a
+   * confirmation from Agoda is real whether or not our count agreed, so the
+   * choice is between recording the truth and pretending the booking does not
+   * exist. Raising allotment records it honestly — the oversell becomes visible
+   * in the data, reconciliation still balances, and staff get an alert. It must
+   * never be reachable from a direct booking path, where the guard is the whole
+   * point.
+   */
+  ensureCapacity(
+    tx: Executor,
+    scope: { organizationId: string; propertyId: string; roomTypeId: string },
+    dates: readonly IsoDate[],
+    units: number,
+  ): Promise<readonly IsoDate[]>;
+
   /** Guarded decrement. Returns rows changed. */
   release(
     tx: Executor,

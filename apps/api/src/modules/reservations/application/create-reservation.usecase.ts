@@ -47,6 +47,16 @@ export interface CreateStayInput {
   readonly guestName?: string;
 }
 
+/**
+ * What to do when the requested nights are not sellable.
+ *
+ * REJECT is correct for anything the hotel controls — the guard is the whole
+ * point. ACCEPT_AND_ALERT exists only for bookings a channel has ALREADY sold:
+ * that guest holds a confirmation, so refusing to record it does not un-sell
+ * the room, it just hides the problem (domain-model.md §3.8).
+ */
+export type InsufficientInventoryPolicy = 'REJECT' | 'ACCEPT_AND_ALERT';
+
 export interface CreateReservationInput {
   readonly propertyId: string;
   readonly source: ReservationSource;
@@ -59,6 +69,16 @@ export interface CreateReservationInput {
   readonly guestId?: string;
   /** Hold lifetime for PENDING reservations. Defaults to 15 minutes. */
   readonly holdTtlSeconds?: number;
+  /** Defaults to REJECT. Only the channel delivery path may relax this. */
+  readonly onInsufficientInventory?: InsufficientInventoryPolicy;
+}
+
+/** Recorded when a channel booking had to be absorbed beyond availability. */
+export interface OverbookingIncident {
+  readonly roomTypeId: string;
+  readonly dates: readonly IsoDate[];
+  readonly reason: 'ALLOTMENT_RAISED' | 'RESTRICTION_OVERRIDDEN';
+  readonly detail: string;
 }
 
 export interface CreateReservationResult {
@@ -71,6 +91,8 @@ export interface CreateReservationResult {
   readonly tax: Money;
   readonly total: Money;
   readonly stays: readonly StayRecord[];
+  /** Non-empty only when a channel booking was absorbed beyond availability. */
+  readonly overbookings: readonly OverbookingIncident[];
 }
 
 const DEFAULT_HOLD_TTL_SECONDS = 900;
@@ -136,12 +158,15 @@ export class CreateReservationUseCase {
       const reservationId = newId();
       const stays: StayRecord[] = [];
       const nightPrices: Money[] = [];
+      const overbookings: OverbookingIncident[] = [];
       const touchedRoomTypes = new Map<string, { from: IsoDate; to: IsoDate }>();
+      const policy = input.onInsufficientInventory ?? 'REJECT';
 
       for (const stayInput of input.stays) {
-        const stay = await this.prepareStay(tx, property, stayInput);
+        const stay = await this.prepareStay(tx, property, stayInput, policy);
         stays.push(stay.record);
         nightPrices.push(...stay.nightPrices);
+        overbookings.push(...stay.overbookings);
 
         const existing = touchedRoomTypes.get(stay.record.roomTypeId);
         touchedRoomTypes.set(stay.record.roomTypeId, {
@@ -240,6 +265,29 @@ export class CreateReservationUseCase {
           },
         })),
       ];
+
+      if (overbookings.length > 0) {
+        // Urgent by design: an oversell needs a human to move a guest or find a
+        // room today. Silently absorbing it would be the worse failure.
+        events.push({
+          type: EVENT_TYPES.CHANNEL_OVERBOOKING_DETECTED,
+          organizationId: tenant.organizationId,
+          propertyId: property.id,
+          aggregateType: 'reservation',
+          aggregateId: reservationId,
+          payload: {
+            reservationId,
+            propertyId: property.id,
+            code,
+            channelId: input.channelId ?? null,
+            incidents: overbookings.map((incident) => ({
+              ...incident,
+              dates: [...incident.dates],
+            })),
+          },
+        });
+      }
+
       await this.outbox.recordMany(tx, events);
 
       return {
@@ -252,6 +300,7 @@ export class CreateReservationUseCase {
         tax: breakdown.tax,
         total: breakdown.total,
         stays,
+        overbookings,
       };
     });
   }
@@ -271,7 +320,8 @@ export class CreateReservationUseCase {
     tx: Executor,
     property: PropertySettings,
     input: CreateStayInput,
-  ): Promise<{ record: StayRecord; nightPrices: Money[] }> {
+    policy: InsufficientInventoryPolicy,
+  ): Promise<{ record: StayRecord; nightPrices: Money[]; overbookings: OverbookingIncident[] }> {
     const children = input.children ?? 0;
 
     const roomType = await this.propertyRepo.findRoomType(tx, input.roomTypeId);
@@ -304,25 +354,66 @@ export class CreateReservationUseCase {
     // by the shared kernel rather than re-checked here.
     const nights = nightsBetween(input.checkIn, input.checkOut);
 
+    const overbookings: OverbookingIncident[] = [];
+
     // Lock the nights AND the departure date: closed-to-departure is a
     // property of the day the guest leaves, which is not a night we hold.
     const lockedDates: IsoDate[] = [...nights, input.checkOut];
-    const locked = await this.inventory.lockDates(tx, roomType.id, lockedDates);
-    const byDate = new Map<string, InventoryDay>(locked.map((day) => [day.date, day]));
+    let locked = await this.inventory.lockDates(tx, roomType.id, lockedDates);
+    let byDate = new Map<string, InventoryDay>(locked.map((day) => [day.date, day]));
 
-    const report = evaluateStay(
-      { roomTypeId: roomType.id, nights, checkOut: input.checkOut, units: 1 },
-      byDate,
-    );
+    const stayRequest = {
+      roomTypeId: roomType.id,
+      nights,
+      checkOut: input.checkOut,
+      units: 1,
+    };
+    const report = evaluateStay(stayRequest, byDate);
+
     if (!isSellable(report)) {
-      throw toDomainError(
-        { roomTypeId: roomType.id, nights, checkOut: input.checkOut, units: 1 },
-        report,
-      );
+      if (policy === 'REJECT') {
+        throw toDomainError(stayRequest, report);
+      }
+
+      // The channel already sold this. Absorb it and make the oversell visible
+      // rather than pretending the guest does not exist.
+      const short = [...report.soldOutDates, ...report.missingDates];
+      if (short.length > 0) {
+        const raised = await this.inventory.ensureCapacity(
+          tx,
+          {
+            organizationId: property.organizationId,
+            propertyId: property.id,
+            roomTypeId: roomType.id,
+          },
+          short,
+          1,
+        );
+        overbookings.push({
+          roomTypeId: roomType.id,
+          dates: raised.length > 0 ? raised : short,
+          reason: 'ALLOTMENT_RAISED',
+          detail: `Allotment raised to absorb a channel booking on ${short.join(', ')}`,
+        });
+        // Re-read under the same transaction; ensureCapacity changed the rows.
+        locked = await this.inventory.lockDates(tx, roomType.id, lockedDates);
+        byDate = new Map(locked.map((day) => [day.date, day]));
+      }
+
+      if (report.violations.length > 0) {
+        overbookings.push({
+          roomTypeId: roomType.id,
+          dates: report.violations.map((violation) => violation.date),
+          reason: 'RESTRICTION_OVERRIDDEN',
+          detail: report.violations
+            .map((violation) => `${violation.restriction} on ${violation.date}`)
+            .join('; '),
+        });
+      }
     }
 
-    // The rows are locked and were just validated, so this must affect every
-    // night. The guard stays as the last line of defence.
+    // The rows are locked and capacity is now guaranteed, so this must affect
+    // every night. The guard stays as the last line of defence.
     const held = await this.inventory.hold(tx, roomType.id, nights, 1);
     if (held !== nights.length) {
       throw errors.inventoryUnavailable(roomType.id, nights);
@@ -363,6 +454,7 @@ export class CreateReservationUseCase {
         nights: nightRecords,
       },
       nightPrices,
+      overbookings,
     };
   }
 
@@ -397,13 +489,25 @@ export class CreateReservationUseCase {
     }
   }
 
+  /**
+   * Drizzle re-throws driver errors wrapped in its own Error with the pg error
+   * on `cause`, so the check has to unwrap. Testing only the top level would
+   * silently never match, and a code collision would surface as a 500 instead
+   * of being retried.
+   */
   private isCodeCollision(error: unknown): boolean {
-    if (typeof error !== 'object' || error === null) return false;
-    const candidate = error as { code?: unknown; constraint?: unknown };
-    return (
-      candidate.code === UNIQUE_VIOLATION &&
-      typeof candidate.constraint === 'string' &&
-      candidate.constraint.includes('reservations_property_code_uq')
-    );
+    let current: unknown = error;
+    for (let depth = 0; depth < 5 && current; depth += 1) {
+      const candidate = current as { code?: unknown; constraint?: unknown; cause?: unknown };
+      if (typeof candidate.code === 'string') {
+        return (
+          candidate.code === UNIQUE_VIOLATION &&
+          typeof candidate.constraint === 'string' &&
+          candidate.constraint.includes('reservations_property_code_uq')
+        );
+      }
+      current = candidate.cause;
+    }
+    return false;
   }
 }

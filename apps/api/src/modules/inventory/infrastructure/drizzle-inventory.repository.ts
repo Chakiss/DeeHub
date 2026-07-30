@@ -133,6 +133,40 @@ export class DrizzleInventoryRepository implements InventoryRepository {
     return result.rowCount ?? 0;
   }
 
+  async ensureCapacity(
+    tx: Executor,
+    scope: { organizationId: string; propertyId: string; roomTypeId: string },
+    dates: readonly IsoDate[],
+    units: number,
+  ): Promise<readonly IsoDate[]> {
+    if (dates.length === 0) return [];
+
+    // Upsert then raise in one statement per date set:
+    //  - a missing night is created with exactly enough allotment
+    //  - an existing night is raised only when it is short
+    // GREATEST keeps an existing larger allotment intact.
+    const values = dates.map(
+      (date) =>
+        sql`(${scope.organizationId}::uuid, ${scope.propertyId}::uuid, ${scope.roomTypeId}::uuid, ${date}::date, ${units}, 0)`,
+    );
+
+    const result = await tx.execute<{ date: string }>(sql`
+      INSERT INTO inventory_days
+        (organization_id, property_id, room_type_id, date, allotment, booked)
+      VALUES ${sql.join(values, sql`, `)}
+      ON CONFLICT (room_type_id, date) DO UPDATE
+        SET allotment = GREATEST(
+              inventory_days.allotment,
+              inventory_days.booked + ${units}
+            ),
+            updated_at = now()
+        WHERE inventory_days.allotment < inventory_days.booked + ${units}
+      RETURNING date::text AS date
+    `);
+
+    return result.rows.map((row) => toIsoDate(row.date));
+  }
+
   /**
    * Guarded decrement. `booked - units >= 0` prevents a double release from
    * driving the count negative and manufacturing availability that does not

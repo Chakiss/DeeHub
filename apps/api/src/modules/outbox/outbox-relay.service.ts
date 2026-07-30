@@ -5,8 +5,14 @@ import type Redis from 'ioredis';
 import { dateRange, EVENT_TYPES, toIsoDate, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../database/database.module';
 import { channels, outboxEvents } from '../../database/schema';
-import { ARI_SYNC_QUEUE, REDIS } from '../../queue/queue.module';
-import { ariDirtyKey, ariJobId, type AriSyncJob } from '../../queue/queues';
+import { ARI_SYNC_QUEUE, REDIS, RESERVATION_DELIVERY_QUEUE } from '../../queue/queue.module';
+import {
+  ariDirtyKey,
+  ariJobId,
+  deliveryJobId,
+  type AriSyncJob,
+  type ReservationDeliveryJob,
+} from '../../queue/queues';
 
 /** How long to hold an ARI push back so bursts of edits collapse into one. */
 const DEBOUNCE_MS = 3_000;
@@ -48,6 +54,7 @@ export class OutboxRelayService {
     @Inject(DATABASE) private readonly db: Database,
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(ARI_SYNC_QUEUE) private readonly ariSyncQueue: Queue,
+    @Inject(RESERVATION_DELIVERY_QUEUE) private readonly deliveryQueue: Queue,
   ) {}
 
   /**
@@ -112,6 +119,9 @@ export class OutboxRelayService {
       case EVENT_TYPES.RATE_CHANGED:
         await this.scheduleAriPush(row);
         return;
+      case EVENT_TYPES.CHANNEL_RESERVATION_RECEIVED:
+        await this.scheduleDelivery(row);
+        return;
       case EVENT_TYPES.RESERVATION_CREATED:
       case EVENT_TYPES.RESERVATION_MODIFIED:
       case EVENT_TYPES.RESERVATION_CANCELLED:
@@ -125,6 +135,27 @@ export class OutboxRelayService {
         this.logger.debug(`No consumer for event type ${row.eventType}; marking published`);
         return;
     }
+  }
+
+  /**
+   * Queue an inbound booking for mapping.
+   *
+   * The job id is the stored booking's id, so a redelivered webhook or a
+   * replayed event cannot produce two mapping jobs for the same booking.
+   */
+  private async scheduleDelivery(row: OutboxRow): Promise<void> {
+    const payload = row.payload as { channelReservationId?: string };
+    if (!payload?.channelReservationId) {
+      throw new Error('channel.reservation_received payload is missing channelReservationId');
+    }
+
+    const job: ReservationDeliveryJob = {
+      organizationId: row.organizationId,
+      channelReservationId: payload.channelReservationId,
+    };
+    await this.deliveryQueue.add('deliver', job, {
+      jobId: deliveryJobId(payload.channelReservationId),
+    });
   }
 
   /**
