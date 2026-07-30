@@ -43,8 +43,12 @@ resource "google_cloud_run_v2_service" "api" {
   # is built; every deploy after that is `gcloud run deploy` from CI. Without
   # this, the next apply for any unrelated change would quietly roll production
   # back to gcr.io/cloudrun/placeholder.
+  #
+  # `client`/`client_version` are stamped by whatever tool last wrote the
+  # resource. CI deploys with gcloud, so Terraform would try to null them on
+  # every plan — the same perpetual diff as `scaling`, for the same reason.
   lifecycle {
-    ignore_changes = [scaling, template[0].containers[0].image]
+    ignore_changes = [scaling, template[0].containers[0].image, client, client_version]
   }
 
   template {
@@ -165,7 +169,7 @@ resource "google_cloud_run_v2_service" "worker" {
   depends_on = [google_secret_manager_secret_version.database_url]
 
   lifecycle {
-    ignore_changes = [scaling, template[0].containers[0].image]
+    ignore_changes = [scaling, template[0].containers[0].image, client, client_version]
   }
 
   # No public traffic: the worker is driven by Redis, not by HTTP.
@@ -247,7 +251,7 @@ resource "google_cloud_run_v2_service" "web" {
 
   # See the api service.
   lifecycle {
-    ignore_changes = [scaling, template[0].containers[0].image]
+    ignore_changes = [scaling, template[0].containers[0].image, client, client_version]
   }
 
   template {
@@ -320,7 +324,7 @@ resource "google_cloud_run_v2_job" "migrate" {
   # pipeline's, not Terraform's — reverting it here would mean migrations run
   # from the placeholder image, which has no migrations in it.
   lifecycle {
-    ignore_changes = [template[0].template[0].containers[0].image]
+    ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
   }
 
   template {
@@ -408,7 +412,7 @@ resource "google_cloud_run_v2_job" "maintenance" {
   # and worse: the hourly pass would stop draining the outbox and stop
   # reconciling inventory, and nothing would report an error.
   lifecycle {
-    ignore_changes = [template[0].template[0].containers[0].image]
+    ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
   }
 
   template {
