@@ -1,4 +1,10 @@
 import './config/load-dotenv';
+import { initSentry } from './observability/sentry';
+
+// Before every other import: Sentry instruments modules as they load, so
+// anything imported earlier reports nothing.
+initSentry('api');
+
 import 'reflect-metadata';
 import { Logger, type INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

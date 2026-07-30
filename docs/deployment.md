@@ -1,0 +1,224 @@
+# DeeHub Hotel — Deployment
+
+Engineering Task 13. How DeeHub is built, shipped and rolled back on Google
+Cloud ([ADR-0004](adr/0004-google-cloud.md)).
+
+---
+
+## 1. What runs where
+
+Two images, three services, one job.
+
+| Workload   | Image              | Command                         | Scaling                              |
+| ---------- | ------------------ | ------------------------------- | ------------------------------------ |
+| API        | `api`              | `node dist/main.js`             | Cloud Run, **scale to zero**, max 10 |
+| Worker     | `api` (same image) | `node dist/worker.js`           | Cloud Run, **min 1**, max 3          |
+| Dashboard  | `web`              | `node apps/admin-web/server.js` | Cloud Run, scale to zero, max 10     |
+| Migrations | `api` (same image) | `node dist/database/migrate.js` | Cloud Run **Job**, run by CI         |
+
+The API and worker deliberately share one image so both processes provably run
+identical domain code (architecture.md §1).
+
+Two scaling settings are load-bearing rather than tuning:
+
+- **The worker must never scale to zero.** It polls Redis and drains the
+  outbox. At zero instances no booking would ever reach an OTA, and nothing
+  would report an error — the exact silent-staleness failure the whole outbox
+  design exists to prevent.
+- **The worker runs with `cpu_idle = false`.** Cloud Run's default only
+  allocates CPU during a request; a background loop would be throttled to a
+  crawl between them.
+
+Supporting infrastructure: Cloud SQL for PostgreSQL 17 (private IP, PITR
+enabled), Memorystore for Redis, Cloud Storage for media, Secret Manager for
+every credential, Artifact Registry for images.
+
+---
+
+## 2. Networking
+
+Cloud SQL and Memorystore have **no public IP**. Cloud Run reaches them with
+**Direct VPC egress** (`network_interfaces` on the service), which replaced the
+older Serverless VPC Access connector and removes a managed component from the
+stack.
+
+Egress is `PRIVATE_RANGES_ONLY`: traffic to the database and Redis goes through
+the VPC, while calls out to OTAs take the normal public path. Routing all
+egress through the VPC would need a Cloud NAT we do not otherwise want.
+
+---
+
+## 3. Secrets
+
+Terraform creates the secret _containers_; the **values are added out of band**
+so they never appear in state, in a plan, or in a pull request:
+
+```bash
+printf '%s' "$(openssl rand -base64 48)" | \
+  gcloud secrets versions add deehub-jwt-access-secret-prod --data-file=-
+printf '%s' "$(openssl rand -base64 48)" | \
+  gcloud secrets versions add deehub-jwt-refresh-secret-prod --data-file=-
+# CREDENTIALS_KEY must decode to exactly 32 bytes (AES-256).
+printf '%s' "$(openssl rand -base64 32)" | \
+  gcloud secrets versions add deehub-credentials-key-prod --data-file=-
+```
+
+`database-url` is the exception: Terraform generates the password and writes
+the version itself, so no human ever handles it.
+
+The API refuses to boot in production if it detects a development secret — a
+guard that has already fired once during container testing, which is exactly
+when you want it to.
+
+**Rotating `CREDENTIALS_KEY` is not a drop-in.** It encrypts channel
+credentials at rest. The stored format is versioned (`v1:iv:tag:ciphertext`)
+precisely so a future key or a move to Cloud KMS envelope encryption can
+decrypt old values during rollout, but that migration has to be written before
+the key changes.
+
+---
+
+## 4. First-time setup
+
+```bash
+# 1. Remote state. Local state means one laptop can destroy production.
+gcloud storage buckets create gs://PROJECT-deehub-tfstate --location=asia-southeast1
+gcloud storage buckets update gs://PROJECT-deehub-tfstate --versioning
+
+# 2. Infrastructure. The image variables are placeholders on the first apply;
+#    CI supplies real ones on every deploy after that.
+cd infrastructure/terraform
+terraform init -backend-config="bucket=PROJECT-deehub-tfstate"
+terraform apply \
+  -var project_id=PROJECT \
+  -var api_image=gcr.io/cloudrun/placeholder \
+  -var web_image=gcr.io/cloudrun/placeholder
+
+# 3. Secret values (section 3).
+
+# 4. Seed the first organization and owner. There is no self-service signup
+#    yet, so this is currently a manual step against the production database.
+```
+
+Region is `asia-southeast1` (Singapore) — the closest Google region to Thailand,
+and the one that keeps guest data nearest the market it serves.
+
+### GitHub → GCP authentication
+
+CI uses **Workload Identity Federation**, not a service-account key. GitHub
+mints a short-lived token per run, so there is no long-lived credential in
+repository secrets to leak or rotate. Repository secrets needed:
+
+| Secret                           | Value                          |
+| -------------------------------- | ------------------------------ |
+| `GCP_PROJECT_ID`                 | Project id                     |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full provider resource name    |
+| `GCP_DEPLOY_SERVICE_ACCOUNT`     | Deployer service-account email |
+
+---
+
+## 5. Deploy pipeline
+
+`.github/workflows/deploy.yml`, on push to `main`:
+
+1. **Verify** — runs the full CI workflow against the exact commit. Deploying
+   an untested commit is how a broken booking path reaches production.
+2. **Build and push** both images, tagged with the git SHA. Never `:latest` — a
+   rollback has to be able to name the precise image that was running.
+3. **Migrate** — updates and executes the Cloud Run job, and waits. Migrations
+   run _before_ any traffic shifts; if this fails the deploy stops and
+   production is untouched.
+4. **Deploy** API, worker and dashboard.
+5. **Smoke test** — `/health/ready` (not `/health`), because readiness proves
+   the new revision can actually reach the database.
+
+Concurrency is pinned to one deploy at a time: two in flight would let the
+second shift traffic to an image whose migration had not run.
+
+### Why migrations run as a separate job
+
+Running them from an application container at boot would race across instances
+and could half-apply a schema while old code is still serving. A job runs
+exactly once, and its failure is visible before any user is affected.
+
+Schema changes follow **expand/contract** (database.md §12): add nullable →
+backfill → switch reads → make non-null → drop old. Each deploy is therefore
+compatible with the revision it replaces, which is what makes step 3 safe
+before step 4 and what makes rollback possible at all.
+
+---
+
+## 6. Rollback
+
+```bash
+gcloud run revisions list --service deehub-api-prod --region asia-southeast1
+gcloud run services update-traffic deehub-api-prod \
+  --region asia-southeast1 --to-revisions REVISION_NAME=100
+```
+
+Traffic shifting is instant and does not rebuild anything.
+
+**Rolling back code does not roll back the schema.** Expand/contract is what
+makes this safe: the previous revision still works against the new schema. If a
+migration itself must be undone, use its documented `down` step, or restore
+from point-in-time recovery — which is the reason PITR is enabled.
+
+---
+
+## 7. Monitoring
+
+- **Sentry** is initialised before any other import in both entry points, since
+  it instruments modules as they load. `beforeSend` strips request bodies,
+  cookies and authorization headers, so a password or passport number cannot
+  reach a third party.
+- **Cloud Logging** receives structured JSON with the request id, organization
+  and property on every line.
+- Metrics that matter, from `sync_jobs` and the queues: sync latency
+  (target < 60s), queue depth, dead-lettered jobs, and consecutive channel
+  failures.
+
+**Alert on these, in priority order:**
+
+1. Any row from the nightly reconciliation job — inventory drift means a bug in
+   the booking path and must be looked at the same day.
+2. `channel.sync_failed` reaching the dead-letter queue — a stalled sync is the
+   failure mode that causes overbookings.
+3. `channel.overbooking_detected` — a guest needs moving today.
+4. API 5xx rate, readiness failures, Cloud SQL CPU and connection count.
+
+---
+
+## 8. Cost
+
+Rough monthly, one small property, at the tiers in `variables.tf`:
+
+| Item                                      | Approx.      |
+| ----------------------------------------- | ------------ |
+| Cloud SQL `db-g1-small`, 20GB, PITR       | $35–50       |
+| Memorystore Basic 1GB                     | $35          |
+| Cloud Run worker (min 1, always-on CPU)   | $15–25       |
+| Cloud Run API + dashboard (scale to zero) | $0–10        |
+| Artifact Registry, storage, logging       | $5           |
+| **Total**                                 | **~$90–125** |
+
+The two fixed costs are Cloud SQL and Memorystore. The worker's always-on
+instance is the price of never silently missing an OTA sync, which is not
+somewhere to economise. Dev and staging can share one Cloud SQL instance with
+separate databases.
+
+---
+
+## 9. Known gaps
+
+1. **No staging environment.** `environment` is already a variable, so a second
+   workspace is the mechanism; it is simply not stood up yet.
+2. **No custom domain or CDN.** Cloud Run's generated URLs are in use.
+3. **No self-service signup.** The first organization and owner are seeded by
+   hand against production.
+4. **Terraform is validated but never applied.** The configuration passes
+   `terraform validate`, and both images have been built and run locally
+   against a real database — but nothing here has touched GCP yet. The first
+   apply should be treated as a first apply, not a routine deploy.
+5. **Single region, zonal database.** Accepted for Milestone 1
+   (architecture.md §11); regional HA is a tier change when revenue justifies
+   it.

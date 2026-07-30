@@ -48,6 +48,16 @@ Goal: the 90-day milestone — production-ready core with connector framework.
 **Milestone 1 exit criteria:** pilot hotels manage real inventory; Mock OTA
 round-trips bookings; zero platform-caused overbookings; sync < 60 s.
 
+**Status (2026-07-30).** Everything in Phases 0–2 is built and verified
+locally: the booking core with its proven overbooking guard, auth and the HTTP
+API, the worker with outbox relay and reconciliation, the OTA connector
+framework with a two-way Mock OTA round trip, the dashboard, and the deployment
+pipeline. Remaining before a pilot property can be onboarded:
+
+1. Apply the Terraform and run the first real deploy (nothing has touched GCP).
+2. Dashboard tests — the backend has 282; the UI has none.
+3. Seed the first real organization; there is no self-service signup.
+
 ## Phase 3 — First Real OTA + Booking Engine (Months 4–6)
 
 - First real connector (**Agoda** first — Thailand priority; then

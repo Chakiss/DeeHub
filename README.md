@@ -105,6 +105,24 @@ Two things to know before deploying it:
   for one generated from the OpenAPI document with a CI drift check; that is
   deferred until the endpoint surface settles.
 
+## Deploying
+
+Google Cloud, three Cloud Run services from two images. See
+[deployment.md](docs/deployment.md) for the full runbook; the short version:
+
+```bash
+docker build -f apps/api/Dockerfile -t deehub-api .        # API + worker + migrations
+docker build -f apps/admin-web/Dockerfile -t deehub-web .  # dashboard
+```
+
+`.github/workflows/deploy.yml` runs CI, pushes both images tagged by commit SHA,
+executes migrations as a Cloud Run job, deploys, and smoke-tests
+`/health/ready`. Infrastructure is Terraform in `infrastructure/terraform`.
+
+Nothing here has been applied to GCP yet — the config validates and both images
+have been built and run locally against a real database, but the first apply
+should be treated as a first apply.
+
 ## The one thing to know
 
 Availability is a **count per room type per night** (ADR-0002), and

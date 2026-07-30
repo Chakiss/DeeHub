@@ -22,7 +22,9 @@ COPY . .
 RUN pnpm --filter @deehub/shared build && pnpm --filter @deehub/api build
 
 # Strip dev dependencies before copying into the runtime image.
-RUN pnpm --filter @deehub/api --prod deploy /app/bundle
+# --legacy: pnpm 10+ otherwise requires inject-workspace-packages, which would
+# duplicate @deehub/shared into every consumer for no benefit here.
+RUN pnpm --filter @deehub/api --prod deploy --legacy /app/bundle
 
 # --- runtime ----------------------------------------------------------------
 FROM node:22-alpine AS runtime

@@ -1,0 +1,127 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [prod]
+        default: prod
+
+concurrency:
+  # Never let two deploys race: the second would shift traffic to an image whose
+  # migration had not run.
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  REGION: asia-southeast1
+  ENVIRONMENT: prod
+
+jobs:
+  # Deploying an untested commit is how a bad booking path reaches production.
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+      # Workload Identity Federation: GitHub mints a short-lived token per run,
+      # so there is no long-lived service-account key to leak or rotate.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Set image tags
+        id: images
+        run: |
+          REGISTRY="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/deehub-${ENVIRONMENT}"
+          # Tag by commit SHA, never :latest — a rollback has to be able to name
+          # the exact image that was running.
+          echo "api=${REGISTRY}/api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "web=${REGISTRY}/web:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push API image
+        run: |
+          docker build -f apps/api/Dockerfile -t "${{ steps.images.outputs.api }}" .
+          docker push "${{ steps.images.outputs.api }}"
+
+      - name: Build and push dashboard image
+        run: |
+          docker build -f apps/admin-web/Dockerfile -t "${{ steps.images.outputs.web }}" .
+          docker push "${{ steps.images.outputs.web }}"
+
+      # Migrations run BEFORE any traffic shifts. Expand/contract means the old
+      # code keeps working against the new schema (docs/database.md §12); if this
+      # step fails the deploy stops here and production is untouched.
+      - name: Run database migrations
+        run: |
+          gcloud run jobs update "deehub-migrate-${ENVIRONMENT}" \
+            --region "${REGION}" \
+            --image "${{ steps.images.outputs.api }}" \
+            --quiet
+          gcloud run jobs execute "deehub-migrate-${ENVIRONMENT}" \
+            --region "${REGION}" \
+            --wait
+
+      - name: Deploy API
+        run: |
+          gcloud run deploy "deehub-api-${ENVIRONMENT}" \
+            --region "${REGION}" \
+            --image "${{ steps.images.outputs.api }}" \
+            --quiet
+
+      - name: Deploy worker
+        run: |
+          gcloud run deploy "deehub-worker-${ENVIRONMENT}" \
+            --region "${REGION}" \
+            --image "${{ steps.images.outputs.api }}" \
+            --command node --args dist/worker.js \
+            --quiet
+
+      - name: Deploy dashboard
+        run: |
+          gcloud run deploy "deehub-web-${ENVIRONMENT}" \
+            --region "${REGION}" \
+            --image "${{ steps.images.outputs.web }}" \
+            --quiet
+
+      - name: Smoke test
+        run: |
+          API_URL=$(gcloud run services describe "deehub-api-${ENVIRONMENT}" \
+            --region "${REGION}" --format 'value(status.url)')
+          WEB_URL=$(gcloud run services describe "deehub-web-${ENVIRONMENT}" \
+            --region "${REGION}" --format 'value(status.url)')
+
+          # Readiness, not liveness: this must prove the new revision can
+          # actually reach the database before we call the deploy good.
+          curl -fsS --retry 5 --retry-delay 3 "${API_URL}/health/ready"
+          curl -fsS --retry 5 --retry-delay 3 -o /dev/null "${WEB_URL}/login"
+          echo "Deployed ${GITHUB_SHA} — API ${API_URL}, dashboard ${WEB_URL}"
+
+      - name: Report rollback command on failure
+        if: failure()
+        run: |
+          echo "::error::Deploy failed. Roll back with:"
+          echo "gcloud run services update-traffic deehub-api-${ENVIRONMENT} \
+            --region ${REGION} --to-revisions PREVIOUS_REVISION=100"

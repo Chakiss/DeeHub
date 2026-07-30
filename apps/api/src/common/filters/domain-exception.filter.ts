@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, HttpException, Logger, type ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { Sentry } from '../../observability/sentry';
 import {
   DateError,
   DomainError,
@@ -80,6 +81,14 @@ export class DomainExceptionFilter implements ExceptionFilter {
       `Unhandled error on ${request.method} ${request.url} [${requestId}]`,
       exception instanceof Error ? exception.stack : String(exception),
     );
+
+    // Only genuinely unexpected failures are reported. Domain errors above are
+    // normal outcomes — alerting on "room sold out" would bury the real ones.
+    Sentry.withScope((scope) => {
+      scope.setTag('requestId', requestId);
+      scope.setContext('request', { method: request.method, url: request.url });
+      Sentry.captureException(exception);
+    });
 
     response.status(500).json({
       error: {

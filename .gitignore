@@ -24,3 +24,10 @@ coverage/
 .idea/
 .vscode/
 *.local
+
+# Terraform — state may contain secrets; providers are large and re-downloadable
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
