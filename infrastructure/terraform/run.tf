@@ -33,6 +33,14 @@ resource "google_cloud_run_v2_service" "api" {
   # populated by set-secrets.sh before apply (see README).
   depends_on = [google_secret_manager_secret_version.database_url]
 
+  # Service-level `scaling` is returned by the API as zeros even though we never
+  # set it — we scale per-revision, in template.scaling below. Without this,
+  # every plan forever shows this block being removed and every apply is a
+  # no-op, which is how people learn to stop reading plans.
+  lifecycle {
+    ignore_changes = [scaling]
+  }
+
   template {
     service_account = google_service_account.api.email
 
@@ -212,6 +220,11 @@ resource "google_cloud_run_v2_service" "web" {
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   deletion_protection = false
+
+  # See the api service.
+  lifecycle {
+    ignore_changes = [scaling]
+  }
 
   template {
     service_account = google_service_account.web.email
