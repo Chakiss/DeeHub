@@ -32,6 +32,7 @@ export default async function PropertyLayout({
           <nav className="flex items-center gap-1 text-sm">
             <NavLink href={`/properties/${propertyId}/inventory`}>{t('inventory')}</NavLink>
             <NavLink href={`/properties/${propertyId}/reservations`}>{t('reservations')}</NavLink>
+            <NavLink href={`/properties/${propertyId}/room-types`}>{t('roomTypes')}</NavLink>
           </nav>
 
           <div className="ml-auto flex items-center gap-3 text-sm">

@@ -146,6 +146,35 @@ export interface InventoryUpdate {
   closedToDeparture?: boolean;
 }
 
+export interface RoomType {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  standardOccupancy: number;
+  maxOccupancy: number;
+  maxAdults: number;
+  maxChildren: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface CreateRoomTypeInput {
+  code: string;
+  name: string;
+  description?: string | null;
+  standardOccupancy: number;
+  maxOccupancy: number;
+  maxAdults: number;
+  maxChildren: number;
+}
+
+/** Every field optional: this is a PATCH, and `code` is deliberately absent. */
+export type UpdateRoomTypeInput = Partial<Omit<CreateRoomTypeInput, 'code'>> & {
+  sortOrder?: number;
+  isActive?: boolean;
+};
+
 // --- Endpoints ---------------------------------------------------------------
 
 export const api = {
@@ -163,6 +192,23 @@ export const api = {
     request<{ id: string; code: string; name: string; timezone: string; currency: string }[]>(
       '/properties',
     ),
+
+  roomTypes: (propertyId: string) =>
+    request<{ items: RoomType[] }>(`/properties/${propertyId}/room-types`).then(
+      (body) => body.items,
+    ),
+
+  createRoomType: (propertyId: string, input: CreateRoomTypeInput) =>
+    request<RoomType>(`/properties/${propertyId}/room-types`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateRoomType: (propertyId: string, roomTypeId: string, input: UpdateRoomTypeInput) =>
+    request<RoomType>(`/properties/${propertyId}/room-types/${roomTypeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
 
   inventoryGrid: (propertyId: string, from: string, to: string) =>
     request<InventoryGrid>(`/properties/${propertyId}/inventory?from=${from}&to=${to}`),

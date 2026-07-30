@@ -23,6 +23,24 @@ export function InventoryGrid({
 
   const dates = grid.roomTypes[0]?.days.map((day) => day.date) ?? [];
 
+  // A grid with no rows renders as a bare header, which is a dead end for a
+  // property that has not been set up yet — and says nothing about why it is
+  // empty or what to do. Send them where the work actually starts.
+  if (grid.roomTypes.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
+        <p className="text-sm font-medium text-slate-700">{t('noRoomTypes')}</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t('noRoomTypesHint')}</p>
+        <Link
+          href={`/properties/${propertyId}/room-types`}
+          className="mt-4 inline-block rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          {t('goToRoomTypes')}
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">

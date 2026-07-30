@@ -8,7 +8,8 @@
     "reservations": "Reservations",
     "signOut": "Sign out",
     "property": "Property",
-    "account": "Account"
+    "account": "Account",
+    "roomTypes": "Room types"
   },
   "login": {
     "title": "Sign in",
@@ -44,7 +45,10 @@
     "leaveUnchanged": "Leave unchanged",
     "previous": "Previous",
     "next": "Next",
-    "today": "Today"
+    "today": "Today",
+    "noRoomTypes": "No room types yet",
+    "noRoomTypesHint": "Availability is held per room type, so there is nothing to load until you have at least one.",
+    "goToRoomTypes": "Add a room type"
   },
   "reservations": {
     "title": "Reservations",
@@ -81,5 +85,35 @@
     "tooShort": "Use at least 12 characters.",
     "failed": "Could not change the password.",
     "success": "Password changed. Other devices have been signed out."
+  },
+  "roomTypes": {
+    "title": "Room types",
+    "subtitle": "What you sell. Each one holds its own availability and rates.",
+    "empty": "No room types yet. Add the first one to start loading availability.",
+    "emptyHint": "A room type is a category you sell — Deluxe Double, Standard Twin — not an individual room.",
+    "add": "Add room type",
+    "edit": "Edit",
+    "code": "Code",
+    "codeHint": "Used in OTA mappings. Cannot be changed later.",
+    "name": "Name",
+    "description": "Description",
+    "occupancy": "Occupancy",
+    "standardOccupancy": "Standard",
+    "standardHint": "Guests included in the base rate.",
+    "maxOccupancy": "Maximum",
+    "maxAdults": "Max adults",
+    "maxChildren": "Max children",
+    "active": "Selling",
+    "inactive": "Not selling",
+    "deactivate": "Stop selling",
+    "activate": "Resume selling",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "created": "Room type created.",
+    "updated": "Saved.",
+    "codeTaken": "That code is already used at this property.",
+    "failed": "Could not save the room type.",
+    "noDelete": "Room types are never deleted — inventory, rates and past bookings point at them. Stop selling instead."
   }
 }
