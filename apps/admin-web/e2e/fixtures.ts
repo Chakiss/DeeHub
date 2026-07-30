@@ -22,6 +22,8 @@ export interface TestData {
   ratePlanId: string;
   managerEmail: string;
   frontDeskEmail: string;
+  /** Dedicated to the change-password spec, which mutates its credential. */
+  passwordUserEmail: string;
   dates: string[];
 }
 
@@ -69,6 +71,7 @@ export async function seed(): Promise<TestData> {
     ratePlanId: randomUUID(),
     managerEmail: `manager-${short}@e2e.test`,
     frontDeskEmail: `frontdesk-${short}@e2e.test`,
+    passwordUserEmail: `password-${short}@e2e.test`,
     // Far future so these never collide with seed data or a real booking.
     dates: ['2030-04-01', '2030-04-02', '2030-04-03', '2030-04-04', '2030-04-05', '2030-04-06'],
   };
@@ -106,6 +109,7 @@ export async function seed(): Promise<TestData> {
     for (const [email, role] of [
       [data.managerEmail, 'MANAGER'],
       [data.frontDeskEmail, 'FRONT_DESK'],
+      [data.passwordUserEmail, 'MANAGER'],
     ] as const) {
       const userId = randomUUID();
       await pool.query(

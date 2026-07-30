@@ -4,3 +4,6 @@ dist
 coverage
 pnpm-lock.yaml
 apps/api/src/database/migrations
+test-results
+playwright-report
+next-env.d.ts

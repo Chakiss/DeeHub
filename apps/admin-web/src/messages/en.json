@@ -7,7 +7,8 @@
     "inventory": "Inventory",
     "reservations": "Reservations",
     "signOut": "Sign out",
-    "property": "Property"
+    "property": "Property",
+    "account": "Account"
   },
   "login": {
     "title": "Sign in",
@@ -66,5 +67,19 @@
     "generic": "Something went wrong",
     "allotmentBelowBooked": "Allotment cannot be lower than the rooms already sold",
     "forbidden": "You do not have permission to do that"
+  },
+  "account": {
+    "title": "Change password",
+    "subtitle": "Changing your password signs out every other device.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "hint": "At least 12 characters.",
+    "submit": "Change password",
+    "submitting": "Changing…",
+    "mismatch": "The two new passwords do not match.",
+    "tooShort": "Use at least 12 characters.",
+    "failed": "Could not change the password.",
+    "success": "Password changed. Other devices have been signed out."
   }
 }

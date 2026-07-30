@@ -21,6 +21,14 @@ export interface LoginInput {
   readonly ip?: string | null;
 }
 
+export interface ChangePasswordInput {
+  readonly userId: string;
+  readonly currentPassword: string;
+  readonly newPassword: string;
+  readonly userAgent?: string | null;
+  readonly ip?: string | null;
+}
+
 export interface AuthTokens {
   readonly accessToken: string;
   readonly refreshToken: string;
@@ -108,6 +116,76 @@ export class AuthService {
       });
 
       return { ...tokens, user: principal };
+    });
+  }
+
+  /**
+   * Change the caller's own password.
+   *
+   * Every other session is revoked, and that is the point rather than a side
+   * effect. The reason a password gets changed is usually that it may have been
+   * seen by someone else, so leaving already-issued refresh tokens alive would
+   * defeat the change entirely — the holder of the old password would keep
+   * access for up to thirty days without needing it again.
+   *
+   * The caller is kept signed in by issuing a fresh pair AFTER the revocation,
+   * so the new tokens are not caught by it.
+   */
+  async changePassword(input: ChangePasswordInput): Promise<AuthTokens> {
+    const user = await this.repo.findAuthUserById(this.db, input.userId);
+    // The guard authenticated this request, so absence means the account was
+    // disabled between issuing the token and using it.
+    if (!user) throw new DomainError('UNAUTHENTICATED', 'Account is no longer active');
+
+    // Re-verify the current password even though the caller holds a valid
+    // session: it is what stops a stolen access token from locking the real
+    // owner out of their own account.
+    const valid = await this.hasher.verify(input.currentPassword, user.passwordHash);
+    if (!valid) throw new DomainError('UNAUTHENTICATED', 'Current password is incorrect');
+
+    if (input.currentPassword === input.newPassword) {
+      throw new DomainError(
+        'VALIDATION_ERROR',
+        'The new password must differ from the current one',
+      );
+    }
+
+    const principal = await this.repo.findPrincipalById(this.db, user.id);
+    if (!principal) throw new DomainError('UNAUTHENTICATED', 'Account is no longer active');
+
+    const newHash = await this.hasher.hash(input.newPassword);
+
+    return this.db.transaction(async (tx) => {
+      await this.repo.updatePasswordHash(tx, user.id, newHash);
+
+      // Before issuing the replacement pair, not after.
+      const revoked = await this.repo.revokeAllForUser(tx, user.id);
+
+      const tokens = await this.issueTokens(tx, principal, input.userAgent, input.ip);
+
+      await this.audit.record(tx, {
+        organizationId: principal.organizationId,
+        propertyId: null,
+        actor: {
+          type: 'USER',
+          id: principal.id,
+          label: principal.email,
+          ip: input.ip ?? null,
+          userAgent: input.userAgent ?? null,
+        },
+        action: 'auth.password_changed',
+        entityType: 'user',
+        entityId: principal.id,
+        // Never the password, in any form. The session count is the part that
+        // matters when reading this back during an incident.
+        after: { sessionsRevoked: revoked },
+      });
+
+      return {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+      };
     });
   }
 

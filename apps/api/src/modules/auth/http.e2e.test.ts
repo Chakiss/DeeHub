@@ -36,6 +36,7 @@ describeIfDb('HTTP API', () => {
   const frontDeskId = crypto.randomUUID();
   const readOnlyId = crypto.randomUUID();
   const otherPropertyStaffId = crypto.randomUUID();
+  const passwordUserId = crypto.randomUUID();
 
   const PASSWORD = 'correct-horse-battery-staple';
   const HORIZON = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'];
@@ -89,6 +90,10 @@ describeIfDb('HTTP API', () => {
       [frontDeskId, 'frontdesk@e2e.test', 'Front Desk'],
       [readOnlyId, 'readonly@e2e.test', 'Read Only'],
       [otherPropertyStaffId, 'other@e2e.test', 'Other Property Staff'],
+      // Dedicated to the change-password tests: they mutate the credential, so
+      // sharing a user with the rest of the suite would make failures depend on
+      // execution order.
+      [passwordUserId, 'password@e2e.test', 'Password Subject'],
     ] as const) {
       await pool.query(
         `INSERT INTO users (id, organization_id, email, password_hash, full_name)
@@ -102,7 +107,8 @@ describeIfDb('HTTP API', () => {
         ($1, $2, $3, NULL, 'OWNER'),
         ($4, $2, $5, $6, 'FRONT_DESK'),
         ($7, $2, $8, NULL, 'READ_ONLY'),
-        ($9, $2, $10, $11, 'MANAGER')`,
+        ($9, $2, $10, $11, 'MANAGER'),
+        ($12, $2, $13, NULL, 'READ_ONLY')`,
       [
         crypto.randomUUID(),
         orgId,
@@ -115,6 +121,8 @@ describeIfDb('HTTP API', () => {
         crypto.randomUUID(),
         otherPropertyStaffId,
         otherPropertyId,
+        crypto.randomUUID(),
+        passwordUserId,
       ],
     );
   });
@@ -295,6 +303,163 @@ describeIfDb('HTTP API', () => {
         .post('/api/v1/auth/logout')
         .set('Cookie', cookie)
         .expect(204);
+    });
+  });
+
+  describe('POST /auth/change-password', () => {
+    const NEW_PASSWORD = 'a-much-longer-replacement-password';
+
+    // Restore the credential before each case so these tests are independent of
+    // the order they run in.
+    beforeEach(async () => {
+      const { ScryptPasswordHasher } = await import('./domain/password-hasher');
+      await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+        await new ScryptPasswordHasher().hash(PASSWORD),
+        passwordUserId,
+      ]);
+      await pool.query('UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1', [
+        passwordUserId,
+      ]);
+    });
+
+    it('changes the password and lets the new one sign in', async () => {
+      const { accessToken } = await login('password@e2e.test');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          organizationSlug: orgSlug,
+          email: 'password@e2e.test',
+          password: NEW_PASSWORD,
+        })
+        .expect(200);
+    });
+
+    it('stops the old password from working', async () => {
+      const { accessToken } = await login('password@e2e.test');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ organizationSlug: orgSlug, email: 'password@e2e.test', password: PASSWORD })
+        .expect(401);
+    });
+
+    /**
+     * The reason the endpoint exists. A password that may have been seen by
+     * someone else has to take every session it opened down with it, or the
+     * holder keeps access for the refresh token's full thirty days.
+     */
+    it('revokes sessions opened with the old password', async () => {
+      const { cookie: staleCookie } = await login('password@e2e.test');
+      const { accessToken } = await login('password@e2e.test');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', staleCookie)
+        .expect(401);
+    });
+
+    it('keeps the caller signed in with a usable refresh cookie', async () => {
+      const { accessToken } = await login('password@e2e.test');
+
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+        .expect(200);
+
+      expect(response.body.accessToken).toBeTypeOf('string');
+
+      // The revocation above caught the caller's own token too, so the response
+      // must carry a replacement or changing a password would sign you out.
+      const cookies = response.headers['set-cookie'] as unknown as string[] | undefined;
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', cookies?.[0] ?? '')
+        .expect(200);
+    });
+
+    it('rejects a wrong current password', async () => {
+      const { accessToken } = await login('password@e2e.test');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: 'not-the-password', newPassword: NEW_PASSWORD })
+        .expect(401);
+
+      // And the old password must still work — a failed attempt changes nothing.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ organizationSlug: orgSlug, email: 'password@e2e.test', password: PASSWORD })
+        .expect(200);
+    });
+
+    it('requires authentication', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+        .expect(401);
+    });
+
+    it('rejects a new password shorter than 12 characters', async () => {
+      const { accessToken } = await login('password@e2e.test');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword: 'short' })
+        .expect(422);
+    });
+
+    it('rejects reusing the current password', async () => {
+      const { accessToken } = await login('password@e2e.test');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword: PASSWORD })
+        .expect(422);
+    });
+
+    it('records an audit entry without the password', async () => {
+      const { accessToken } = await login('password@e2e.test');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD })
+        .expect(200);
+
+      const { rows } = await pool.query<{ after: unknown }>(
+        `SELECT after FROM audit_logs
+          WHERE action = 'auth.password_changed' AND entity_id = $1
+          ORDER BY created_at DESC LIMIT 1`,
+        [passwordUserId],
+      );
+
+      expect(rows).toHaveLength(1);
+      const serialized = JSON.stringify(rows[0]);
+      expect(serialized).not.toContain(PASSWORD);
+      expect(serialized).not.toContain(NEW_PASSWORD);
     });
   });
 

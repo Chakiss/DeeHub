@@ -37,6 +37,13 @@ export interface StoredRefreshToken {
 export interface AuthRepository {
   findUserForLogin(tx: Executor, orgSlug: string, email: string): Promise<AuthUser | null>;
   findPrincipalById(tx: Executor, userId: string): Promise<UserPrincipal | null>;
+
+  /**
+   * Like findPrincipalById but includes the password hash, for the one
+   * operation that must re-verify a credential the caller already holds a
+   * session for: changing the password.
+   */
+  findAuthUserById(tx: Executor, userId: string): Promise<AuthUser | null>;
   updatePasswordHash(tx: Executor, userId: string, passwordHash: string): Promise<void>;
   recordLogin(tx: Executor, userId: string, at: Date): Promise<void>;
 

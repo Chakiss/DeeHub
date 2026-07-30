@@ -38,6 +38,28 @@ export class DrizzleAuthRepository implements AuthRepository {
     return rows[0] ?? null;
   }
 
+  async findAuthUserById(tx: Executor, userId: string): Promise<AuthUser | null> {
+    const rows = await tx
+      .select({
+        id: users.id,
+        organizationId: users.organizationId,
+        email: users.email,
+        fullName: users.fullName,
+        status: users.status,
+        passwordHash: users.passwordHash,
+      })
+      .from(users)
+      .innerJoin(organizations, eq(organizations.id, users.organizationId))
+      // Same gates as findPrincipalById: a suspended organization or a disabled
+      // user must not be able to change a password and keep the account alive.
+      .where(
+        and(eq(users.id, userId), eq(users.status, 'ACTIVE'), eq(organizations.status, 'ACTIVE')),
+      )
+      .limit(1);
+
+    return rows[0] ?? null;
+  }
+
   async findPrincipalById(tx: Executor, userId: string): Promise<UserPrincipal | null> {
     const rows = await tx
       .select({

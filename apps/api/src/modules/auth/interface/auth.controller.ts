@@ -20,6 +20,20 @@ const loginSchema = z
 
 type LoginBody = z.infer<typeof loginSchema>;
 
+/**
+ * 12 characters minimum. Long enough to matter, short enough that a hotel's
+ * front-desk staff will not write it on a sticky note — which is the actual
+ * threat model here, not offline brute force against a scrypt hash.
+ */
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(512),
+    newPassword: z.string().min(12, 'Use at least 12 characters').max(512),
+  })
+  .strict();
+
+type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -83,6 +97,34 @@ export class AuthController {
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     await this.auth.logout(this.readRefreshToken(request));
     response.clearCookie(REFRESH_COOKIE, { path: '/' });
+  }
+
+  // Authenticated on purpose — no @Public(). Changing a password is an
+  // operation on an existing session, not a way to recover a lost one.
+  @Post('change-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Change your own password and revoke all other sessions' })
+  async changePassword(
+    @Body(new ZodValidationPipe(changePasswordSchema)) body: ChangePasswordBody,
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const principal = request.principal;
+    if (!principal) throw new DomainError('UNAUTHENTICATED', 'Not authenticated');
+
+    const tokens = await this.auth.changePassword({
+      userId: principal.id,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      userAgent: request.headers['user-agent'] ?? null,
+      ip: request.ip ?? null,
+    });
+
+    // The caller's old refresh token was just revoked along with every other
+    // session, so it must be replaced or this response would sign them out.
+    this.setRefreshCookie(response, tokens.refreshToken);
+
+    return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn };
   }
 
   @Get('me')

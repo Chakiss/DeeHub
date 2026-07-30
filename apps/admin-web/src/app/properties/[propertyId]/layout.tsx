@@ -35,7 +35,12 @@ export default async function PropertyLayout({
           </nav>
 
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="hidden text-slate-500 sm:inline">{me.email}</span>
+            <Link
+              href="/account"
+              className="hidden text-slate-500 transition hover:text-slate-900 sm:inline"
+            >
+              {me.email}
+            </Link>
             <SignOutButton label={t('signOut')} />
           </div>
         </div>
