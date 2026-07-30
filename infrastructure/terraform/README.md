@@ -90,6 +90,8 @@ Each of these cost a failed apply to discover:
 | VPC peering needs more than `roles/editor`                                               | `servicenetworking.networksAdmin` + `compute.networkAdmin`                                         |
 | ADC's quota project is separate from `gcloud config`                                     | Wrong one gives `UNAUTHENTICATED`, not a permission error                                          |
 | `roles/editor` can create a Cloud Run service but not set its IAM policy                 | Making the api and dashboard public needs `roles/run.admin` as well                                |
+| Artifact Registry has **immutable tags**, and a BuildKit attestation index writes the tag twice | Images are built `--provenance=false --sbom=false`, or the push fails after the image has landed |
+| Terraform must not own the container **image**                                            | `ignore_changes` on all five, or the next apply reverts production to the placeholder             |
 
 ## A note on IAM propagation
 

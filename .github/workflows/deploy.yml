@@ -61,14 +61,20 @@ jobs:
           echo "api=${REGISTRY}/api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           echo "web=${REGISTRY}/web:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+      # --provenance/--sbom off: either one makes BuildKit publish an OCI index
+      # instead of a plain manifest, which writes the tag twice. Artifact
+      # Registry has immutable tags, so the second write fails with "cannot
+      # update tag" once the image has already been uploaded.
       - name: Build and push API image
         run: |
-          docker build -f apps/api/Dockerfile -t "${{ steps.images.outputs.api }}" .
+          docker build --provenance=false --sbom=false \
+            -f apps/api/Dockerfile -t "${{ steps.images.outputs.api }}" .
           docker push "${{ steps.images.outputs.api }}"
 
       - name: Build and push dashboard image
         run: |
-          docker build -f apps/admin-web/Dockerfile -t "${{ steps.images.outputs.web }}" .
+          docker build --provenance=false --sbom=false \
+            -f apps/admin-web/Dockerfile -t "${{ steps.images.outputs.web }}" .
           docker push "${{ steps.images.outputs.web }}"
 
       # Migrations run BEFORE any traffic shifts. Expand/contract means the old

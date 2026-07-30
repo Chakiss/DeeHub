@@ -19,12 +19,22 @@ gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 # linux/amd64 explicitly: Cloud Run does not run arm64, and building on an
 # Apple Silicon machine would otherwise produce an image that fails to start
 # with an exec-format error.
+#
+# --provenance/--sbom off: with either enabled BuildKit publishes an OCI index
+# (image manifest + attestation manifest) rather than a plain manifest, and
+# pushing an index writes the tag twice. The registry has immutable tags, so the
+# second write is refused with "cannot update tag" — after the image itself has
+# already landed, which makes it read like a permissions problem. Immutability
+# is worth keeping: it is what guarantees a tag we deployed still means the same
+# bytes tomorrow.
+BUILD_FLAGS=(--platform linux/amd64 --provenance=false --sbom=false)
+
 echo "Building API image…"
-docker build --platform linux/amd64 -f apps/api/Dockerfile -t "${REGISTRY}/api:${TAG}" .
+docker build "${BUILD_FLAGS[@]}" -f apps/api/Dockerfile -t "${REGISTRY}/api:${TAG}" .
 docker push "${REGISTRY}/api:${TAG}"
 
 echo "Building dashboard image…"
-docker build --platform linux/amd64 -f apps/admin-web/Dockerfile -t "${REGISTRY}/web:${TAG}" .
+docker build "${BUILD_FLAGS[@]}" -f apps/admin-web/Dockerfile -t "${REGISTRY}/web:${TAG}" .
 docker push "${REGISTRY}/web:${TAG}"
 
 # Migrations run BEFORE traffic shifts. A failure here stops the deploy with
