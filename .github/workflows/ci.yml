@@ -91,3 +91,30 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      # Browser tests need a running API, so they come after the unit and
+      # integration suites rather than in the same step.
+      - name: Install Playwright browser
+        run: pnpm --filter @deehub/admin-web exec playwright install --with-deps chromium
+
+      - name: Start API for end-to-end tests
+        run: |
+          pnpm --filter @deehub/api start &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3001/health >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3001/health/ready
+        env:
+          PORT: 3001
+
+      - name: Dashboard end-to-end tests
+        run: pnpm --filter @deehub/admin-web test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/admin-web/playwright-report/
+          retention-days: 7

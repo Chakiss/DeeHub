@@ -104,6 +104,9 @@ Two things to know before deploying it:
 - The API client in `src/lib/api.ts` is hand-written. architecture.md §8 calls
   for one generated from the OpenAPI document with a CI drift check; that is
   deferred until the endpoint surface settles.
+- Browser tests live in `apps/admin-web/e2e` and run against the **standalone
+  build**, exactly as the container does. See
+  [e2e/README.md](apps/admin-web/e2e/README.md).
 
 ## Deploying
 
