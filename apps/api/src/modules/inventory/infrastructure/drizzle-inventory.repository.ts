@@ -5,7 +5,7 @@ import { toIsoDate } from '@deehub/shared';
 import { inventoryDays } from '../../../database/schema';
 import type { Executor } from '../../../database/executor';
 import type { InventoryDay } from '../domain/inventory-day';
-import type { InventoryRepository } from '../domain/inventory.repository';
+import type { InventoryPatch, InventoryRepository } from '../domain/inventory.repository';
 
 interface InventoryRow {
   roomTypeId: string;
@@ -165,6 +165,51 @@ export class DrizzleInventoryRepository implements InventoryRepository {
     `);
 
     return result.rows.map((row) => toIsoDate(row.date));
+  }
+
+  async upsertRange(
+    tx: Executor,
+    scope: { organizationId: string; propertyId: string; roomTypeId: string },
+    dates: readonly IsoDate[],
+    patch: InventoryPatch,
+  ): Promise<number> {
+    if (dates.length === 0) return 0;
+
+    const values = dates.map((date) => ({
+      organizationId: scope.organizationId,
+      propertyId: scope.propertyId,
+      roomTypeId: scope.roomTypeId,
+      date,
+      allotment: patch.allotment ?? 0,
+      booked: 0,
+      ...(patch.stopSell === undefined ? {} : { stopSell: patch.stopSell }),
+      ...(patch.minStay === undefined ? {} : { minStay: patch.minStay }),
+      ...(patch.maxStay === undefined ? {} : { maxStay: patch.maxStay }),
+      ...(patch.closedToArrival === undefined ? {} : { closedToArrival: patch.closedToArrival }),
+      ...(patch.closedToDeparture === undefined
+        ? {}
+        : { closedToDeparture: patch.closedToDeparture }),
+    }));
+
+    // Only the supplied fields are written on conflict, so a min-stay edit does
+    // not reset allotment for the whole range.
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.allotment !== undefined) set['allotment'] = patch.allotment;
+    if (patch.stopSell !== undefined) set['stopSell'] = patch.stopSell;
+    if (patch.minStay !== undefined) set['minStay'] = patch.minStay;
+    if (patch.maxStay !== undefined) set['maxStay'] = patch.maxStay;
+    if (patch.closedToArrival !== undefined) set['closedToArrival'] = patch.closedToArrival;
+    if (patch.closedToDeparture !== undefined) set['closedToDeparture'] = patch.closedToDeparture;
+
+    const result = await tx
+      .insert(inventoryDays)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [inventoryDays.roomTypeId, inventoryDays.date],
+        set,
+      });
+
+    return result.rowCount ?? dates.length;
   }
 
   /**

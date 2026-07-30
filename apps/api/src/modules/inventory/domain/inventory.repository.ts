@@ -57,6 +57,20 @@ export interface InventoryRepository {
     units: number,
   ): Promise<readonly IsoDate[]>;
 
+  /**
+   * Apply a staff edit across a set of nights, creating any that do not exist.
+   *
+   * Only the fields present in `patch` are written, so setting a min-stay does
+   * not silently reset allotment. Rows must be locked and validated by the
+   * caller first — this does not check `booked`.
+   */
+  upsertRange(
+    tx: Executor,
+    scope: { organizationId: string; propertyId: string; roomTypeId: string },
+    dates: readonly IsoDate[],
+    patch: InventoryPatch,
+  ): Promise<number>;
+
   /** Guarded decrement. Returns rows changed. */
   release(
     tx: Executor,
@@ -64,6 +78,15 @@ export interface InventoryRepository {
     dates: readonly IsoDate[],
     units: number,
   ): Promise<number>;
+}
+
+export interface InventoryPatch {
+  readonly allotment?: number;
+  readonly stopSell?: boolean;
+  readonly minStay?: number;
+  readonly maxStay?: number | null;
+  readonly closedToArrival?: boolean;
+  readonly closedToDeparture?: boolean;
 }
 
 export const INVENTORY_REPOSITORY = Symbol('INVENTORY_REPOSITORY');

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { errors, isIsoDate, toIsoDate, type Money } from '@deehub/shared';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import type { AuditActor } from '../../../common/audit/audit.service';
 import { CreateReservationUseCase } from '../application/create-reservation.usecase';
 import { CancelReservationUseCase } from '../application/cancel-reservation.usecase';
 import { GetReservationQuery } from '../application/get-reservation.query';
+import { ListReservationsQuery } from '../application/list-reservations.query';
 
 // Format AND calendar validity: the regex alone accepts 2026-02-30, which
 // would then blow up in the domain as a 500 instead of a clean 422.
@@ -75,7 +76,44 @@ export class ReservationsController {
     private readonly createReservation: CreateReservationUseCase,
     private readonly cancelReservation: CancelReservationUseCase,
     private readonly getReservation: GetReservationQuery,
+    private readonly listReservations: ListReservationsQuery,
   ) {}
+
+  @Get()
+  @RequireCapability('reservation:read')
+  @ApiOperation({ summary: 'List reservations with filters and cursor pagination' })
+  async list(
+    @Param('propertyId') propertyId: string,
+    @Query('status') status?: string,
+    @Query('checkInFrom') checkInFrom?: string,
+    @Query('checkInTo') checkInTo?: string,
+    @Query('channelId') channelId?: string,
+    @Query('source') source?: string,
+    @Query('q') q?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    for (const [label, value] of [
+      ['checkInFrom', checkInFrom],
+      ['checkInTo', checkInTo],
+    ] as const) {
+      if (value && !isIsoDate(value)) {
+        throw errors.validation(`${label} must be a calendar date in YYYY-MM-DD form`);
+      }
+    }
+
+    return this.listReservations.execute({
+      propertyId,
+      ...(status ? { status: status.split(',').filter(Boolean) } : {}),
+      ...(checkInFrom ? { checkInFrom: toIsoDate(checkInFrom) } : {}),
+      ...(checkInTo ? { checkInTo: toIsoDate(checkInTo) } : {}),
+      ...(channelId ? { channelId } : {}),
+      ...(source ? { source } : {}),
+      ...(q ? { q } : {}),
+      ...(cursor ? { cursor } : {}),
+      ...(limit ? { limit: Number(limit) } : {}),
+    });
+  }
 
   @Post()
   @HttpCode(201)
