@@ -30,6 +30,11 @@ export {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
   EXPIRY_COOKIE,
+  LAST_ACCOUNT_COOKIE,
+  LAST_ACCOUNT_MAX_AGE,
   cookieOptions,
   apiBaseUrl,
+  encodeLastAccount,
+  decodeLastAccount,
 } from './session-config';
+export type { LastAccount } from './session-config';

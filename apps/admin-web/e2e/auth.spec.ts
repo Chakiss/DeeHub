@@ -44,6 +44,81 @@ test.describe('authentication', () => {
     await expect(alert).toHaveText(wrongPassword!);
   });
 
+  /**
+   * The organization slug is the field nobody can remember — it is an
+   * identifier the product chose, not something hotel staff know. After one
+   * successful sign-in the everyday case becomes typing a password.
+   */
+  test('remembers the account and asks only for a password next time', async ({ page }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    // Asserted on the card as a whole: the fixture sets full_name to the
+    // email, so the address legitimately renders twice inside it.
+    const card = page.locator('form');
+    await expect(card).toContainText(data.managerEmail);
+    await expect(card).toContainText(data.organizationSlug);
+
+    // Only the password is asked for.
+    await expect(page.getByLabel('Organization')).toHaveCount(0);
+    await expect(page.getByLabel('Email')).toHaveCount(0);
+
+    await page.context().clearCookies({ name: 'deehub_at' });
+    await page.getByLabel('Password').fill(TEST_PASSWORD);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL(/\/properties\/.+\/inventory/);
+  });
+
+  test('never remembers an account after a failed attempt', async ({ page }) => {
+    const data = testData();
+    await page.context().clearCookies();
+
+    await page.goto('/login');
+    await page.getByLabel('Organization').fill(data.organizationSlug);
+    await page.getByLabel('Email').fill(data.managerEmail);
+    await page.getByLabel('Password').fill('definitely-not-the-password');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('form').getByRole('alert')).toBeVisible();
+
+    // A typo must not become the suggestion on the next visit.
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toHaveCount(0);
+    await expect(page.getByLabel('Organization')).toBeVisible();
+  });
+
+  test('forgetting the account restores the full form', async ({ page }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+
+    // Matters on a shared front-desk machine, where the address on screen
+    // stops being yours.
+    await page.getByRole('button', { name: 'Use another account' }).click();
+    await expect(page.getByLabel('Organization')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toHaveCount(0);
+  });
+
+  test('the remembered account is not readable from client JavaScript', async ({
+    page,
+    context,
+  }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+
+    const remembered = (await context.cookies()).find((cookie) => cookie.name === 'deehub_last');
+    expect(remembered, 'the account should be remembered').toBeTruthy();
+    // It holds no credential, but an XSS bug should still not be able to lift a
+    // colleague's address out of the browser.
+    expect(remembered!.httpOnly).toBe(true);
+    expect(await page.evaluate(() => document.cookie)).not.toContain('deehub_last');
+  });
+
   test('never exposes a token to client-side JavaScript', async ({ page, context }) => {
     const data = testData();
     await login(page, data.managerEmail);

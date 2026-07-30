@@ -1,5 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { LoginForm } from '@/components/login-form';
+import { LAST_ACCOUNT_COOKIE, decodeLastAccount } from '@/lib/session-config';
 
 /**
  * Server shell around the client form.
@@ -8,7 +10,12 @@ import { LoginForm } from '@/components/login-form';
  * during prerendering unless it sits behind a Suspense boundary. Keeping the
  * page itself a server component means the shell still renders statically.
  */
-export default function LoginPage() {
+export default async function LoginPage() {
+  // Read on the server: the cookie is httpOnly, so client JavaScript cannot see
+  // it — an XSS bug should not be able to lift a colleague's address.
+  const store = await cookies();
+  const lastAccount = decodeLastAccount(store.get(LAST_ACCOUNT_COOKIE)?.value);
+
   return (
     <Suspense
       fallback={
@@ -17,7 +24,7 @@ export default function LoginPage() {
         </main>
       }
     >
-      <LoginForm />
+      <LoginForm lastAccount={lastAccount} />
     </Suspense>
   );
 }

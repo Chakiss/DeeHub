@@ -15,6 +15,15 @@ export function testData(): TestData {
 export async function login(page: Page, email: string): Promise<void> {
   const data = testData();
   await page.goto('/login');
+
+  // The browser may already remember an account, which replaces the full form
+  // with a password-only card. Switching to a different colleague means saying
+  // it is not you — exactly what a person does at a shared front desk.
+  const useAnother = page.getByRole('button', { name: 'Use another account' });
+  if (await useAnother.isVisible().catch(() => false)) {
+    await useAnother.click();
+  }
+
   await page.getByLabel('Organization').fill(data.organizationSlug);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(TEST_PASSWORD);

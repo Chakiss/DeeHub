@@ -2,15 +2,18 @@ import { NextResponse } from 'next/server';
 import {
   ACCESS_COOKIE,
   EXPIRY_COOKIE,
+  LAST_ACCOUNT_COOKIE,
+  LAST_ACCOUNT_MAX_AGE,
   REFRESH_COOKIE,
   apiBaseUrl,
   cookieOptions,
+  encodeLastAccount,
 } from '@/lib/session';
 
 interface LoginResponse {
   accessToken?: string;
   expiresIn?: number;
-  user?: unknown;
+  user?: { email?: string; fullName?: string };
   error?: { code?: string; message?: string };
 }
 
@@ -49,6 +52,23 @@ export async function POST(request: Request): Promise<NextResponse> {
     String(Date.now() + expiresIn * 1000),
     cookieOptions(expiresIn),
   );
+
+  // Remembered only after a SUCCESSFUL sign-in, so a typo never becomes the
+  // suggestion on the next visit. Holds the organization slug, the email and
+  // the display name — never the password.
+  const organizationSlug =
+    typeof body['organizationSlug'] === 'string' ? body['organizationSlug'] : null;
+  if (organizationSlug && payload.user?.email) {
+    response.cookies.set(
+      LAST_ACCOUNT_COOKIE,
+      encodeLastAccount({
+        organizationSlug,
+        email: payload.user.email,
+        fullName: payload.user.fullName ?? payload.user.email,
+      }),
+      cookieOptions(LAST_ACCOUNT_MAX_AGE),
+    );
+  }
 
   // The API returns its refresh token in a Set-Cookie for its own origin, which
   // this app cannot use. Forward it into our own cookie so middleware can

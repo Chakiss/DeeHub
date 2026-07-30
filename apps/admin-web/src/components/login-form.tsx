@@ -3,11 +3,31 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
+import type { LastAccount } from '@/lib/session-config';
 
-export function LoginForm() {
+/**
+ * Sign in, with the last account on this browser offered back.
+ *
+ * The organization slug is the field nobody can remember: it is an identifier
+ * the product chose, not something hotel staff know. Remembering it turns the
+ * everyday case — the same person, the same machine — into typing a password.
+ *
+ * Deliberately NOT solved by making email globally unique and dropping the
+ * slug. Email is unique per organization on purpose (the same person can work
+ * for two hotels), and looking an address up across tenants would mean either
+ * verifying a password against every candidate account — N scrypt hashes per
+ * attempt on an unauthenticated endpoint — or telling the caller that an
+ * address exists somewhere, which is exactly what the uniform error message
+ * elsewhere in login is there to avoid.
+ */
+export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) {
   const t = useTranslations('login');
   const router = useRouter();
   const params = useSearchParams();
+
+  // Start on the remembered card when there is one, and fall back to the full
+  // form the moment the person says it is not them.
+  const [remembered, setRemembered] = useState<LastAccount | null>(lastAccount);
 
   const [organizationSlug, setOrganizationSlug] = useState('');
   const [email, setEmail] = useState('');
@@ -15,8 +35,11 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function submit(credentials: {
+    organizationSlug: string;
+    email: string;
+    password: string;
+  }) {
     setSubmitting(true);
     setError(null);
 
@@ -24,7 +47,7 @@ export function LoginForm() {
       const response = await fetch('/api/session/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ organizationSlug, email, password }),
+        body: JSON.stringify(credentials),
       });
 
       if (!response.ok) {
@@ -48,6 +71,13 @@ export function LoginForm() {
     }
   }
 
+  async function forget() {
+    await fetch('/api/session/forget-account', { method: 'POST' });
+    setRemembered(null);
+    setPassword('');
+    setError(null);
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -56,59 +86,140 @@ export function LoginForm() {
           <p className="mt-1 text-sm text-slate-500">{t('subtitle')}</p>
         </div>
 
-        <form
-          onSubmit={onSubmit}
-          className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
-
-          <Field label={t('organization')} hint={t('organizationHint')}>
-            <input
-              value={organizationSlug}
-              onChange={(event) => setOrganizationSlug(event.target.value)}
-              autoComplete="organization"
-              required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-              placeholder="deehub-demo"
-            />
-          </Field>
-
-          <Field label={t('email')}>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="username"
-              required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-            />
-          </Field>
-
-          <Field label={t('password')}>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-            />
-          </Field>
-
-          {error && (
-            <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+        {remembered ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit({
+                organizationSlug: remembered.organizationSlug,
+                email: remembered.email,
+                password,
+              });
+            }}
+            className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
           >
-            {submitting ? t('submitting') : t('submit')}
-          </button>
-        </form>
+            <h1 className="text-lg font-medium text-slate-900">{t('welcomeBack')}</h1>
+
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+              <span
+                aria-hidden
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold uppercase text-brand-700"
+              >
+                {remembered.fullName.trim().charAt(0) || '?'}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-slate-800">
+                  {remembered.fullName}
+                </span>
+                <span className="block truncate text-xs text-slate-500">{remembered.email}</span>
+                <span className="block truncate text-xs text-slate-400">
+                  {remembered.organizationSlug}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => void forget()}
+                aria-label={t('forget')}
+                title={t('forget')}
+                className="shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <Field label={t('password')}>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                // The only field on this path, so it should be ready to type in.
+                autoFocus
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </Field>
+
+            {error && (
+              <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+            >
+              {submitting ? t('submitting') : t('submit')}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void forget()}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+            >
+              {t('useAnotherAccount')}
+            </button>
+          </form>
+        ) : (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit({ organizationSlug, email, password });
+            }}
+            className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
+
+            <Field label={t('organization')} hint={t('organizationHint')}>
+              <input
+                value={organizationSlug}
+                onChange={(event) => setOrganizationSlug(event.target.value)}
+                autoComplete="organization"
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                placeholder="deehub-demo"
+              />
+            </Field>
+
+            <Field label={t('email')}>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="username"
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </Field>
+
+            <Field label={t('password')}>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </Field>
+
+            {error && (
+              <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-60"
+            >
+              {submitting ? t('submitting') : t('submit')}
+            </button>
+          </form>
+        )}
       </div>
     </main>
   );

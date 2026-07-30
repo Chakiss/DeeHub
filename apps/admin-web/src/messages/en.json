@@ -22,7 +22,10 @@
     "password": "Password",
     "submit": "Sign in",
     "submitting": "Signing in…",
-    "failed": "Sign in failed"
+    "failed": "Sign in failed",
+    "welcomeBack": "Welcome back",
+    "useAnotherAccount": "Use another account",
+    "forget": "Forget this account"
   },
   "inventory": {
     "title": "Inventory",
