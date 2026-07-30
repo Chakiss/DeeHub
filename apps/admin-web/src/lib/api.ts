@@ -254,6 +254,12 @@ export const api = {
   ) =>
     request<OrganizationUser>(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
+  resetUserPassword: (userId: string) =>
+    request<{ email: string; fullName: string; temporaryPassword: string }>(
+      `/users/${userId}/reset-password`,
+      { method: 'POST' },
+    ),
+
   properties: () =>
     request<{ id: string; code: string; name: string; timezone: string; currency: string }[]>(
       '/properties',

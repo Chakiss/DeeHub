@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, Patch, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
@@ -8,6 +8,7 @@ import { DATABASE, type Database } from '../../../database/database.module';
 import { ROLES } from '../../auth/domain/capabilities';
 import { InviteUserUseCase } from '../application/invite-user.usecase';
 import { UpdateUserUseCase } from '../application/update-user.usecase';
+import { ResetPasswordUseCase } from '../application/reset-password.usecase';
 import { highestRole } from '../application/user.rules';
 import {
   USER_REPOSITORY,
@@ -43,6 +44,7 @@ export class UsersController {
     @Inject(USER_REPOSITORY) private readonly repo: UserRepository,
     private readonly invite: InviteUserUseCase,
     private readonly update: UpdateUserUseCase,
+    private readonly reset: ResetPasswordUseCase,
   ) {}
 
   @Get()
@@ -68,6 +70,28 @@ export class UsersController {
     // The password appears here and nowhere else — not in the audit entry, not
     // in a log line. The caller must hand it over; there is no email yet.
     return { ...present(result.user), temporaryPassword: result.temporaryPassword };
+  }
+
+  /**
+   * The whole account-recovery story today: an operator resets it and hands
+   * over the new one. Self-service reset needs mail, and there is no provider —
+   * an endpoint that answered 202 and sent nothing would leave people waiting
+   * for an email that never comes.
+   */
+  @Post(':userId/reset-password')
+  @HttpCode(200)
+  @RequireCapability('user:update')
+  @ApiOperation({ summary: "Reset a colleague's password and revoke their sessions" })
+  async resetPassword(@Param('userId') userId: string, @Req() request: AuthenticatedRequest) {
+    const principal = request.principal;
+    return this.reset.execute(
+      {
+        userId,
+        actorUserId: principal?.id ?? null,
+        actorRole: highestRole(principal?.memberships ?? []),
+      },
+      actorFrom(request),
+    );
   }
 
   // No DELETE: every audit entry and every reservation a person touched points

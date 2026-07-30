@@ -15,6 +15,10 @@ import { AuthController } from './interface/auth.controller';
     { provide: AUTH_REPOSITORY, useClass: DrizzleAuthRepository },
     { provide: PASSWORD_HASHER, useClass: ScryptPasswordHasher },
   ],
-  exports: [AuthService, PASSWORD_HASHER],
+  // AUTH_REPOSITORY is exported as a port: user administration resets a
+  // password and revokes the account's sessions, and refresh tokens are owned
+  // here. Duplicating those writes in another module would give two places that
+  // decide what "revoked" means.
+  exports: [AuthService, PASSWORD_HASHER, AUTH_REPOSITORY],
 })
 export class AuthModule {}

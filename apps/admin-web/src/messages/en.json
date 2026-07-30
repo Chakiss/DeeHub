@@ -207,7 +207,11 @@
     "cannotSelf": "You cannot change your own role or status.",
     "roleHint": "You can only assign roles at or below your own.",
     "noAccess": "You do not have access to the team list",
-    "noAccessHint": "Managing colleagues is an organization-wide permission. Someone with an organization-wide Admin or Owner role can grant it."
+    "noAccessHint": "Managing colleagues is an organization-wide permission. Someone with an organization-wide Admin or Owner role can grant it.",
+    "reset": "Reset password",
+    "resetTitle": "Password reset",
+    "resetIntro": "Give this to {name}. It is shown once and cannot be retrieved again — every session they had has been signed out.",
+    "password": "Password"
   },
   "roles": {
     "OWNER": "Owner",

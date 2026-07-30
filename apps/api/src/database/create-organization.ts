@@ -11,12 +11,12 @@
  *     --owner somchai@baansuan.co.th --property "Baan Suan Resort Krabi"
  */
 import '../config/load-dotenv';
-import { randomBytes } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { v7 as uuidv7 } from 'uuid';
 import { ScryptPasswordHasher } from '../modules/auth/domain/password-hasher';
+import { generateTemporaryPassword } from '../common/security/temporary-password';
 import * as schema from './schema';
 
 interface Options {
@@ -96,19 +96,6 @@ function parseArgs(argv: string[]): Options {
   };
 }
 
-/**
- * Readable rather than maximally dense: it gets typed once from a screen, and a
- * password nobody can transcribe gets written on a sticky note instead.
- */
-function generatePassword(): string {
-  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
-  const bytes = randomBytes(20);
-  const chars = [...bytes].map((byte) => alphabet[byte % alphabet.length]);
-  return [chars.slice(0, 5), chars.slice(5, 10), chars.slice(10, 15), chars.slice(15, 20)]
-    .map((group) => group.join(''))
-    .join('-');
-}
-
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const connectionString = process.env['DATABASE_URL'];
@@ -127,7 +114,7 @@ async function main(): Promise<void> {
       throw new Error(`An organization with slug "${options.slug}" already exists`);
     }
 
-    const password = generatePassword();
+    const password = generateTemporaryPassword();
     const passwordHash = await new ScryptPasswordHasher().hash(password);
 
     const organizationId = uuidv7();

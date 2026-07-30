@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
 import { DomainError, errors } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { newId } from '../../../common/ids';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
+import { generateTemporaryPassword } from '../../../common/security/temporary-password';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import { PASSWORD_HASHER, type PasswordHasher } from '../../auth/domain/password-hasher';
 import type { Role } from '../../auth/domain/capabilities';
@@ -36,19 +36,6 @@ export interface InviteUserResult {
 
 const EMAIL_CONSTRAINT = 'users_org_email_uq';
 
-/**
- * Readable rather than maximally dense: it gets read off a screen and typed
- * once. A password nobody can transcribe ends up on a sticky note.
- */
-function generatePassword(): string {
-  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
-  const bytes = randomBytes(20);
-  const chars = [...bytes].map((byte) => alphabet[byte % alphabet.length]);
-  return [chars.slice(0, 5), chars.slice(5, 10), chars.slice(10, 15), chars.slice(15, 20)]
-    .map((group) => group.join(''))
-    .join('-');
-}
-
 @Injectable()
 export class InviteUserUseCase {
   constructor(
@@ -65,7 +52,7 @@ export class InviteUserUseCase {
     // create an OWNER.
     assertMayGrant(input.actorRole, input.role);
 
-    const password = generatePassword();
+    const password = generateTemporaryPassword();
     const passwordHash = await this.hasher.hash(password);
     const id = newId();
     const email = input.email.trim().toLowerCase();

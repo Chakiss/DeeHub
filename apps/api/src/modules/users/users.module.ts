@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { InviteUserUseCase } from './application/invite-user.usecase';
 import { UpdateUserUseCase } from './application/update-user.usecase';
+import { ResetPasswordUseCase } from './application/reset-password.usecase';
 import { USER_REPOSITORY } from './domain/user.repository';
 import { DrizzleUserRepository } from './infrastructure/drizzle-user.repository';
 import { UsersController } from './interface/users.controller';
@@ -16,6 +17,7 @@ import { UsersController } from './interface/users.controller';
     { provide: USER_REPOSITORY, useClass: DrizzleUserRepository },
     InviteUserUseCase,
     UpdateUserUseCase,
+    ResetPasswordUseCase,
   ],
   exports: [USER_REPOSITORY],
 })

@@ -38,6 +38,26 @@ export async function inviteUser(input: {
   }
 }
 
+export interface ResetResult {
+  readonly ok: boolean;
+  readonly reset?: { email: string; fullName: string; temporaryPassword: string };
+  readonly error?: { code: string; message: string };
+}
+
+/**
+ * The whole recovery story today. There is no outbound mail, so the new
+ * credential comes back to the operator who asked for it and they relay it.
+ */
+export async function resetUserPassword(userId: string): Promise<ResetResult> {
+  try {
+    const reset = await api.resetUserPassword(userId);
+    revalidatePath('/team');
+    return { ok: true, reset };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export async function updateUser(
   userId: string,
   input: { fullName?: string; role?: string; status?: 'ACTIVE' | 'DISABLED' },

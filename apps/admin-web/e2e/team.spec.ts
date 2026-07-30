@@ -61,6 +61,41 @@ test.describe('team', () => {
     await expect(page.getByRole('row', { name: new RegExp(email) })).toBeVisible();
   });
 
+  /**
+   * The whole recovery story today: there is no outbound mail, so an operator
+   * resets it and reads the new credential out. The old one must stop working,
+   * which is the part that matters if the reason for the reset is that someone
+   * else had it.
+   */
+  test('resets a colleague password and the old one stops working', async ({ page }) => {
+    const data = testData();
+    await signInAsOwner(page);
+    await page.goto('/team');
+
+    const row = page.getByRole('row', { name: new RegExp(data.frontDeskEmail) });
+    await row.getByRole('button', { name: 'Reset password' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Password reset' });
+    await expect(dialog).toBeVisible();
+    const shown = await dialog.locator('.font-mono').last().textContent();
+    expect(shown).toMatch(/^[a-z2-9]{5}(-[a-z2-9]{5}){3}$/);
+    await dialog.getByRole('button', { name: 'Close' }).click();
+
+    // The fixture password no longer works.
+    await page.context().clearCookies();
+    await page.goto('/login');
+    await page.getByLabel('Organization').fill(data.organizationSlug);
+    await page.getByLabel('Email').fill(data.frontDeskEmail);
+    await page.getByLabel('Password').fill(TEST_PASSWORD);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('form').getByRole('alert')).toBeVisible();
+
+    // The new one does.
+    await page.getByLabel('Password').fill(shown!.trim());
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+  });
+
   test('offers no control for changing your own role or status', async ({ page }) => {
     const data = testData();
     await signInAsOwner(page);
@@ -70,6 +105,9 @@ test.describe('team', () => {
     await expect(ownRow).toBeVisible();
     // Locking yourself out is always a mistake, never an intent.
     await expect(ownRow.getByRole('button', { name: 'Disable' })).toHaveCount(0);
+    // Nor reset it here — that path skips the current-password check, so a
+    // stolen token could lock the real owner out.
+    await expect(ownRow.getByRole('button', { name: 'Reset password' })).toHaveCount(0);
     await expect(ownRow).toContainText('cannot change your own');
   });
 

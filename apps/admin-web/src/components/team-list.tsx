@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import type { InvitedUser, OrganizationUser } from '@/lib/api';
-import { inviteUser, updateUser } from '@/app/team/actions';
+import { inviteUser, resetUserPassword, updateUser } from '@/app/team/actions';
 
 const ROLES = ['OWNER', 'ADMIN', 'MANAGER', 'FRONT_DESK', 'READ_ONLY'] as const;
 
@@ -25,7 +25,12 @@ export function TeamList({
   const roleNames = useTranslations('roles');
 
   const [inviting, setInviting] = useState(false);
-  const [created, setCreated] = useState<InvitedUser | null>(null);
+  const [credential, setCredential] = useState<{
+    title: string;
+    intro: string;
+    email: string;
+    password: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -36,6 +41,23 @@ export function TeamList({
         status: user.status === 'DISABLED' ? 'ACTIVE' : 'DISABLED',
       });
       if (!result.ok) setError(result.error?.message ?? t('failed'));
+    });
+  }
+
+  function resetPassword(user: OrganizationUser) {
+    setError(null);
+    startTransition(async () => {
+      const result = await resetUserPassword(user.id);
+      if (!result.ok || !result.reset) {
+        setError(result.error?.message ?? t('failed'));
+        return;
+      }
+      setCredential({
+        title: t('resetTitle'),
+        intro: t('resetIntro', { name: result.reset.fullName }),
+        email: result.reset.email,
+        password: result.reset.temporaryPassword,
+      });
     });
   }
 
@@ -144,6 +166,16 @@ export function TeamList({
                           {user.status === 'DISABLED' ? t('enable') : t('disable')}
                         </button>
                       )}
+                      {mayAdminister && (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => resetPassword(user)}
+                          className="ml-2 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          {t('reset')}
+                        </button>
+                      )}
                       {/* Explains the absent control rather than leaving it blank. */}
                       {isSelf && <span className="text-xs text-slate-400">{t('cannotSelf')}</span>}
                     </td>
@@ -163,12 +195,19 @@ export function TeamList({
           onClose={() => setInviting(false)}
           onCreated={(user) => {
             setInviting(false);
-            setCreated(user);
+            setCredential({
+              title: t('passwordTitle'),
+              intro: t('passwordIntro', { name: user.fullName }),
+              email: user.email,
+              password: user.temporaryPassword,
+            });
           }}
         />
       )}
 
-      {created && <PasswordDialog user={created} onClose={() => setCreated(null)} />}
+      {credential && (
+        <CredentialDialog credential={credential} onClose={() => setCredential(null)} />
+      )}
     </div>
   );
 }
@@ -294,13 +333,19 @@ function InviteDialog({
 }
 
 /**
- * The one-time password.
+ * A one-time credential, from an invite or a reset.
  *
  * Shown here and nowhere else: it is not stored in readable form, so closing
  * this dialog is the last chance to read it. There is no outbound email yet,
  * which is why a human has to relay it.
  */
-function PasswordDialog({ user, onClose }: { user: InvitedUser; onClose: () => void }) {
+function CredentialDialog({
+  credential,
+  onClose,
+}: {
+  credential: { title: string; intro: string; email: string; password: string };
+  onClose: () => void;
+}) {
   const t = useTranslations('team');
   const [copied, setCopied] = useState(false);
 
@@ -308,26 +353,26 @@ function PasswordDialog({ user, onClose }: { user: InvitedUser; onClose: () => v
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={t('passwordTitle')}
+      aria-label={credential.title}
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4"
     >
       <div className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-medium text-slate-900">{t('passwordTitle')}</h2>
-        <p className="text-sm text-slate-600">{t('passwordIntro', { name: user.fullName })}</p>
+        <h2 className="text-lg font-medium text-slate-900">{credential.title}</h2>
+        <p className="text-sm text-slate-600">{credential.intro}</p>
 
         <dl className="space-y-2 rounded-md bg-slate-50 p-3 text-sm">
           <div className="flex justify-between gap-3">
             <dt className="text-slate-500">{t('email')}</dt>
-            <dd className="font-mono text-slate-800">{user.email}</dd>
+            <dd className="font-mono text-slate-800">{credential.email}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-slate-500">{t('passwordTitle')}</dt>
+            <dt className="text-slate-500">{t('password')}</dt>
             <dd className="flex items-center gap-2">
-              <span className="font-mono text-slate-900">{user.temporaryPassword}</span>
+              <span className="font-mono text-slate-900">{credential.password}</span>
               <button
                 type="button"
                 onClick={() => {
-                  void navigator.clipboard.writeText(user.temporaryPassword);
+                  void navigator.clipboard.writeText(credential.password);
                   setCopied(true);
                 }}
                 className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-white"

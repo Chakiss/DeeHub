@@ -314,6 +314,144 @@ describeIfDb('Users API', () => {
     });
   });
 
+  describe('resetting a password', () => {
+    async function createColleague(): Promise<{ id: string; email: string }> {
+      const token = await tokenFor(ownerId);
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${token}`)
+        .send(invite())
+        .expect(201);
+      return { id: response.body.id as string, email: response.body.email as string };
+    }
+
+    it('issues a working password and retires the old one', async () => {
+      const colleague = await createColleague();
+      const token = await tokenFor(ownerId);
+
+      const reset = await request(app.getHttpServer())
+        .post(`/api/v1/users/${colleague.id}/reset-password`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(reset.body.temporaryPassword).toBeTypeOf('string');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          organizationSlug: orgSlug,
+          email: colleague.email,
+          password: reset.body.temporaryPassword,
+        })
+        .expect(200);
+    });
+
+    /**
+     * The reason a password gets reset is often that someone else has it.
+     * Leaving their refresh token alive would hand access straight back.
+     */
+    it('revokes sessions the account already had', async () => {
+      const colleague = await createColleague();
+      const ownerToken = await tokenFor(ownerId);
+
+      const created = await request(app.getHttpServer())
+        .post(`/api/v1/users/${colleague.id}/reset-password`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+
+      // Sign in, then reset again — the first session must die.
+      const session = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({
+          organizationSlug: orgSlug,
+          email: colleague.email,
+          password: created.body.temporaryPassword,
+        })
+        .expect(200);
+      const cookie = (session.headers['set-cookie'] as unknown as string[])[0] ?? '';
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/users/${colleague.id}/reset-password`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', cookie)
+        .expect(401);
+    });
+
+    /**
+     * A security rule, not a nicety. Changing your own password goes through
+     * /auth/change-password, which demands the current one — if this accepted
+     * self, a stolen access token would be enough to lock the real owner out.
+     */
+    it('refuses to reset your own password', async () => {
+      const token = await tokenFor(ownerId);
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/users/${ownerId}/reset-password`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(422);
+
+      expect(response.body.error.message).toMatch(/current password/i);
+
+      // And the existing credential still works — nothing was changed.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ organizationSlug: orgSlug, email: email(ownerId), password: PASSWORD })
+        .expect(200);
+    });
+
+    it('refuses to let an ADMIN reset an OWNER password', async () => {
+      const token = await tokenFor(adminId);
+      await request(app.getHttpServer())
+        .post(`/api/v1/users/${ownerId}/reset-password`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    });
+
+    it('forbids a MANAGER entirely', async () => {
+      const colleague = await createColleague();
+      const token = await tokenFor(managerId);
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/users/${colleague.id}/reset-password`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+
+      expect(response.body.error.details.capability).toBe('user:update');
+    });
+
+    it('keeps the new password out of the audit trail', async () => {
+      const colleague = await createColleague();
+      const token = await tokenFor(ownerId);
+      const reset = await request(app.getHttpServer())
+        .post(`/api/v1/users/${colleague.id}/reset-password`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const { rows } = await pool.query(
+        "SELECT after FROM audit_logs WHERE action = 'user.password_reset' AND entity_id = $1",
+        [colleague.id],
+      );
+      expect(rows).toHaveLength(1);
+      expect(JSON.stringify(rows[0])).not.toContain(reset.body.temporaryPassword);
+    });
+
+    it('will not reset a password in another organization', async () => {
+      const token = await tokenFor(ownerId);
+      await request(app.getHttpServer())
+        .post(`/api/v1/users/${otherOwnerId}/reset-password`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
+
+      // Their credential is untouched.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ organizationSlug: otherOrgSlug, email: email(otherOwnerId), password: PASSWORD })
+        .expect(200);
+    });
+  });
+
   describe('tenancy', () => {
     it('lists only this organization', async () => {
       const token = await tokenFor(ownerId);

@@ -83,12 +83,19 @@ rotating) in an httpOnly cookie for the dashboard.
 | `POST`  | `/auth/forgot-password` | **planned** — send reset email (always 202, never reveals whether the email exists) |
 | `POST`  | `/auth/reset-password`  | **planned** — consume reset token                                                   |
 
-Everything above without a **planned** marker is implemented. The two reset
-endpoints are not, which has a consequence worth stating plainly: a user who
-forgets their password cannot recover it themselves today. An operator has to
-create a new account or update the hash directly. `POST /auth/change-password`
-covers the case that matters at onboarding — replacing the generated password a
-hotel is handed — but it requires knowing the current one.
+Everything above without a **planned** marker is implemented.
+
+Account recovery today is operator-driven: someone with `user:update` calls
+`POST /users/{id}/reset-password` and reads the new credential out. That is a
+deliberate stopping point rather than an oversight — self-service reset means
+sending mail, and there is no mail provider configured. An endpoint that
+answered 202 and sent nothing would be worse than none, because the person
+would wait for an email that never arrives. Choosing a provider is what unblocks
+`forgot-password` / `reset-password`.
+
+Resetting your own password is refused. `POST /auth/change-password` is the path
+for that, and it demands the current password — without that asymmetry a stolen
+access token would be enough to lock the real owner out of their own hotel.
 
 ```jsonc
 // POST /auth/login → 200
