@@ -85,6 +85,7 @@ Each of these cost a failed apply to discover:
 | Cloud SQL defaults new instances to **ENTERPRISE_PLUS**, which rejects shared-core tiers | `edition = "ENTERPRISE"` is set explicitly, or `db-f1-micro` fails with "Invalid Tier for Edition" |
 | Cloud Run **injects `PORT`** and rejects it as an explicit env var                       | The API service sets `container_port` only                                                         |
 | Cloud Run will not start a container whose **secret has no version**                     | Hence the two-pass first apply                                                                     |
+| `secret_key_ref` names the secret **container**, so the version is not an implicit dependency | Every Cloud Run resource `depends_on` the `database_url` version, or a fresh apply races and fails |
 | Secret Manager **rejects an empty payload**                                              | An unconfigured Sentry stores `disabled`; the app treats a non-URL as off                          |
 | VPC peering needs more than `roles/editor`                                               | `servicenetworking.networksAdmin` + `compute.networkAdmin`                                         |
 | ADC's quota project is separate from `gcloud config`                                     | Wrong one gives `UNAUTHENTICATED`, not a permission error                                          |

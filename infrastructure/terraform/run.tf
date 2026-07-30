@@ -26,6 +26,13 @@ resource "google_cloud_run_v2_service" "api" {
 
   deletion_protection = false
 
+  # secret_key_ref names the secret CONTAINER, so Terraform's implicit graph
+  # only waits for the container — not for the version holding the value. Cloud
+  # Run then refuses to start ("version latest was not found") because a secret
+  # with no versions cannot be mounted. Explicit here; the remaining secrets are
+  # populated by set-secrets.sh before apply (see README).
+  depends_on = [google_secret_manager_secret_version.database_url]
+
   template {
     service_account = google_service_account.api.email
 
@@ -130,6 +137,10 @@ resource "google_cloud_run_v2_service" "worker" {
 
   name     = "deehub-worker-${local.suffix}"
   location = var.region
+
+  # See the api service: the secret version is not an implicit dependency.
+  depends_on = [google_secret_manager_secret_version.database_url]
+
   # No public traffic: the worker is driven by Redis, not by HTTP.
   ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
@@ -265,6 +276,9 @@ resource "google_cloud_run_v2_job" "migrate" {
 
   deletion_protection = false
 
+  # See the api service: the secret version is not an implicit dependency.
+  depends_on = [google_secret_manager_secret_version.database_url]
+
   template {
     template {
       service_account = google_service_account.api.email
@@ -342,6 +356,9 @@ resource "google_cloud_run_v2_job" "maintenance" {
   location = var.region
 
   deletion_protection = false
+
+  # See the api service: the secret version is not an implicit dependency.
+  depends_on = [google_secret_manager_secret_version.database_url]
 
   template {
     template {
