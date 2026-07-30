@@ -19,6 +19,8 @@ pnpm db:seed           # demo hotel, rates, a year of inventory, three users
 pnpm test              # unit + integration tests
 pnpm --filter @deehub/api dev        # HTTP API
 pnpm --filter @deehub/api dev:worker # background worker
+pnpm --filter @deehub/mock-ota dev   # stand-in OTA on :4001
+pnpm db:seed-channel                 # connect the demo hotel to it
 ```
 
 The **worker** is a second entry point in the same package
@@ -53,6 +55,7 @@ a Postgres or Redis you already run: Postgres `15432`, Redis `16379`, MinIO
 apps/
   api/            NestJS — modular monolith, one module per bounded context
                   (main.ts = HTTP, worker.ts = background jobs)
+  mock-ota/       Stand-in OTA: the harness every connector is certified against
 packages/
   shared/         Money, hotel-night dates, error taxonomy, event contracts
 infrastructure/   docker-compose for local development

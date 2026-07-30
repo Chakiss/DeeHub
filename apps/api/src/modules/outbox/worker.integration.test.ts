@@ -251,6 +251,54 @@ describeIfDb('worker', () => {
       expect(await unpublishedCount()).toBe(0);
     });
 
+    it('still queues a push AFTER a previous job for the same key completed', async () => {
+      // Regression: the ARI queue debounces with a deterministic jobId, and
+      // BullMQ ignores `add` while a job with that id exists — including a
+      // COMPLETED one. Retaining completed jobs silently blocked every later
+      // change for that room type, so the OTA kept selling stale availability
+      // with no error anywhere. Completed jobs are now removed immediately.
+      const { Worker } = await import('bullmq');
+
+      await insertInventoryChanged('2026-10-01', '2026-10-02');
+      await relay.drainOnce();
+
+      // Run a real worker so the job genuinely completes and is removed.
+      const processed: string[] = [];
+      const worker = new Worker(
+        ariQueue.name,
+        async (job) => {
+          processed.push(String(job.id));
+          await redis.del(ariDirtyKey(channelId, roomTypeId));
+          return { ok: true };
+        },
+        { connection: redis, concurrency: 1 },
+      );
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('job never completed')), 15_000);
+          worker.on('completed', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+          worker.on('failed', (_job, error) => {
+            clearTimeout(timer);
+            reject(error);
+          });
+        });
+
+        // A second change arrives after the first push finished.
+        await insertInventoryChanged('2026-10-03', '2026-10-04');
+        expect(await relay.drainOnce()).toBe(1);
+
+        const job = await ariQueue.getJob(ariJobId(channelId, roomTypeId));
+        expect(job, 'a new job must be queued once the previous one completed').toBeDefined();
+        expect(await redis.smembers(ariDirtyKey(channelId, roomTypeId))).toContain('2026-10-03');
+      } finally {
+        await worker.close();
+      }
+    });
+
     it('records the error and leaves the row unpublished when a payload is malformed', async () => {
       await pool.query(
         `INSERT INTO outbox_events (id, organization_id, property_id, aggregate_type, aggregate_id,
@@ -405,7 +453,10 @@ describeIfDb('worker', () => {
 
     it('reports no drift when booked matches the reservations', async () => {
       const result = await reconcile.execute();
-      expect(result.drift).toEqual([]);
+      // Reconciliation is a SYSTEM process that scans every tenant, so assert
+      // about this property only — a shared dev database may legitimately hold
+      // other rows.
+      expect(result.drift.filter((row) => row.propertyId === propertyId)).toEqual([]);
       expect(result.checked).toBeGreaterThan(0);
     });
 

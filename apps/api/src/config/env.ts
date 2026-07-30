@@ -30,6 +30,12 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(2_592_000),
 
+  // AES-256 key for channel credentials at rest. openssl rand -base64 32
+  CREDENTIALS_KEY: nonEmpty('CREDENTIALS_KEY').default(
+    // Development default only; production rejects it below.
+    'ZGV2LW9ubHkta2V5LW5vdC1mb3ItcHJvZHVjdGlvbiE=',
+  ),
+
   STORAGE_ENDPOINT: z.string().optional(),
   STORAGE_REGION: z.string().default('ap-southeast-1'),
   STORAGE_BUCKET: z.string().default('deehub-local'),
@@ -69,6 +75,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
       [
         ['JWT_ACCESS_SECRET', env.JWT_ACCESS_SECRET],
         ['JWT_REFRESH_SECRET', env.JWT_REFRESH_SECRET],
+        // Base64 of a string containing 'dev-only'; decode before checking.
+        ['CREDENTIALS_KEY', Buffer.from(env.CREDENTIALS_KEY, 'base64').toString('utf8')],
       ] as const
     ).filter(([, value]) => value.includes('dev-only'));
 

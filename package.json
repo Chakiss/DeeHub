@@ -19,7 +19,8 @@
     "infra:up": "docker compose -f infrastructure/docker-compose.yml up -d",
     "infra:down": "docker compose -f infrastructure/docker-compose.yml down",
     "infra:reset": "docker compose -f infrastructure/docker-compose.yml down -v && pnpm infra:up",
-    "db:seed": "pnpm --filter @deehub/api db:seed"
+    "db:seed": "pnpm --filter @deehub/api db:seed",
+    "db:seed-channel": "pnpm --filter @deehub/api db:seed-channel"
   },
   "devDependencies": {
     "prettier": "3.9.6",

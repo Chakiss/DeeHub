@@ -17,8 +17,17 @@ function createQueue(connection: Redis, name: QueueName): Queue {
       // that retries forever looks healthy while OTAs sell stale availability.
       attempts: 5,
       backoff: { type: 'exponential', delay: 2_000 },
-      // Keep a window of history for the sync dashboard without unbounded growth.
-      removeOnComplete: { age: 3_600, count: 1_000 },
+
+      // Completed jobs are removed IMMEDIATELY, not retained.
+      //
+      // This is load-bearing, not tidiness. The ARI queue debounces by reusing a
+      // deterministic jobId per (channel, room type); BullMQ ignores `add` while
+      // a job with that id exists — including a COMPLETED one. Retaining
+      // completed jobs therefore silently blocks every later change for that
+      // room type until the retention window expires, so the OTA keeps selling
+      // stale availability with no error anywhere. Durable sync history lives in
+      // the `sync_jobs` table, so nothing is lost by dropping it here.
+      removeOnComplete: true,
       removeOnFail: { age: 7 * 24 * 3_600 },
     },
   });

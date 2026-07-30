@@ -1,0 +1,21 @@
+{
+  "name": "@deehub/mock-ota",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "typescript": "5.9.3",
+    "tsx": "^4.23.1",
+    "vitest": "^4.1.10"
+  }
+}

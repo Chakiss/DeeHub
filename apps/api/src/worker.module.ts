@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CommonModule } from './common/common.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { ChannelsModule } from './modules/channels/channels.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { PropertiesModule } from './modules/properties/properties.module';
@@ -27,6 +28,7 @@ import { QueueModule } from './queue/queue.module';
     PropertiesModule,
     RatesModule,
     InventoryModule,
+    ChannelsModule,
     ReservationsModule,
     OutboxModule,
   ],

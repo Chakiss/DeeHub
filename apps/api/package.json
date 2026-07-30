@@ -15,7 +15,8 @@
     "clean": "rm -rf dist",
     "db:seed": "tsx src/database/seed.ts",
     "start:worker": "node dist/worker.js",
-    "dev:worker": "tsx watch src/worker.ts"
+    "dev:worker": "tsx watch src/worker.ts",
+    "db:seed-channel": "tsx src/database/seed-channel.ts"
   },
   "dependencies": {
     "@deehub/shared": "workspace:*",
@@ -41,6 +42,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@deehub/mock-ota": "workspace:*",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.1.28",
     "@types/cookie-parser": "^1.4.10",

@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
-import { money, type IsoDate, type Money } from '@deehub/shared';
+import { money, toIsoDate, type IsoDate, type Money } from '@deehub/shared';
 import { rateDays } from '../../../database/schema';
 import type { Executor } from '../../../database/executor';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
-import type { RateRepository } from '../domain/rate.repository';
+import type { RateRepository, RateRow } from '../domain/rate.repository';
 
 @Injectable()
 export class DrizzleRateRepository implements RateRepository {
@@ -34,5 +34,34 @@ export class DrizzleRateRepository implements RateRepository {
       );
 
     return new Map(rows.map((row) => [row.date, money(row.amountMinor, row.currency)]));
+  }
+
+  async findRatesForPlans(
+    tx: Executor,
+    ratePlanIds: readonly string[],
+    dates: readonly IsoDate[],
+  ): Promise<readonly RateRow[]> {
+    if (ratePlanIds.length === 0 || dates.length === 0) return [];
+    const organizationId = requireOrganizationId();
+
+    const rows = await tx
+      .select({
+        ratePlanId: rateDays.ratePlanId,
+        date: rateDays.date,
+        occupancy: rateDays.occupancy,
+        amountMinor: rateDays.amountMinor,
+        currency: rateDays.currency,
+      })
+      .from(rateDays)
+      .where(
+        and(
+          eq(rateDays.organizationId, organizationId),
+          inArray(rateDays.ratePlanId, [...ratePlanIds]),
+          inArray(rateDays.date, [...dates]),
+        ),
+      )
+      .orderBy(rateDays.date, rateDays.occupancy);
+
+    return rows.map((row) => ({ ...row, date: toIsoDate(row.date) }));
   }
 }

@@ -22,6 +22,26 @@ export interface RateRepository {
     dates: readonly IsoDate[],
     occupancy: number,
   ): Promise<Map<string, Money>>;
+
+  /**
+   * Every occupancy price for several rate plans over a date range.
+   *
+   * Used when assembling an ARI push: OTAs expect the full occupancy ladder for
+   * each rate, not just the one a guest happened to book.
+   */
+  findRatesForPlans(
+    tx: Executor,
+    ratePlanIds: readonly string[],
+    dates: readonly IsoDate[],
+  ): Promise<readonly RateRow[]>;
+}
+
+export interface RateRow {
+  readonly ratePlanId: string;
+  readonly date: IsoDate;
+  readonly occupancy: number;
+  readonly amountMinor: number;
+  readonly currency: string;
 }
 
 export const RATE_REPOSITORY = Symbol('RATE_REPOSITORY');

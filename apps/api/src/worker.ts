@@ -3,13 +3,21 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Worker, type Job } from 'bullmq';
+import type { IsoDate } from '@deehub/shared';
 import type Redis from 'ioredis';
 import { ENV, type Env } from './config/env';
 import { WorkerModule } from './worker.module';
-import { MAINTENANCE_QUEUE, REDIS } from './queue/queue.module';
-import { MAINTENANCE_JOBS, QUEUE_NAMES, ariDirtyKey, type AriSyncJob } from './queue/queues';
+import { ARI_SYNC_QUEUE, MAINTENANCE_QUEUE, REDIS } from './queue/queue.module';
+import {
+  MAINTENANCE_JOBS,
+  QUEUE_NAMES,
+  ariDirtyKey,
+  ariJobId,
+  type AriSyncJob,
+} from './queue/queues';
 import { OutboxRelayService } from './modules/outbox/outbox-relay.service';
 import { ExpireHoldsUseCase } from './modules/inventory/application/expire-holds.usecase';
+import { PushAriUseCase } from './modules/channels/application/push-ari.usecase';
 import { ReconcileInventoryUseCase } from './modules/inventory/application/reconcile-inventory.usecase';
 import type { Queue } from 'bullmq';
 
@@ -26,7 +34,9 @@ async function bootstrap(): Promise<void> {
   const relay = app.get(OutboxRelayService);
   const expireHolds = app.get(ExpireHoldsUseCase);
   const reconcile = app.get(ReconcileInventoryUseCase);
+  const pushAri = app.get(PushAriUseCase);
   const maintenanceQueue = app.get<Queue>(MAINTENANCE_QUEUE);
+  const ariQueue = app.get<Queue>(ARI_SYNC_QUEUE);
 
   let running = true;
 
@@ -68,14 +78,23 @@ async function bootstrap(): Promise<void> {
 
       if (dates.length === 0) return { pushed: 0 };
 
-      const sorted = [...dates].sort();
-      // The connector framework lands next; until then the job proves the
-      // debounce and drain behaviour end to end.
-      logger.log(
-        `ARI push pending for channel ${channelId}, room type ${roomTypeId}: ` +
-          `${String(sorted.length)} night(s) ${String(sorted[0])}..${String(sorted[sorted.length - 1])}`,
-      );
-      return { pushed: sorted.length, from: sorted[0], to: sorted[sorted.length - 1] };
+      const sorted = [...dates].sort() as IsoDate[];
+
+      try {
+        const result = await pushAri.execute({
+          channelId,
+          roomTypeId,
+          dates: sorted,
+          attempt: job.attemptsMade + 1,
+        });
+        return { pushed: result.accepted, rejected: result.rejected };
+      } catch (error) {
+        // Put the dates back before failing, so the retry still knows what was
+        // dirty. Without this a failed push would silently drop the change and
+        // leave the OTA selling stale availability.
+        await redis.sadd(key, ...sorted);
+        throw error;
+      }
     },
     { connection: redis, concurrency: 5 },
   );
@@ -96,6 +115,29 @@ async function bootstrap(): Promise<void> {
     },
     { connection: redis, concurrency: 1 },
   );
+
+  /**
+   * Re-queue when dates were marked dirty WHILE a push was in flight.
+   *
+   * The job drains the dirty set at the start, and BullMQ ignores `add` for a
+   * jobId that is currently active — so an edit landing mid-push would leave
+   * dates dirty with nothing scheduled to send them. Checking once the job has
+   * completed (and its id has been released) closes that window.
+   */
+  ariWorker.on('completed', (job: Job<AriSyncJob>) => {
+    void (async () => {
+      const { channelId, roomTypeId } = job.data;
+      const pending = await redis.scard(ariDirtyKey(channelId, roomTypeId));
+      if (pending === 0) return;
+      logger.debug(
+        `${String(pending)} night(s) went dirty during the push; re-queueing ${channelId}/${roomTypeId}`,
+      );
+      await ariQueue.add(`ari:${roomTypeId}`, job.data, {
+        jobId: ariJobId(channelId, roomTypeId),
+        delay: 1_000,
+      });
+    })();
+  });
 
   for (const worker of [ariWorker, maintenanceWorker]) {
     worker.on('failed', (job, error) => {
