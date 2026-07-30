@@ -89,6 +89,7 @@ Each of these cost a failed apply to discover:
 | Secret Manager **rejects an empty payload**                                              | An unconfigured Sentry stores `disabled`; the app treats a non-URL as off                          |
 | VPC peering needs more than `roles/editor`                                               | `servicenetworking.networksAdmin` + `compute.networkAdmin`                                         |
 | ADC's quota project is separate from `gcloud config`                                     | Wrong one gives `UNAUTHENTICATED`, not a permission error                                          |
+| `roles/editor` can create a Cloud Run service but not set its IAM policy                 | Making the api and dashboard public needs `roles/run.admin` as well                                |
 
 ## A note on IAM propagation
 

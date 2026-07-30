@@ -45,12 +45,15 @@ gcloud run jobs update "deehub-maintenance-${ENVIRONMENT}" --region "$REGION" \
 API_URL=$(gcloud run services describe "deehub-api-${ENVIRONMENT}" --region "$REGION" --format 'value(status.url)')
 WEB_URL=$(gcloud run services describe "deehub-web-${ENVIRONMENT}" --region "$REGION" --format 'value(status.url)')
 
-# The dashboard talks to the API over its public URL, and the API must accept
-# the dashboard's origin. Neither is known until both exist.
-gcloud run services update "deehub-web-${ENVIRONMENT}" --region "$REGION" \
-  --update-env-vars "DEEHUB_API_URL=${API_URL}/api/v1" --quiet
-gcloud run services update "deehub-api-${ENVIRONMENT}" --region "$REGION" \
-  --update-env-vars "CORS_ORIGINS=${WEB_URL}" --quiet
+# No env wiring here on purpose. Terraform already sets DEEHUB_API_URL from the
+# api service's own uri attribute, and CORS_ORIGINS stays under var.cors_origins
+# — setting either with `gcloud run services update` would drift from state and
+# be reverted by the next apply.
+#
+# The dashboard needs no CORS entry at all: the browser only ever calls the
+# Next.js BFF at the same origin, and the BFF reaches the API server-to-server.
+# CORS_ORIGINS starts mattering with the public booking engine, which does call
+# the API from the browser.
 
 echo "Smoke test…"
 # Readiness, not liveness: this proves the revision can reach the database.

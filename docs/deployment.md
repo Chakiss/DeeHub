@@ -164,6 +164,11 @@ and managing IAM, service accounts and secrets requires
 `roles/resourcemanager.projectIamAdmin`, `roles/iam.serviceAccountAdmin`,
 `roles/iam.workloadIdentityPoolAdmin` and `roles/secretmanager.admin`.
 
+`roles/run.admin` is needed too, and for a less obvious reason: `roles/editor`
+can create a Cloud Run service but cannot call `setIamPolicy` on it. Everything
+deploys and then the `allUsers` invoker binding that makes the API and dashboard
+reachable fails — so the failure lands at the very end of a long apply.
+
 Newly granted roles take up to a minute to propagate. A `PERMISSION_DENIED`
 immediately after a grant is usually timing, not the wrong role.
 
