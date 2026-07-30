@@ -111,6 +111,7 @@ describeIfDb('booking transaction', () => {
       [orgId, otherOrgId],
     ]);
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM guests WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_plans WHERE organization_id = $1', [orgId]);
@@ -129,6 +130,7 @@ describeIfDb('booking transaction', () => {
     } = {},
   ): Promise<void> {
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM guests WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM outbox_events WHERE organization_id = $1', [orgId]);

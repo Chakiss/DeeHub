@@ -112,6 +112,7 @@ describeIfDb('Rooms and stay view', () => {
         'reservation_stay_nights',
         'reservation_stays',
         'reservations',
+        'guests',
         'physical_rooms',
         'rate_plans',
         'room_types',

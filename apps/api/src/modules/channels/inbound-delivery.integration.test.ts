@@ -149,6 +149,7 @@ describeIfDb('inbound reservation delivery', () => {
       'audit_logs',
       'channel_reservations',
       'reservations',
+      'guests',
       'inventory_days',
       'rate_days',
       'channel_rate_plan_mappings',

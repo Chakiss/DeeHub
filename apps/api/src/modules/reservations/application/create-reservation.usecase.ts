@@ -29,6 +29,7 @@ import {
 import { RATE_REPOSITORY, type RateRepository } from '../../rates/domain/rate.repository';
 import { computeBreakdown } from '../domain/pricing';
 import { generateReservationCode } from '../domain/reservation-code';
+import { LinkGuestUseCase } from '../../guests/application/link-guest.usecase';
 import type { ReservationStatus } from '../domain/reservation-status';
 import {
   RESERVATION_REPOSITORY,
@@ -119,6 +120,7 @@ export class CreateReservationUseCase {
     @Inject(RESERVATION_REPOSITORY) private readonly reservations: ReservationRepository,
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
+    private readonly guests: LinkGuestUseCase,
   ) {}
 
   async execute(
@@ -156,6 +158,23 @@ export class CreateReservationUseCase {
     return this.db.transaction(async (tx) => {
       const property = await this.loadProperty(tx, input.propertyId);
       const reservationId = newId();
+
+      /*
+       * Attach a guest profile inside this transaction.
+       *
+       * An explicit guestId wins — a channel or a later booking flow may
+       * already know who this is. Otherwise the booker becomes the guest,
+       * matched conservatively: this is what makes stay history accrue at all,
+       * and until now every reservation was written with guestId null.
+       */
+      const guestId =
+        input.guestId ??
+        (await this.guests.execute(tx, {
+          organizationId: tenant.organizationId,
+          name: input.booker.name,
+          email: input.booker.email ?? null,
+          phone: input.booker.phone ?? null,
+        }));
       const stays: StayRecord[] = [];
       const nightPrices: Money[] = [];
       const overbookings: OverbookingIncident[] = [];
@@ -196,7 +215,7 @@ export class CreateReservationUseCase {
         status,
         source: input.source,
         channelId: input.channelId ?? null,
-        guestId: input.guestId ?? null,
+        guestId,
         bookerName: input.booker.name,
         bookerEmail: input.booker.email ?? null,
         bookerPhone: input.booker.phone ?? null,

@@ -174,6 +174,7 @@ export async function teardown(data: TestData): Promise<void> {
       'outbox_events',
       'audit_logs',
       'reservations',
+      'guests',
       'inventory_days',
       'physical_rooms',
       'rate_days',

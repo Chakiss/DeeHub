@@ -14,7 +14,8 @@
     "team": "Team",
     "stayView": "Stay view",
     "rooms": "Rooms",
-    "reports": "Reports"
+    "reports": "Reports",
+    "guests": "Guests"
   },
   "login": {
     "title": "Sign in",
@@ -307,5 +308,22 @@
     "last7": "Last 7 days",
     "last30": "Last 30 days",
     "noData": "Nothing sold in this range."
+  },
+  "guests": {
+    "title": "Guests",
+    "subtitle": "Everyone who has booked, and how often they come back.",
+    "search": "Search by name, email or phone",
+    "empty": "No guests yet.",
+    "emptyHint": "A profile is created from the booker the first time someone books.",
+    "noMatch": "Nobody matches that search.",
+    "name": "Name",
+    "contact": "Contact",
+    "stays": "Stays",
+    "lastStay": "Last stay",
+    "revenue": "Revenue",
+    "never": "—",
+    "duplicate": "Shares an email with {count} other profile",
+    "duplicates": "Shares an email with {count} other profiles",
+    "duplicateHint": "Two people can share an address, so these are flagged rather than merged. Merging is not available yet."
   }
 }

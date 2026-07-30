@@ -303,6 +303,21 @@ export interface Performance {
   };
 }
 
+export interface Guest {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  email: string | null;
+  phone: string | null;
+  nationality: string | null;
+  notes: string | null;
+  stays: number;
+  lastStay: string | null;
+  revenueMinor: number;
+  /** Other profiles sharing this email — a merge queue, not a merge. */
+  possibleDuplicates: number;
+}
+
 // --- Endpoints ---------------------------------------------------------------
 
 export const api = {
@@ -422,6 +437,11 @@ export const api = {
       `/properties/${propertyId}/reservations/${reservationId}/check-out`,
       { method: 'POST', body: JSON.stringify({ version }) },
     ),
+
+  guests: (propertyId: string, q?: string) =>
+    request<{ items: Guest[] }>(
+      `/properties/${propertyId}/guests${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+    ).then((body) => body.items),
 
   performance: (propertyId: string, from: string, to: string) =>
     request<Performance>(`/properties/${propertyId}/reports/performance?from=${from}&to=${to}`),

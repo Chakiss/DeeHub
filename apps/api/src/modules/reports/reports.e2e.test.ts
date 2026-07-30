@@ -102,6 +102,7 @@ describeIfDb('Performance report', () => {
       'reservation_stay_nights',
       'reservation_stays',
       'reservations',
+      'guests',
       'inventory_days',
       'physical_rooms',
       'rate_plans',

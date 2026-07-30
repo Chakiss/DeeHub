@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { GuestsModule } from '../guests/guests.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { PropertiesModule } from '../properties/properties.module';
 import { RatesModule } from '../rates/rates.module';
@@ -20,7 +21,7 @@ import { ReservationsController } from './interface/reservations.controller';
  * in docs/domain-model.md §2.
  */
 @Module({
-  imports: [InventoryModule, PropertiesModule, RatesModule],
+  imports: [InventoryModule, PropertiesModule, RatesModule, GuestsModule],
   controllers: [ReservationsController],
   providers: [
     { provide: RESERVATION_REPOSITORY, useClass: DrizzleReservationRepository },

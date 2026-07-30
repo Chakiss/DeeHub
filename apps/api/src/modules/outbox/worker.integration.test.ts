@@ -89,6 +89,7 @@ describeIfDb('worker', () => {
     await pool.query('DELETE FROM outbox_events WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM audit_logs WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM guests WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM channels WHERE organization_id = $1', [orgId]);
@@ -106,6 +107,7 @@ describeIfDb('worker', () => {
     // stray rows from a dev database inflate the count.
     await pool.query('DELETE FROM outbox_events');
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM guests WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM channels WHERE organization_id = $1', [orgId]);
     await ariQueue.obliterate({ force: true }).catch(() => undefined);

@@ -155,6 +155,29 @@ arrival on the same day are not a conflict. Cancelling a reservation releases
 any room it held; the constraint cannot see reservation status, so without that
 the room would stay blocked for those nights forever.
 
+### Guests (Phase 4)
+
+| Method  | Path                                | Purpose                                 |
+| ------- | ----------------------------------- | --------------------------------------- |
+| `GET`   | `/properties/{id}/guests`           | search by name, email or phone          |
+| `GET`   | `/properties/{id}/guests/{guestId}` | one profile with stay count and revenue |
+| `PATCH` | `/properties/{id}/guests/{guestId}` | correct a profile                       |
+
+A profile is created from the booker the first time someone books, and a
+returning guest is matched on email **and** last name — never on email alone.
+Shared addresses are real: a company books its staff through one inbox, and
+matching on the address would show one person another's stay history with
+nothing in the data revealing it. A duplicate profile is the safer failure
+because it is visible and can be merged; a wrong merge is neither. Profiles
+sharing an address are flagged with `possibleDuplicates` for a human to decide.
+Merging itself is not built yet.
+
+The profile is organization-wide — the same person across a group is the point
+of keeping one — but the LIST is scoped to guests who have booked at that
+property, which is what a front desk means by "our guests" and what makes the
+screen reachable with property-level permission. Stay counts stay
+organization-wide.
+
 ### Reporting (Phase 4)
 
 | Method | Path                                   | Purpose                                     |

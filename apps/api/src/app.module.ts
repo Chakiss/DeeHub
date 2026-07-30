@@ -15,6 +15,7 @@ import { RatesModule } from './modules/rates/rates.module';
 import { RoomTypesModule } from './modules/room-types/room-types.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { GuestsModule } from './modules/guests/guests.module';
 import { RatePlansModule } from './modules/rate-plans/rate-plans.module';
 import { UsersModule } from './modules/users/users.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
@@ -38,6 +39,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
     RoomTypesModule,
     RoomsModule,
     ReportsModule,
+    GuestsModule,
     RatePlansModule,
     RatesModule,
     InventoryModule,

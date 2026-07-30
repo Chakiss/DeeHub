@@ -131,6 +131,7 @@ describeIfDb('HTTP API', () => {
     await pool.query('DELETE FROM outbox_events WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM audit_logs WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM guests WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_plans WHERE organization_id = $1', [orgId]);
@@ -145,6 +146,7 @@ describeIfDb('HTTP API', () => {
 
   async function seedInventory(allotment = 5): Promise<void> {
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM guests WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     for (const date of HORIZON) {

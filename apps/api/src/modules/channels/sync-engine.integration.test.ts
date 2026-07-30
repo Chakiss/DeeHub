@@ -143,6 +143,7 @@ describeIfDb('sync engine end to end', () => {
       'audit_logs',
       'sync_jobs',
       'reservations',
+      'guests',
       'inventory_days',
       'rate_days',
       'channel_rate_plan_mappings',

@@ -112,6 +112,7 @@ describeIfDb('dashboard endpoints', () => {
       'outbox_events',
       'audit_logs',
       'reservations',
+      'guests',
       'inventory_days',
       'rate_days',
       'rate_plans',
