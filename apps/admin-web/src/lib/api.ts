@@ -230,6 +230,48 @@ export interface InvitedUser extends OrganizationUser {
   temporaryPassword: string;
 }
 
+export const HOUSEKEEPING_STATUSES = ['CLEAN', 'DIRTY', 'INSPECTED', 'OUT_OF_ORDER'] as const;
+
+export interface Room {
+  id: string;
+  roomTypeId: string;
+  roomNumber: string;
+  floor: string | null;
+  housekeepingStatus: string;
+  notes: string | null;
+  isActive: boolean;
+}
+
+export interface StayViewOccupancy {
+  stayId: string;
+  reservationId: string;
+  reservationCode: string;
+  guestName: string | null;
+  status: string;
+  checkIn: string;
+  checkOut: string;
+  upgraded: boolean;
+}
+
+export interface StayViewRoom {
+  roomId: string;
+  roomNumber: string;
+  floor: string | null;
+  roomTypeId: string;
+  roomTypeName: string;
+  housekeepingStatus: string;
+  isActive: boolean;
+  stays: StayViewOccupancy[];
+}
+
+export interface StayView {
+  from: string;
+  to: string;
+  dates: string[];
+  rooms: StayViewRoom[];
+  unassigned: (StayViewOccupancy & { roomTypeId: string; roomTypeName: string })[];
+}
+
 // --- Endpoints ---------------------------------------------------------------
 
 export const api = {
@@ -304,6 +346,42 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ updates }),
     }),
+
+  rooms: (propertyId: string) =>
+    request<{ items: Room[] }>(`/properties/${propertyId}/rooms`).then((body) => body.items),
+
+  createRoom: (
+    propertyId: string,
+    input: { roomTypeId: string; roomNumber: string; floor?: string | null },
+  ) =>
+    request<Room>(`/properties/${propertyId}/rooms`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateRoom: (
+    propertyId: string,
+    roomId: string,
+    input: {
+      roomNumber?: string;
+      floor?: string | null;
+      housekeepingStatus?: string;
+      isActive?: boolean;
+    },
+  ) =>
+    request<Room>(`/properties/${propertyId}/rooms/${roomId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  assignRoom: (propertyId: string, stayId: string, roomId: string | null) =>
+    request<{ assignedRoomId: string | null }>(`/properties/${propertyId}/stays/${stayId}/room`, {
+      method: 'PATCH',
+      body: JSON.stringify({ roomId }),
+    }),
+
+  stayView: (propertyId: string, from: string, to: string) =>
+    request<StayView>(`/properties/${propertyId}/stay-view?from=${from}&to=${to}`),
 
   inventoryGrid: (propertyId: string, from: string, to: string) =>
     request<InventoryGrid>(`/properties/${propertyId}/inventory?from=${from}&to=${to}`),

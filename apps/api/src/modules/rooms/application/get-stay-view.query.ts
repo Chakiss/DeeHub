@@ -92,6 +92,7 @@ export class GetStayViewQuery {
         reservationId: reservationStays.reservationId,
         reservationCode: reservations.code,
         guestName: reservationStays.guestName,
+        bookerName: reservations.bookerName,
         status: reservations.status,
         checkIn: reservationStays.checkIn,
         checkOut: reservationStays.checkOut,
@@ -124,7 +125,10 @@ export class GetStayViewQuery {
         stayId: row.stayId,
         reservationId: row.reservationId,
         reservationCode: row.reservationCode,
-        guestName: row.guestName,
+        // The stay's own guest name when one was given — a two-room booking
+        // can name each occupant — otherwise whoever made the booking. A front
+        // desk needs a person, not a reservation code.
+        guestName: row.guestName ?? row.bookerName,
         status: row.status,
         checkIn: toIsoDate(row.checkIn),
         checkOut: toIsoDate(row.checkOut),

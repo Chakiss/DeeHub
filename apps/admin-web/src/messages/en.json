@@ -11,7 +11,9 @@
     "account": "Account",
     "roomTypes": "Room types",
     "ratePlans": "Rates",
-    "team": "Team"
+    "team": "Team",
+    "stayView": "Stay view",
+    "rooms": "Rooms"
   },
   "login": {
     "title": "Sign in",
@@ -222,5 +224,53 @@
     "MANAGER": "Manager",
     "FRONT_DESK": "Front desk",
     "READ_ONLY": "Read only"
+  },
+  "rooms": {
+    "title": "Rooms",
+    "subtitle": "Physical rooms, for assignment and housekeeping. These never change what you can sell.",
+    "neverAffects": "Room count does not set availability — allotment does. Adding rooms here will not change what an OTA sees.",
+    "empty": "No rooms yet.",
+    "emptyHint": "Rooms are only needed to put guests somewhere and track housekeeping. You can sell without them.",
+    "needRoomType": "Add a room type first — every room belongs to one.",
+    "add": "Add room",
+    "roomNumber": "Room number",
+    "floor": "Floor",
+    "roomType": "Room type",
+    "housekeeping": "Housekeeping",
+    "inService": "In service",
+    "outOfService": "Out of service",
+    "takeOutOfService": "Take out of service",
+    "returnToService": "Return to service",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "numberTaken": "That room number is already used at this property.",
+    "failed": "Could not save the room.",
+    "noDelete": "Rooms are never deleted — past assignments point at them. Take out of service instead."
+  },
+  "housekeeping": {
+    "CLEAN": "Clean",
+    "DIRTY": "Dirty",
+    "INSPECTED": "Inspected",
+    "OUT_OF_ORDER": "Out of order"
+  },
+  "stayView": {
+    "title": "Stay view",
+    "subtitle": "Who is in which room. Separate from inventory on purpose — this does not affect what you sell.",
+    "empty": "No rooms yet.",
+    "emptyHint": "The stay view shows physical rooms. Add some to start assigning guests.",
+    "goToRooms": "Add rooms",
+    "unassigned": "Needs a room",
+    "unassignedEmpty": "Every booking in this window has a room.",
+    "assign": "Assign",
+    "assignTo": "Assign {guest} to a room",
+    "release": "Release",
+    "choose": "Choose a room",
+    "upgraded": "Upgraded",
+    "previous": "Previous",
+    "next": "Next",
+    "nights": "{count} nights",
+    "failed": "Could not assign the room.",
+    "outOfService": "Out of service"
   }
 }
