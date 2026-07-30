@@ -97,12 +97,33 @@ jobs:
             --image "${{ steps.images.outputs.api }}" \
             --quiet
 
+      # Only when the worker actually exists. It is not deployed unless channel
+      # sync is on (see enable_channel_sync), and `gcloud run deploy` CREATES a
+      # missing service rather than failing — which would quietly stand up a
+      # worker with no VPC access, no secrets and no service account, crash
+      # looping while billing for an always-on instance.
       - name: Deploy worker
         run: |
-          gcloud run deploy "deehub-worker-${ENVIRONMENT}" \
+          if gcloud run services describe "deehub-worker-${ENVIRONMENT}" \
+               --region "${REGION}" >/dev/null 2>&1; then
+            gcloud run deploy "deehub-worker-${ENVIRONMENT}" \
+              --region "${REGION}" \
+              --image "${{ steps.images.outputs.api }}" \
+              --command node --args dist/worker.js \
+              --quiet
+          else
+            echo "No worker service — channel sync is disabled. Skipping."
+          fi
+
+      # The maintenance job runs hourly and is the only thing draining the
+      # outbox and reconciling inventory on a deployment without a worker.
+      # Leaving it on an old image means that safety net silently runs stale
+      # code after every deploy.
+      - name: Update maintenance job
+        run: |
+          gcloud run jobs update "deehub-maintenance-${ENVIRONMENT}" \
             --region "${REGION}" \
             --image "${{ steps.images.outputs.api }}" \
-            --command node --args dist/worker.js \
             --quiet
 
       - name: Deploy dashboard
