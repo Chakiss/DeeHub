@@ -128,15 +128,38 @@ export interface ReservationDetail {
   code: string;
   propertyId: string;
   status: string;
+  /** Echoed back on every mutation, for optimistic locking. */
   version: number;
   currency: string;
+  source: string;
+  bookerName: string;
+  bookerEmail: string | null;
+  bookerPhone: string | null;
+  specialRequests: string | null;
+  createdAt: string;
+  checkedInAt: string | null;
+  checkedOutAt: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
   total: Money;
+  subtotal: Money;
+  tax: Money;
+  serviceCharge: Money;
   stays: {
     id: string;
     roomTypeId: string;
+    roomTypeName: string;
+    ratePlanId: string;
     checkIn: string;
     checkOut: string;
-    nights: string[];
+    adults: number;
+    children: number;
+    guestName: string | null;
+    assignedRoomId: string | null;
+    assignedRoomNumber: string | null;
+    subtotal: Money;
+    /** Frozen prices — what the guest was quoted, not today's rate. */
+    nights: { date: string; amount: number }[];
   }[];
 }
 
