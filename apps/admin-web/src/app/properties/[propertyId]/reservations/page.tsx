@@ -70,7 +70,12 @@ export default async function ReservationsPage({
             {list.items.map((reservation) => (
               <tr key={reservation.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-2.5">
-                  <span className="tabular font-medium text-slate-900">{reservation.code}</span>
+                  <Link
+                    href={`/properties/${propertyId}/reservations/${reservation.id}`}
+                    className="tabular font-medium text-slate-900 underline-offset-2 hover:underline"
+                  >
+                    {reservation.code}
+                  </Link>
                 </td>
                 <td className="px-4 py-2.5 text-slate-700">{reservation.bookerName}</td>
                 <td className="tabular px-4 py-2.5 text-slate-600">
