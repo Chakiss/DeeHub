@@ -83,3 +83,22 @@ describe('loadEnv', () => {
     });
   });
 });
+
+describe('optional credentials', () => {
+  it('treats the Secret Manager placeholder as not configured', () => {
+    // set-secrets.sh writes the literal "disabled" because Secret Manager
+    // rejects an empty payload. Read as a real key it would make every message
+    // fail against the provider.
+    const env = loadEnv({ ...valid, EMAIL_API_KEY: 'disabled', LINE_CHANNEL_TOKEN: 'disabled' });
+    expect(env.EMAIL_API_KEY).toBeUndefined();
+    expect(env.LINE_CHANNEL_TOKEN).toBeUndefined();
+  });
+
+  it('treats an empty value as not configured', () => {
+    expect(loadEnv({ ...valid, EMAIL_FROM: '   ' }).EMAIL_FROM).toBeUndefined();
+  });
+
+  it('keeps a real key', () => {
+    expect(loadEnv({ ...valid, EMAIL_API_KEY: 're_live_key' }).EMAIL_API_KEY).toBe('re_live_key');
+  });
+});

@@ -55,6 +55,23 @@ else
   echo "  $SENTRY_SECRET — ${SENTRY_DSN:+set from \$SENTRY_DSN}${SENTRY_DSN:-placeholder (Sentry off)}"
 fi
 
+# Sending credentials, the same placeholder trick as Sentry: an unconfigured
+# channel gets the literal "disabled", which the API's config layer treats as
+# "not set" rather than as a key it should try to send with.
+set_optional() {
+  local secret="deehub-$1-${ENVIRONMENT}" value="$2" label="$3"
+  if have_version "$secret"; then
+    echo "  $secret — already set, leaving alone"
+    return
+  fi
+  printf '%s' "${value:-disabled}" |
+    gcloud secrets versions add "$secret" --project="$PROJECT" --data-file=- >/dev/null
+  echo "  $secret — ${value:+set from \$$label}${value:-placeholder (off)}"
+}
+
+set_optional email-api-key "${EMAIL_API_KEY:-}" EMAIL_API_KEY
+set_optional line-channel-token "${LINE_CHANNEL_TOKEN:-}" LINE_CHANNEL_TOKEN
+
 # database-url is written by Terraform itself: it generates the password, so no
 # human ever handles it.
 echo "  deehub-database-url-${ENVIRONMENT} — managed by Terraform"

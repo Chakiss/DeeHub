@@ -11,15 +11,26 @@ import { z } from 'zod';
 const nonEmpty = (label: string) => z.string().min(1, `${label} must not be empty`);
 
 /**
- * Absent or empty both mean "not configured".
+ * Absent, empty, or the literal `disabled` all mean "not configured".
  *
- * Same reasoning as REDIS_URL: every mechanism for expressing "leave this off"
- * — Terraform conditionals, Cloud Run env vars, a `.env` line with nothing
- * after the `=` — produces an empty string rather than an unset variable.
+ * Same reasoning as REDIS_URL for the empty case: every mechanism for
+ * expressing "leave this off" — Terraform conditionals, Cloud Run env vars, a
+ * `.env` line with nothing after the `=` — produces an empty string rather
+ * than an unset variable.
+ *
+ * `disabled` is for Secret Manager, which REJECTS an empty payload while Cloud
+ * Run refuses to start a container whose secret has no version. So an
+ * unconfigured credential has to hold something, and infrastructure/
+ * set-secrets.sh writes that word (the same placeholder SENTRY_DSN already
+ * uses). Without this the placeholder would be treated as a real key and every
+ * message would fail against the provider.
  */
 const optional = () =>
   z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    (value) =>
+      typeof value === 'string' && (value.trim() === '' || value.trim() === 'disabled')
+        ? undefined
+        : value,
     z.string().optional(),
   );
 

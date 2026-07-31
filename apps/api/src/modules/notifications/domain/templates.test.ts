@@ -78,6 +78,15 @@ describe('render()', () => {
     expect(message.body).toContain('เช็คอิน');
   });
 
+  /* Caught by sending a real one: "คุณChakrit" ran together in the greeting. */
+  it('spaces the Thai honorific before a romanised name, but not a Thai one', () => {
+    const latin = render('BOOKING_CONFIRMED', booking({ bookerName: 'Chakrit' }), 'th');
+    expect(latin.body).toContain('เรียน คุณ Chakrit');
+
+    const thai = render('BOOKING_CONFIRMED', booking({ bookerName: 'สมชาย' }), 'th');
+    expect(thai.body).toContain('เรียน คุณสมชาย');
+  });
+
   it('omits the phone line when the property has no number', () => {
     const withPhone = render('BOOKING_CONFIRMED', booking(), 'en').body;
     const without = render('BOOKING_CONFIRMED', booking({ propertyPhone: null }), 'en').body;

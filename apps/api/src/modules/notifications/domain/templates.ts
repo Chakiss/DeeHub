@@ -48,6 +48,19 @@ export function render(
   }
 }
 
+/**
+ * `คุณสมชาย`, but `คุณ Chakrit`.
+ *
+ * The honorific runs straight into a Thai name and is written with a space
+ * before a Latin one. Getting this wrong is small and constant: every guest
+ * with a romanised name reads a run-on word in the first line addressed to
+ * them.
+ */
+function thaiHonorific(name: string): string {
+  const trimmed = name.trim();
+  return /^[\u0E00-\u0E7F]/.test(trimmed) ? `คุณ${trimmed}` : `คุณ ${trimmed}`;
+}
+
 function total(booking: BookingSummary, locale: Locale): string {
   return format(money(booking.totalMinor, booking.currency), locale === 'th' ? 'th-TH' : 'en-US');
 }
@@ -84,7 +97,7 @@ ${booking.propertyName}`,
 function confirmedTh(booking: BookingSummary): RenderedMessage {
   return {
     subject: `ยืนยันการจอง ${booking.code} — ${booking.propertyName}`,
-    body: `เรียน คุณ${booking.bookerName}
+    body: `เรียน ${thaiHonorific(booking.bookerName)}
 
 การจองของท่านที่ ${booking.propertyName} ได้รับการยืนยันแล้ว
 
@@ -126,7 +139,7 @@ function cancelledTh(booking: BookingSummary): RenderedMessage {
     : '';
   return {
     subject: `ยกเลิกการจอง ${booking.code} — ${booking.propertyName}`,
-    body: `เรียน คุณ${booking.bookerName}
+    body: `เรียน ${thaiHonorific(booking.bookerName)}
 
 การจองของท่านที่ ${booking.propertyName} ถูกยกเลิกแล้ว
 

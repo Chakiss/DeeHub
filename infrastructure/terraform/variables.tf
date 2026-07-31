@@ -97,3 +97,18 @@ variable "alert_email" {
   type        = string
   description = "Where alerts go. Google emails a confirmation link that must be clicked before anything is delivered."
 }
+
+variable "email_from" {
+  # Must be a sender Resend has verified. With no verified domain the only
+  # address that works is onboarding@resend.dev, and it can only deliver to the
+  # Resend account owner — enough to prove the pipeline, not enough for guests.
+  description = "Verified sender for guest email, e.g. \"Baan Suan <bookings@example.com>\". Empty disables email."
+  type        = string
+  default     = ""
+}
+
+variable "line_staff_target" {
+  description = "LINE user or group id that staff alerts are pushed to. Empty disables LINE."
+  type        = string
+  default     = ""
+}

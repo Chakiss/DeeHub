@@ -16,7 +16,19 @@ locals {
     JWT_REFRESH_SECRET = "jwt-refresh-secret"
     CREDENTIALS_KEY    = "credentials-key"
     SENTRY_DSN         = "sentry-dsn"
+    # Sending credentials. Mounted on the API too, which never sends — both
+    # service accounts already hold accessor on every secret in this set, so
+    # splitting the map would cost a second one and buy no isolation.
+    EMAIL_API_KEY      = "email-api-key"
+    LINE_CHANNEL_TOKEN = "line-channel-token"
   }
+
+  # Not secret: a sender address and a chat group id. Absent means the matching
+  # channel stays off, which the API treats as "not configured".
+  notification_env = merge(
+    var.email_from == "" ? {} : { EMAIL_FROM = var.email_from },
+    var.line_staff_target == "" ? {} : { LINE_STAFF_TARGET = var.line_staff_target },
+  )
 }
 
 resource "google_cloud_run_v2_service" "api" {
@@ -112,6 +124,14 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "STORAGE_BUCKET"
         value = google_storage_bucket.media.name
+      }
+
+      dynamic "env" {
+        for_each = local.notification_env
+        content {
+          name  = env.key
+          value = env.value
+        }
       }
 
       dynamic "env" {
@@ -223,6 +243,14 @@ resource "google_cloud_run_v2_service" "worker" {
         content {
           name  = "REDIS_URL"
           value = local.redis_url
+        }
+      }
+
+      dynamic "env" {
+        for_each = local.notification_env
+        content {
+          name  = env.key
+          value = env.value
         }
       }
 
@@ -453,6 +481,14 @@ resource "google_cloud_run_v2_job" "maintenance" {
           content {
             name  = "REDIS_URL"
             value = local.redis_url
+          }
+        }
+
+        dynamic "env" {
+          for_each = local.notification_env
+          content {
+            name  = env.key
+            value = env.value
           }
         }
 

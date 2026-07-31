@@ -88,6 +88,8 @@ locals {
     "credentials-key",
     "database-url",
     "sentry-dsn",
+    "email-api-key",
+    "line-channel-token",
   ]
 }
 
