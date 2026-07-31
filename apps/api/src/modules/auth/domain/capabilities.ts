@@ -47,6 +47,8 @@ export const CAPABILITIES = [
   'channel:update',
   'channel:sync',
   'audit:read',
+  /* Delivery log: what the hotel told guests and staff, and what failed. */
+  'notification:read',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];

@@ -13,3 +13,4 @@ export * from './guest';
 export * from './channel';
 export * from './reservation';
 export * from './platform';
+export * from './notification';

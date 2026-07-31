@@ -4,6 +4,7 @@ import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { RatesModule } from './modules/rates/rates.module';
@@ -31,6 +32,7 @@ import { QueueModule } from './queue/queue.module';
     ChannelsModule,
     ReservationsModule,
     OutboxModule,
+    NotificationsModule,
   ],
 })
 export class WorkerModule {}

@@ -565,6 +565,51 @@ CREATE TABLE idempotency_keys (
 CREATE INDEX idempotency_keys_expiry_idx ON idempotency_keys (expires_at);
 ```
 
+### Notifications
+
+A queue in Postgres, not in Redis, for the same reason the outbox is one: a
+deployment with no Redis still takes bookings, and a guest still expects a
+confirmation.
+
+The rendered `subject` and `body` are STORED rather than re-rendered when the
+log is read. A template edited next week must not rewrite the history of what
+a guest was told — this table is evidence, not a view.
+
+No foreign key to the reservation: `reservation_id` is context for a message
+that has already gone out, and a cascade must never erase the record that it
+did. Same reasoning as `audit_logs`.
+
+```sql
+CREATE TABLE notifications (
+  id              uuid PRIMARY KEY,
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  property_id     uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
+  kind            text NOT NULL,               -- 'BOOKING_CONFIRMED'
+  channel         text NOT NULL CHECK (channel IN ('EMAIL','LINE')),
+  audience        text NOT NULL CHECK (audience IN ('GUEST','STAFF')),
+  recipient       text NOT NULL,               -- frozen at compose time
+  locale          text NOT NULL DEFAULT 'en',
+  subject         text,
+  body            text NOT NULL,
+  status          text NOT NULL DEFAULT 'PENDING'
+                    CHECK (status IN ('PENDING','SENT','FAILED','SKIPPED')),
+  attempts        smallint NOT NULL DEFAULT 0,
+  last_error      text,
+  skipped_reason  text,                        -- why nobody was ever going to get it
+  reservation_id  uuid,
+  context         jsonb,
+  dedupe_key      text NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  sent_at         timestamptz
+);
+-- The outbox relay is at-least-once, so the same event can be seen twice.
+-- Without this, one booking becomes two confirmations in a guest's inbox.
+CREATE UNIQUE INDEX notifications_dedupe_uq ON notifications (organization_id, dedupe_key);
+-- Dispatcher hot path. Partial, so it stays small however many have been sent.
+CREATE INDEX notifications_pending_idx ON notifications (created_at) WHERE status = 'PENDING';
+CREATE INDEX notifications_property_time_idx ON notifications (property_id, created_at DESC);
+```
+
 ---
 
 ## 11. The queries that matter

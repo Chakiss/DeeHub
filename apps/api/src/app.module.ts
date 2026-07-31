@@ -6,6 +6,7 @@ import { RequestScopeMiddleware } from './common/tenant/request-scope.middleware
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { HealthModule } from './modules/health/health.module';
@@ -48,6 +49,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
     ReservationsModule,
     ChannelsModule,
     AvailabilityModule,
+    NotificationsModule,
   ],
   providers: [
     // Authentication is the DEFAULT. A new controller is protected the moment

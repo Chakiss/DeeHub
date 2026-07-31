@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { QueueModule } from '../../queue/queue.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OutboxRelayService } from './outbox-relay.service';
 
 /**
@@ -9,7 +10,7 @@ import { OutboxRelayService } from './outbox-relay.service';
  * describes.
  */
 @Module({
-  imports: [QueueModule],
+  imports: [QueueModule, NotificationsModule],
   providers: [OutboxRelayService],
   exports: [OutboxRelayService],
 })

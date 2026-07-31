@@ -179,6 +179,7 @@ export async function teardown(data: TestData): Promise<void> {
      * error — leaving a stranded organization in the database after every run.
      */
     for (const table of [
+      'notifications',
       'outbox_events',
       'audit_logs',
       'channel_reservations',

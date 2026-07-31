@@ -86,6 +86,7 @@ describeIfDb('worker', () => {
   afterAll(async () => {
     await ariQueue.obliterate({ force: true }).catch(() => undefined);
     await redis.del(ariDirtyKey(channelId, roomTypeId));
+    await pool.query('DELETE FROM notifications WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM outbox_events WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM audit_logs WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
@@ -105,6 +106,7 @@ describeIfDb('worker', () => {
     // ours. Counting published rows is therefore only meaningful if this test
     // owns the whole table — scoping the cleanup to our organization would let
     // stray rows from a dev database inflate the count.
+    await pool.query('DELETE FROM notifications WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM outbox_events');
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM guests WHERE organization_id = $1', [orgId]);
@@ -220,6 +222,33 @@ describeIfDb('worker', () => {
     });
 
     it('publishes reservation events without queuing an ARI push', async () => {
+      // A booking that no longer exists: the relay composes nothing for it and
+      // publishes the event anyway, rather than blocking the queue behind a
+      // reservation somebody deleted.
+      await pool.query(
+        `INSERT INTO outbox_events (id, organization_id, property_id, aggregate_type, aggregate_id,
+                                    event_type, payload)
+         VALUES ($1, $2, $3, 'reservation', $4, 'reservation.created', $5::jsonb)`,
+        [
+          crypto.randomUUID(),
+          orgId,
+          propertyId,
+          crypto.randomUUID(),
+          JSON.stringify({ reservationId: crypto.randomUUID(), status: 'CONFIRMED' }),
+        ],
+      );
+
+      expect(await relay.drainOnce()).toBe(1);
+      expect(await unpublishedCount()).toBe(0);
+    });
+
+    /**
+     * A reservation event now drives notifications, so a payload with no
+     * reservationId is unusable. It stays unpublished with the error recorded —
+     * the same treatment an ARI payload missing its room type gets, and the
+     * reason the maintenance job can report a stuck outbox at all.
+     */
+    it('refuses a reservation event with no reservation in it', async () => {
       await pool.query(
         `INSERT INTO outbox_events (id, organization_id, property_id, aggregate_type, aggregate_id,
                                     event_type, payload)
@@ -227,8 +256,15 @@ describeIfDb('worker', () => {
         [crypto.randomUUID(), orgId, propertyId, crypto.randomUUID()],
       );
 
-      expect(await relay.drainOnce()).toBe(1);
-      expect(await unpublishedCount()).toBe(0);
+      expect(await relay.drainOnce()).toBe(0);
+      expect(await unpublishedCount()).toBe(1);
+
+      const { rows } = await pool.query<{ attempts: number; last_error: string }>(
+        'SELECT attempts, last_error FROM outbox_events WHERE organization_id = $1',
+        [orgId],
+      );
+      expect(rows[0]?.attempts).toBe(1);
+      expect(rows[0]?.last_error).toContain('reservationId');
     });
 
     it('returns 0 and does nothing when the outbox is empty', async () => {

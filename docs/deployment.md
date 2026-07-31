@@ -99,6 +99,26 @@ The API refuses to boot in production if it detects a development secret — a
 guard that has already fired once during container testing, which is exactly
 when you want it to.
 
+### Notification delivery
+
+All optional, and all absent by default:
+
+| Variable             | What it is                                               |
+| -------------------- | -------------------------------------------------------- |
+| `EMAIL_API_KEY`      | Resend API key. Email is HTTP, not SMTP — see below.     |
+| `EMAIL_FROM`         | Verified sender, e.g. `Baan Suan <bookings@example.com>` |
+| `LINE_CHANNEL_TOKEN` | LINE Messaging API channel access token                  |
+| `LINE_STAFF_TARGET`  | LINE user or group id the staff alerts are pushed to     |
+
+With none of them set, messages are still composed, stored and shown in the
+dashboard — marked `SKIPPED` with the reason. Nothing is lost and nothing is
+silently pretended to have been sent; setting the variables starts real
+delivery with no code change.
+
+**Email must be an HTTP API.** Cloud Run blocks outbound connections on the
+SMTP ports, so the hotel's own mail server is not reachable from where this
+runs. That is a platform constraint, not a preference.
+
 **Rotating `CREDENTIALS_KEY` is not a drop-in.** It encrypts channel
 credentials at rest. The stored format is versioned (`v1:iv:tag:ciphertext`)
 precisely so a future key or a move to Cloud KMS envelope encryption can

@@ -10,6 +10,19 @@ import { z } from 'zod';
 
 const nonEmpty = (label: string) => z.string().min(1, `${label} must not be empty`);
 
+/**
+ * Absent or empty both mean "not configured".
+ *
+ * Same reasoning as REDIS_URL: every mechanism for expressing "leave this off"
+ * — Terraform conditionals, Cloud Run env vars, a `.env` line with nothing
+ * after the `=` — produces an empty string rather than an unset variable.
+ */
+const optional = () =>
+  z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().optional(),
+  );
+
 const connectionUrl = (label: string, protocols: readonly string[]) =>
   nonEmpty(label).refine(
     (value) => protocols.some((protocol) => value.startsWith(`${protocol}://`)),
@@ -68,6 +81,21 @@ export const envSchema = z.object({
     ),
 
   SENTRY_DSN: z.string().optional(),
+
+  /*
+   * Notification delivery. All optional: with none of it set, messages are
+   * composed, stored and marked SKIPPED with the reason, so a deployment
+   * without a provider account still shows the hotel what each guest would
+   * have been told (docs/decisions-pending-review.md).
+   */
+  /** Resend API key. Cloud Run blocks outbound SMTP, so email must be HTTP. */
+  EMAIL_API_KEY: optional(),
+  /** Verified sender, e.g. "Baan Suan <bookings@example.com>". */
+  EMAIL_FROM: optional(),
+  /** LINE Messaging API channel access token, for staff alerts. */
+  LINE_CHANNEL_TOKEN: optional(),
+  /** LINE user or group id the staff alerts are pushed to. */
+  LINE_STAFF_TARGET: optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

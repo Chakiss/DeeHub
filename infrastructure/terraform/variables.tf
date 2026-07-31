@@ -45,11 +45,16 @@ variable "worker_memory" {
 }
 
 variable "maintenance_schedule" {
-  # Hourly is ample with no channels connected: the outbox has only local
-  # housekeeping to do, and reconciliation is the part that matters.
+  # Hourly was ample when the outbox had only local housekeeping to do. This
+  # job now also SENDS notifications, so the interval is how long a guest waits
+  # for a booking confirmation — every ten minutes is the compromise between
+  # that and a Cloud Run job that runs 144 times a day for nothing.
+  #
+  # Deployments running the always-on worker do not use this at all: it sends
+  # within seconds.
   description = "Cron for the maintenance job, in the property timezone."
   type        = string
-  default     = "0 * * * *"
+  default     = "*/10 * * * *"
 }
 
 variable "db_tier" {

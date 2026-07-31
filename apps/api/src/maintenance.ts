@@ -14,6 +14,7 @@ import { DATABASE, type Database } from './database/database.module';
 import { OutboxRelayService } from './modules/outbox/outbox-relay.service';
 import { ExpireHoldsUseCase } from './modules/inventory/application/expire-holds.usecase';
 import { ReconcileInventoryUseCase } from './modules/inventory/application/reconcile-inventory.usecase';
+import { DispatchNotificationsUseCase } from './modules/notifications/application/dispatch-notifications.usecase';
 
 /**
  * One-shot maintenance pass, for deployments with no channels connected.
@@ -24,9 +25,13 @@ import { ReconcileInventoryUseCase } from './modules/inventory/application/recon
  * on a schedule instead and the instance can scale to zero
  * (docs/deployment.md §8).
  *
- * Runs the outbox relay to completion, expires lapsed holds, and — the reason
- * this must not be skipped — reconciles inventory, which is the alarm for
- * booking-path bugs.
+ * Runs the outbox relay to completion, sends whatever notifications it just
+ * composed, expires lapsed holds, and — the reason this must not be skipped —
+ * reconciles inventory, which is the alarm for booking-path bugs.
+ *
+ * The relay runs BEFORE the dispatcher on purpose: composing and sending in
+ * one pass means a guest waits one scheduler interval for a confirmation
+ * rather than two.
  *
  * Deliberately creates NO BullMQ workers: it is a job that finishes, and a
  * queue consumer never would.
@@ -34,6 +39,7 @@ import { ReconcileInventoryUseCase } from './modules/inventory/application/recon
 
 /** Bounded so a runaway backlog cannot keep a job running indefinitely. */
 const MAX_RELAY_PASSES = 100;
+const MAX_DISPATCH_PASSES = 100;
 
 async function main(): Promise<void> {
   const app = await NestFactory.createApplicationContext(WorkerModule, { bufferLogs: false });
@@ -65,6 +71,28 @@ async function main(): Promise<void> {
       );
       failed = true;
     }
+
+    const dispatch = app.get(DispatchNotificationsUseCase);
+    let sent = 0;
+    let undelivered = 0;
+    for (let pass = 0; pass < MAX_DISPATCH_PASSES; pass += 1) {
+      const result = await dispatch.runOnce();
+      sent += result.sent;
+      undelivered += result.failed;
+      // Deferred rows are retried on the NEXT run, not in a tight loop here:
+      // whatever refused them a second ago will refuse them again now.
+      if (result.sent + result.failed + result.skipped + result.deferred === 0) break;
+      if (result.deferred > 0 && result.sent === 0) break;
+    }
+    if (sent > 0 || undelivered > 0) {
+      logger.log(`Notifications: sent ${String(sent)}, gave up on ${String(undelivered)}`);
+    }
+    /*
+     * A message nobody received is NOT a job failure. It is usually the
+     * deployment having no email provider configured, which is a decision
+     * rather than a fault — and exiting non-zero for it would train whoever
+     * watches this job to ignore the exit code that means inventory drift.
+     */
 
     const holds = await app.get(ExpireHoldsUseCase).execute();
     if (holds.expired > 0) {

@@ -139,6 +139,7 @@ describeIfDb('sync engine end to end', () => {
     await ariQueue.obliterate({ force: true }).catch(() => undefined);
     await redis.del(ariDirtyKey(channelId, roomTypeId));
     for (const table of [
+      'notifications',
       'outbox_events',
       'audit_logs',
       'sync_jobs',
@@ -160,6 +161,7 @@ describeIfDb('sync engine end to end', () => {
   });
 
   async function reset(): Promise<void> {
+    await pool.query('DELETE FROM notifications WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM outbox_events');
     await pool.query('DELETE FROM sync_jobs WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);

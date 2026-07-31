@@ -145,6 +145,7 @@ describeIfDb('inbound reservation delivery', () => {
   afterAll(async () => {
     await deliveryQueue.obliterate({ force: true }).catch(() => undefined);
     for (const table of [
+      'notifications',
       'outbox_events',
       'audit_logs',
       'channel_reservations',
@@ -166,6 +167,7 @@ describeIfDb('inbound reservation delivery', () => {
   });
 
   async function reset(allotment = 5): Promise<void> {
+    await pool.query('DELETE FROM notifications WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM outbox_events');
     await pool.query('DELETE FROM channel_reservations WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);

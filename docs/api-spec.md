@@ -625,7 +625,34 @@ Unmappable payloads are stored with `status: FAILED` and surfaced in the
 dashboard for staff resolution — never dropped
 ([domain-model.md §3.8](domain-model.md)).
 
-### 6.10 Audit and platform
+### 6.10 Notifications
+
+| Method | Path                                                                          | Capability          |
+| ------ | ----------------------------------------------------------------------------- | ------------------- |
+| `GET`  | `/properties/{pid}/notifications?status=&kind=&reservationId=&cursor=&limit=` | `notification:read` |
+
+Read-only, and there is deliberately no endpoint for sending one by hand. A
+message exists because something happened to a booking; a "send this" button
+would let staff mail a guest anything from the hotel's address with no booking
+behind it and nothing in the audit trail saying why.
+
+Each item carries the RENDERED `subject` and `body` — what was actually sent,
+not what the current template would produce. Every page also carries `summary`,
+the counts by status across the whole property, so the screen can lead with the
+failures rather than making someone scroll to find them.
+
+**Three kinds today**: `BOOKING_CONFIRMED` and `BOOKING_CANCELLED` to the guest
+by email, `BOOKING_RECEIVED` to the desk by email and LINE when a channel sells
+a room. A modification sends nothing: "your booking changed" is only useful if
+it says what changed, and the event carries affected dates rather than a
+before-and-after a guest could read.
+
+**Four statuses.** `SENT` and `FAILED` mean what they say. `PENDING` is waiting
+for the next dispatch pass. `SKIPPED` means nobody was ever going to receive it
+— no address on file, or no provider configured — which is a different thing to
+tell an operator than a failure, and the row says which.
+
+### 6.11 Audit and platform
 
 | Method | Path                                                           | Capability                    |
 | ------ | -------------------------------------------------------------- | ----------------------------- |

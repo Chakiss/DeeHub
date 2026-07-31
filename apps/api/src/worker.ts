@@ -27,10 +27,19 @@ import { OutboxRelayService } from './modules/outbox/outbox-relay.service';
 import { ExpireHoldsUseCase } from './modules/inventory/application/expire-holds.usecase';
 import { PushAriUseCase } from './modules/channels/application/push-ari.usecase';
 import { ReconcileInventoryUseCase } from './modules/inventory/application/reconcile-inventory.usecase';
+import { DispatchNotificationsUseCase } from './modules/notifications/application/dispatch-notifications.usecase';
 import type { Queue } from 'bullmq';
 
 /** How often to look for unpublished outbox events when the last pass was empty. */
 const RELAY_IDLE_MS = 1_000;
+/**
+ * Slower than the relay on purpose.
+ *
+ * Sending is an HTTP call to somebody else's service, and polling an empty
+ * table every second to find nothing is how a free provider tier turns into a
+ * rate limit. A confirmation five seconds after a booking is instant to a guest.
+ */
+const DISPATCH_IDLE_MS = 5_000;
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(WorkerModule, { bufferLogs: false });
@@ -55,6 +64,7 @@ async function bootstrap(): Promise<void> {
   const reconcile = app.get(ReconcileInventoryUseCase);
   const pushAri = app.get(PushAriUseCase);
   const deliverReservation = app.get(DeliverReservationUseCase);
+  const dispatchNotifications = app.get(DispatchNotificationsUseCase);
   const maintenanceQueue = app.get<Queue>(MAINTENANCE_QUEUE);
   const ariQueue = app.get<Queue>(ARI_SYNC_QUEUE);
 
@@ -75,6 +85,24 @@ async function bootstrap(): Promise<void> {
       } catch (error) {
         logger.error(`Outbox relay pass failed: ${String(error)}`);
         await new Promise((resolve) => setTimeout(resolve, RELAY_IDLE_MS * 5));
+      }
+    }
+  })();
+
+  // --- Notifications ------------------------------------------------------
+  // Same shape as the relay, and for the same reason: the notifications table
+  // IS the queue. Putting BullMQ in front of a durable table would add a
+  // second place for a message to get lost.
+  const dispatchLoop = (async () => {
+    while (running) {
+      try {
+        const result = await dispatchNotifications.runOnce();
+        if (result.sent + result.failed + result.skipped === 0) {
+          await new Promise((resolve) => setTimeout(resolve, DISPATCH_IDLE_MS));
+        }
+      } catch (error) {
+        logger.error(`Notification dispatch pass failed: ${String(error)}`);
+        await new Promise((resolve) => setTimeout(resolve, DISPATCH_IDLE_MS * 2));
       }
     }
   })();
@@ -204,7 +232,7 @@ async function bootstrap(): Promise<void> {
     // Close workers before the app context so in-flight jobs finish before the
     // database pool goes away.
     await Promise.all([ariWorker.close(), deliveryWorker.close(), maintenanceWorker.close()]);
-    await relayLoop;
+    await Promise.all([relayLoop, dispatchLoop]);
     await app.close();
     process.exit(0);
   };
