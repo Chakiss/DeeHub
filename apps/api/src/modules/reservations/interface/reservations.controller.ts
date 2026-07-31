@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { errors, isIsoDate, toIsoDate, type Money } from '@deehub/shared';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { CheckInUseCase } from '../application/check-in.usecase';
 import { CheckOutUseCase } from '../application/check-out.usecase';
 import { GetReservationQuery } from '../application/get-reservation.query';
 import { ListReservationsQuery } from '../application/list-reservations.query';
+import { ModifyStayUseCase } from '../application/modify-stay.usecase';
 
 // Format AND calendar validity: the regex alone accepts 2026-02-30, which
 // would then blow up in the domain as a 500 instead of a clean 422.
@@ -64,8 +65,35 @@ const cancelSchema = z
   })
   .strict();
 
+/**
+ * A PATCH: every field is optional and absent means "leave it alone".
+ *
+ * `guestName` is nullable on purpose — null clears the name, whereas absent
+ * keeps it, and collapsing the two would make the name impossible to remove.
+ */
+const modifyStaySchema = z
+  .object({
+    version: z.number().int().min(0),
+    roomTypeId: z.string().uuid().optional(),
+    ratePlanId: z.string().uuid().optional(),
+    checkIn: isoDate.optional(),
+    checkOut: isoDate.optional(),
+    adults: z.number().int().min(1).max(20).optional(),
+    children: z.number().int().min(0).max(20).optional(),
+    guestName: z.string().max(200).nullable().optional(),
+    reason: z.string().max(500).optional(),
+  })
+  .strict()
+  // Only checked when BOTH are supplied; one alone is compared against the
+  // stay's stored other end inside the use case.
+  .refine((body) => !body.checkIn || !body.checkOut || body.checkOut > body.checkIn, {
+    message: 'Check-out must be after check-in',
+    path: ['checkOut'],
+  });
+
 type CreateBody = z.infer<typeof createReservationSchema>;
 type CancelBody = z.infer<typeof cancelSchema>;
+type ModifyStayBody = z.infer<typeof modifyStaySchema>;
 
 /** Optimistic locking, same as cancel: a stale tab must not act on old state. */
 const versionSchema = z.object({ version: z.number().int().min(0) }).strict();
@@ -86,6 +114,7 @@ export class ReservationsController {
     private readonly checkOutReservation: CheckOutUseCase,
     private readonly getReservation: GetReservationQuery,
     private readonly listReservations: ListReservationsQuery,
+    private readonly modifyStayUseCase: ModifyStayUseCase,
   ) {}
 
   @Get()
@@ -199,6 +228,59 @@ export class ReservationsController {
       throw errors.notFound('Reservation', id);
     }
     return reservation;
+  }
+
+  @Patch(':id/stays/:stayId')
+  @RequireCapability('reservation:modify')
+  @ApiOperation({ summary: 'Change a stay: dates, room type, rate plan or occupancy' })
+  async modifyStay(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Param('stayId') stayId: string,
+    @Body(new ZodValidationPipe(modifyStaySchema)) body: ModifyStayBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    // The stay must belong to the reservation in the URL, not merely exist.
+    // Without this a stay id from another booking would be modified through a
+    // reservation the caller happens to be allowed to see.
+    const reservation = await this.getReservation.byId(id);
+    if (
+      !reservation ||
+      reservation.propertyId !== propertyId ||
+      !reservation.stays.some((stay) => stay.id === stayId)
+    ) {
+      throw errors.notFound('Stay', stayId);
+    }
+
+    const result = await this.modifyStayUseCase.execute(
+      {
+        propertyId,
+        stayId,
+        expectedVersion: body.version,
+        ...(body.roomTypeId ? { roomTypeId: body.roomTypeId } : {}),
+        ...(body.ratePlanId ? { ratePlanId: body.ratePlanId } : {}),
+        // Parsed here so an impossible date such as 2026-02-30 is rejected
+        // before it reaches the domain.
+        ...(body.checkIn ? { checkIn: toIsoDate(body.checkIn) } : {}),
+        ...(body.checkOut ? { checkOut: toIsoDate(body.checkOut) } : {}),
+        ...(body.adults === undefined ? {} : { adults: body.adults }),
+        ...(body.children === undefined ? {} : { children: body.children }),
+        ...(body.guestName === undefined ? {} : { guestName: body.guestName }),
+        ...(body.reason ? { reason: body.reason } : {}),
+      },
+      this.actor(request),
+    );
+
+    return {
+      reservationId: result.reservationId,
+      stayId: result.stayId,
+      version: result.version,
+      releasedNights: result.releasedNights,
+      heldNights: result.heldNights,
+      // The front desk has to know: the guest no longer has a room number.
+      roomAssignmentCleared: result.roomAssignmentCleared,
+      total: presentMoney(result.total),
+    };
   }
 
   @Post(':id/check-in')

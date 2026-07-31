@@ -163,6 +163,30 @@ export interface ReservationDetail {
   }[];
 }
 
+/** PATCH: absent means "leave it alone". null on guestName clears it. */
+export interface ModifyStayInput {
+  version: number;
+  roomTypeId?: string;
+  ratePlanId?: string;
+  checkIn?: string;
+  checkOut?: string;
+  adults?: number;
+  children?: number;
+  guestName?: string | null;
+  reason?: string;
+}
+
+export interface ModifiedStay {
+  reservationId: string;
+  stayId: string;
+  version: number;
+  releasedNights: string[];
+  heldNights: string[];
+  /** The guest no longer has a room number: the front desk must reassign. */
+  roomAssignmentCleared: boolean;
+  total: Money;
+}
+
 export interface InventoryUpdate {
   roomTypeId: string;
   from: string;
@@ -536,6 +560,12 @@ export const api = {
 
   reservation: (propertyId: string, id: string) =>
     request<ReservationDetail>(`/properties/${propertyId}/reservations/${id}`),
+
+  modifyStay: (propertyId: string, reservationId: string, stayId: string, input: ModifyStayInput) =>
+    request<ModifiedStay>(
+      `/properties/${propertyId}/reservations/${reservationId}/stays/${stayId}`,
+      { method: 'PATCH', body: JSON.stringify(input) },
+    ),
 
   cancelReservation: (propertyId: string, id: string, version: number, reason?: string) =>
     request<{ id: string; status: string; releasedNights: string[]; retainedNights: string[] }>(

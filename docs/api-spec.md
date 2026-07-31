@@ -435,13 +435,36 @@ staff can see _why_ the system won't sell a room and fix the restriction.
 | `POST`  | `/properties/{pid}/reservations`                  | `reservation:create`                               |
 | `GET`   | `/properties/{pid}/reservations/{id}`             | `reservation:read`                                 |
 | `PATCH` | `/properties/{pid}/reservations/{id}`             | `reservation:update` — contact/notes only          |
-| `POST`  | `/properties/{pid}/reservations/{id}/modify-stay` | `reservation:modify` — dates, room type, occupancy |
+| `PATCH` | `/properties/{pid}/reservations/{id}/stays/{sid}` | `reservation:modify` — dates, room type, occupancy |
 | `POST`  | `/properties/{pid}/reservations/{id}/confirm`     | `reservation:update`                               |
 | `POST`  | `/properties/{pid}/reservations/{id}/cancel`      | `reservation:cancel`                               |
 | `POST`  | `/properties/{pid}/reservations/{id}/check-in`    | `reservation:checkin`                              |
 | `POST`  | `/properties/{pid}/reservations/{id}/check-out`   | `reservation:checkout`                             |
 | `POST`  | `/properties/{pid}/reservations/{id}/no-show`     | `reservation:update`                               |
 | `GET`   | `/properties/{pid}/reservations/{id}/audit`       | `audit:read`                                       |
+
+**Modification** is `PATCH` on ONE STAY, not `POST .../modify-stay` as this
+document originally planned. A reservation can hold twenty rooms and the
+operation changes exactly one of them, so the stay has to be named in the path;
+`/modify-stay` could not say which. `PATCH` because absent fields keep their
+current value.
+
+`version` is required and is the RESERVATION's version, not the stay's — the
+whole booking is re-priced, so a concurrent edit to a sibling stay must conflict.
+
+The old nights are released BEFORE the new ones are held, in one transaction.
+Moving 3rd–5th to 4th–6th overlaps the booking's own nights; holding first
+would make it compete with itself and fail on a night it already occupies.
+
+Refused with `409` when any night of the stay is already in the past. Releasing
+a night a guest slept in would retroactively claim the room was free
+(domain-model.md §3.5). Extending an in-house stay needs a separate operation
+that only adds nights; it is not built yet.
+
+The response carries `roomAssignmentCleared`. Changing dates or room type drops
+any assigned room, because the room may now be occupied by someone else on the
+new nights and the exclusion constraint would reject the write with an
+unreadable database error.
 
 List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
 `q` (code, guest name, email, phone), `createdFrom/To`, plus `cursor`/`limit`.

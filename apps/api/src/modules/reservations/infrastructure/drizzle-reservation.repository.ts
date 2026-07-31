@@ -7,8 +7,11 @@ import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import type { ReservationStatus } from '../domain/reservation-status';
 import type {
   LoadedReservation,
+  ModifiableStay,
   ReservationRecord,
   ReservationRepository,
+  ReservationTotals,
+  StayRecord,
 } from '../domain/reservation.repository';
 
 @Injectable()
@@ -163,6 +166,132 @@ export class DrizzleReservationRepository implements ReservationRepository {
       );
 
     return result.rowCount ?? 0;
+  }
+
+  async findStay(tx: Executor, stayId: string): Promise<ModifiableStay | null> {
+    const organizationId = requireOrganizationId();
+
+    const rows = await tx
+      .select({
+        id: reservationStays.id,
+        reservationId: reservationStays.reservationId,
+        organizationId: reservationStays.organizationId,
+        propertyId: reservationStays.propertyId,
+        roomTypeId: reservationStays.roomTypeId,
+        ratePlanId: reservationStays.ratePlanId,
+        checkIn: reservationStays.checkIn,
+        checkOut: reservationStays.checkOut,
+        adults: reservationStays.adults,
+        children: reservationStays.children,
+        guestName: reservationStays.guestName,
+        assignedRoomId: reservationStays.assignedRoomId,
+        subtotalMinor: reservationStays.subtotalMinor,
+      })
+      .from(reservationStays)
+      .where(
+        and(eq(reservationStays.id, stayId), eq(reservationStays.organizationId, organizationId)),
+      )
+      .limit(1);
+
+    const stay = rows[0];
+    if (!stay) return null;
+
+    const nights = await tx
+      .select({ date: reservationStayNights.date })
+      .from(reservationStayNights)
+      .where(eq(reservationStayNights.stayId, stayId))
+      .orderBy(reservationStayNights.date);
+
+    return {
+      ...stay,
+      checkIn: toIsoDate(stay.checkIn),
+      checkOut: toIsoDate(stay.checkOut),
+      nightDates: nights.map((night) => toIsoDate(night.date)),
+    };
+  }
+
+  async replaceStay(
+    tx: Executor,
+    existing: ModifiableStay,
+    record: StayRecord,
+    options: { readonly clearAssignment: boolean },
+  ): Promise<void> {
+    const organizationId = requireOrganizationId();
+
+    await tx
+      .update(reservationStays)
+      .set({
+        roomTypeId: record.roomTypeId,
+        ratePlanId: record.ratePlanId,
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
+        adults: record.adults,
+        children: record.children,
+        guestName: record.guestName,
+        subtotalMinor: record.subtotalMinor,
+        ...(options.clearAssignment ? { assignedRoomId: null } : {}),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(reservationStays.id, existing.id),
+          eq(reservationStays.organizationId, organizationId),
+        ),
+      );
+
+    await tx.delete(reservationStayNights).where(eq(reservationStayNights.stayId, existing.id));
+
+    if (record.nights.length === 0) return;
+
+    await tx.insert(reservationStayNights).values(
+      record.nights.map((night) => ({
+        stayId: existing.id,
+        date: night.date,
+        organizationId: existing.organizationId,
+        reservationId: existing.reservationId,
+        propertyId: existing.propertyId,
+        roomTypeId: record.roomTypeId,
+        amountMinor: night.amountMinor,
+        currency: night.currency,
+      })),
+    );
+  }
+
+  async updateTotals(
+    tx: Executor,
+    reservationId: string,
+    expectedVersion: number,
+    totals: ReservationTotals,
+  ): Promise<number> {
+    const organizationId = requireOrganizationId();
+
+    const result = await tx
+      .update(reservations)
+      .set({
+        subtotalMinor: totals.subtotalMinor,
+        taxMinor: totals.taxMinor,
+        serviceChargeMinor: totals.serviceChargeMinor,
+        totalMinor: totals.totalMinor,
+        version: expectedVersion + 1,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(reservations.id, reservationId),
+          eq(reservations.organizationId, organizationId),
+          eq(reservations.version, expectedVersion),
+        ),
+      );
+
+    return result.rowCount ?? 0;
+  }
+
+  async findNightAmounts(tx: Executor, reservationId: string): Promise<readonly number[]> {
+    const rows = await tx
+      .select({ amountMinor: reservationStayNights.amountMinor })
+      .from(reservationStayNights)
+      .where(eq(reservationStayNights.reservationId, reservationId));
+    return rows.map((row) => row.amountMinor);
   }
 
   private async loadStays(

@@ -75,4 +75,27 @@ To restrict it to Admin and Owner, remove `audit:read` from the blanket
 `:read` rule in `apps/api/src/modules/auth/domain/capabilities.ts` and add it
 explicitly to `ADMIN_CAPABILITIES`.
 
+## 5. Modifying a booking is refused once the stay has begun
+
+You can change a booking's dates, room type, rate plan or occupancy — but only
+while every night is still in the future. The moment the first night is
+consumed, the API refuses with "A stay that has already begun cannot be
+modified".
+
+The reason is the same one cancellation follows (domain-model.md §3.5):
+modifying releases the old nights back into availability, and releasing a night
+a guest actually slept in would retroactively claim the hotel had a room free
+when it did not. Occupancy reports and OTA availability would both be wrong.
+
+**What this costs you:** extending a stay for a guest already in-house — a real
+and common front-desk request — is not possible yet. It needs its own use case
+that only ever ADDS nights and never releases one, which is a different
+operation with different rules, not a flag on this one.
+
+Also deliberate: a modification **clears the room assignment** whenever the
+dates or the room type change. The assigned room may now be occupied by someone
+else on the new nights, and the database's exclusion constraint would reject
+the write with an unreadable error rather than a usable message. The API says
+so in the response (`roomAssignmentCleared`) and the screen shows it.
+
 _(Updated as the session continues.)_
