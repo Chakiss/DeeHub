@@ -239,6 +239,22 @@ export interface RateUpdate {
   prices: { occupancy: number; amount: number }[];
 }
 
+/** Removing prices, not setting them to zero: a zero-priced night sells free. */
+export interface RateDeletion {
+  ratePlanId: string;
+  from: string;
+  to: string;
+  daysOfWeek?: string[];
+  /** Absent removes every occupancy on those nights. */
+  occupancies?: number[];
+}
+
+export interface RateDeletionResult {
+  pricesRemoved: number;
+  /** Nights that still have allotment but can no longer be sold at all. */
+  nightsNowUnsellable: number;
+}
+
 export interface OrganizationUser {
   id: string;
   email: string;
@@ -430,9 +446,15 @@ export const api = {
     }),
 
   updateRates: (propertyId: string, updates: RateUpdate[]) =>
-    request<{ nightsUpdated: number }>(`/properties/${propertyId}/rates`, {
-      method: 'PATCH',
-      body: JSON.stringify({ updates }),
+    request<{ pricesUpdated: number; ratePlansTouched: number }>(
+      `/properties/${propertyId}/rates`,
+      { method: 'PATCH', body: JSON.stringify({ updates }) },
+    ),
+
+  deleteRates: (propertyId: string, deletions: RateDeletion[]) =>
+    request<RateDeletionResult>(`/properties/${propertyId}/rates`, {
+      method: 'DELETE',
+      body: JSON.stringify({ deletions }),
     }),
 
   rooms: (propertyId: string) =>

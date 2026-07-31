@@ -129,4 +129,72 @@ test.describe('rate plans', () => {
     await expect.poll(async () => priced.textContent()).toContain('1,200');
     expect(await priced.textContent()).not.toContain('no rate');
   });
+
+  /**
+   * The counterpart. Before this existed a mis-typed price could only be
+   * overwritten, and the obvious workaround — typing 0 — leaves the room
+   * sellable for nothing rather than taking the night off sale.
+   *
+   * Uses the LAST three fixture dates, so it does not collide with the pricing
+   * test above, which uses the first three.
+   */
+  test('removing a price puts the night back to unsellable, not free', async ({ page }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+
+    // Allotment first, so the night is genuinely on sale and losing its price
+    // is a real change rather than a no-op.
+    await page.goto(`/properties/${data.propertyId}/inventory?from=${data.dates[3]}`);
+    await page.getByRole('button', { name: 'Bulk edit' }).click();
+    await page.getByLabel('Room type').selectOption({ label: 'Standard Twin' });
+    await page.getByLabel('From').fill(data.dates[3]!);
+    await page.getByLabel('To (exclusive)').fill(data.dates[5]!);
+    await page.getByLabel('Allotment').fill('4');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+
+    await page.goto(`/properties/${data.propertyId}/rate-plans`);
+    await page.getByRole('button', { name: 'Add rate plan' }).click();
+    await page.getByLabel('Room type').selectOption({ label: 'Standard Twin' });
+    await page.getByLabel('Code').fill('e2e-clr');
+    await page.getByLabel('Name', { exact: true }).fill('Clearable Rate');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    const planRow = page.getByRole('row', { name: /Clearable Rate/ });
+    await expect(planRow).toBeVisible();
+
+    await planRow.getByRole('button', { name: 'Set prices' }).click();
+    await page.getByLabel('From').fill(data.dates[3]!);
+    await page.getByLabel('To (exclusive)').fill(data.dates[5]!);
+    await page.getByLabel('2 guests').fill('1500');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+
+    await page.goto(`/properties/${data.propertyId}/inventory?from=${data.dates[3]}`);
+    const row = page.locator('tbody tr').filter({ hasText: 'Standard Twin' });
+    await expect.poll(async () => row.textContent()).toContain('1,500');
+
+    // Now remove them.
+    await page.goto(`/properties/${data.propertyId}/rate-plans`);
+    await page
+      .getByRole('row', { name: /Clearable Rate/ })
+      .getByRole('button', {
+        name: 'Remove prices',
+      })
+      .click();
+    await page.getByLabel('From').fill(data.dates[3]!);
+    await page.getByLabel('To (exclusive)').fill(data.dates[5]!);
+    await page.getByRole('button', { name: 'Remove prices' }).click();
+
+    // The dialog stays open and says how much of the hotel just went off sale.
+    await expect(page.getByText('Removed 2 prices.')).toBeVisible();
+    await expect(page.getByText(/2 nights can no longer be sold/)).toBeVisible();
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    // Back to unsellable — NOT priced at zero.
+    await page.goto(`/properties/${data.propertyId}/inventory?from=${data.dates[3]}`);
+    const cleared = page.locator('tbody tr').filter({ hasText: 'Standard Twin' });
+    await expect.poll(async () => cleared.textContent()).toContain('no rate');
+    expect(await cleared.textContent()).not.toContain('1,500');
+  });
 });

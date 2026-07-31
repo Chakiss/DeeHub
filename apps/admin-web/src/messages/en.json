@@ -175,7 +175,21 @@
     "applying": "Applying…",
     "pricesUpdated": "Updated {count} nights.",
     "priceRequired": "Enter a price for at least one occupancy.",
-    "rangeInvalid": "The end date must be after the start date."
+    "rangeInvalid": "The end date must be after the start date.",
+    "clearPrices": "Remove prices",
+    "clearPricesFor": "Remove prices for {name}",
+    "clearExplain": "This deletes the prices themselves — it does not set them to zero. A night with no price cannot be booked at all.",
+    "clearZeroWarning": "Setting a price to 0 would leave the room sellable for nothing. Removing it takes the night off sale instead.",
+    "clearOccupancies": "Which occupancies",
+    "clearOccupanciesHint": "Leave all off to remove every occupancy on those nights.",
+    "clearConfirm": "Remove prices",
+    "clearing": "Removing…",
+    "clearNothing": "No prices existed in that range — nothing was removed.",
+    "clearDone": "Removed {count} prices.",
+    "clearUnsellable": "{count} nights can no longer be sold: they still have rooms allotted but no price from any active plan.",
+    "clearUnsellableNone": "No night lost its last price.",
+    "clearFailed": "Could not remove the prices.",
+    "done": "Done"
   },
   "mealPlans": {
     "ROOM_ONLY": "Room only",

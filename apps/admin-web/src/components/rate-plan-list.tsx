@@ -7,6 +7,7 @@ import type { RatePlan, RoomType } from '@/lib/api';
 import { updateRatePlan } from '@/app/properties/[propertyId]/rate-plans/actions';
 import { RatePlanForm } from './rate-plan-form';
 import { RatePriceDialog } from './rate-price-dialog';
+import { RateClearDialog } from './rate-clear-dialog';
 
 export function RatePlanList({
   propertyId,
@@ -31,6 +32,7 @@ export function RatePlanList({
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<RatePlan | null>(null);
   const [pricing, setPricing] = useState<RatePlan | null>(null);
+  const [clearing, setClearing] = useState<RatePlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -140,6 +142,20 @@ export function RatePlanList({
                           >
                             {t('setPrices')}
                           </button>
+                          {/*
+                            Removing a price is destructive in a way setting one
+                            is not — the night comes off sale entirely — so it
+                            reads as a separate, quieter action, not a variant of
+                            "Set prices".
+                          */}
+                          <button
+                            type="button"
+                            disabled={!roomType}
+                            onClick={() => setClearing(ratePlan)}
+                            className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {t('clearPrices')}
+                          </button>
                           <button
                             type="button"
                             onClick={() => setEditing(ratePlan)}
@@ -192,6 +208,16 @@ export function RatePlanList({
           defaultFrom={defaultFrom}
           defaultTo={defaultTo}
           onClose={() => setPricing(null)}
+        />
+      )}
+      {clearing && roomTypeById.get(clearing.roomTypeId) && (
+        <RateClearDialog
+          propertyId={propertyId}
+          ratePlan={clearing}
+          roomType={roomTypeById.get(clearing.roomTypeId)!}
+          defaultFrom={defaultFrom}
+          defaultTo={defaultTo}
+          onClose={() => setClearing(null)}
         />
       )}
     </div>
