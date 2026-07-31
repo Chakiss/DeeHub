@@ -133,6 +133,17 @@ build one.
 If a credential is lost, it is re-entered, not recovered. That is the intended
 trade.
 
+## 8. An observed test flake, not yet explained
+
+Running the full API suite once produced a single failure in
+`guests.e2e.test.ts` — a `POST /reservations` answered `405 Method Not Allowed`.
+It has not reproduced in the runs since (416 tests, green), and the file passes
+alone every time.
+
+I am recording it rather than calling it fixed. `405` is a routing-layer answer,
+which is odd for what otherwise looks like a shared-database race between
+parallel test files. If it reappears in CI, that is the thread to pull.
+
 ## 9. The browser suite was stranding a database row on every run
 
 Two bugs found while adding browser coverage for the new screens, both fixed:
