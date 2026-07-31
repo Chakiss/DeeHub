@@ -172,7 +172,14 @@
     "modifyReason": "Reason (optional)",
     "assignmentCleared": "The room assignment was cleared. Assign a room again before check-in.",
     "modifyLocked": "A {status} booking can no longer be changed.",
-    "modifyHint": "Moving dates or changing the room type releases the old nights and takes the new ones. Prices are re-quoted at today's rates for the nights that change."
+    "modifyHint": "Moving dates or changing the room type releases the old nights and takes the new ones. Prices are re-quoted at today's rates for the nights that change.",
+    "extendStay": "Extend stay",
+    "extendTitle": "Keep this guest longer",
+    "extendHint": "Only the departure date moves. The nights already booked keep the price they were quoted, and the new ones are priced at today's rate.",
+    "extendNewCheckOut": "New check-out",
+    "extendConfirm": "Extend",
+    "extendMustBeLater": "The new check-out must be later than the current one.",
+    "extendDone": "Extended. The added nights come to {amount}."
   },
   "errors": {
     "generic": "Something went wrong",

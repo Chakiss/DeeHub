@@ -206,6 +206,24 @@ export interface ModifiedStay {
   total: Money;
 }
 
+/** Only the departure date moves. Anything else would be a modification. */
+export interface ExtendStayInput {
+  version: number;
+  checkOut: string;
+  reason?: string;
+}
+
+export interface ExtendedStay {
+  reservationId: string;
+  stayId: string;
+  version: number;
+  checkOut: string;
+  addedNights: string[];
+  /** What the added nights cost at today's rate, not the whole stay. */
+  addedAmount: Money;
+  total: Money;
+}
+
 export interface CreatedReservation {
   id: string;
   code: string;
@@ -705,6 +723,12 @@ export const api = {
     request<ModifiedStay>(
       `/properties/${propertyId}/reservations/${reservationId}/stays/${stayId}`,
       { method: 'PATCH', body: JSON.stringify(input) },
+    ),
+
+  extendStay: (propertyId: string, reservationId: string, stayId: string, input: ExtendStayInput) =>
+    request<ExtendedStay>(
+      `/properties/${propertyId}/reservations/${reservationId}/stays/${stayId}/extend`,
+      { method: 'POST', body: JSON.stringify(input) },
     ),
 
   cancelReservation: (propertyId: string, id: string, version: number, reason?: string) =>

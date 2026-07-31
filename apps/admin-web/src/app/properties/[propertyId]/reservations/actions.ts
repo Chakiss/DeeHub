@@ -6,6 +6,8 @@ import {
   api,
   type CreateReservationInput,
   type CreatedReservation,
+  type ExtendedStay,
+  type ExtendStayInput,
   type InventoryGrid,
   type ModifiedStay,
   type ModifyStayInput,
@@ -160,6 +162,33 @@ export async function modifyStay(
     const modified = await api.modifyStay(propertyId, reservationId, stayId, input);
     revalidate(propertyId, reservationId);
     return { ok: true, modified };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export interface ExtendStayActionResult extends ReservationActionResult {
+  readonly extended?: ExtendedStay;
+}
+
+/**
+ * Keep a guest longer by adding nights to the end of a stay.
+ *
+ * Separate from `modifyStay` because the API treats them as different
+ * operations: modifying gives the old nights back before taking new ones and is
+ * refused once a night has been slept in, while this only ever adds. It is the
+ * only way to change a booking whose guest is already in the building.
+ */
+export async function extendStay(
+  propertyId: string,
+  reservationId: string,
+  stayId: string,
+  input: ExtendStayInput,
+): Promise<ExtendStayActionResult> {
+  try {
+    const extended = await api.extendStay(propertyId, reservationId, stayId, input);
+    revalidate(propertyId, reservationId);
+    return { ok: true, extended };
   } catch (error) {
     return failure(error);
   }

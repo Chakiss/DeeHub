@@ -2,9 +2,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { ApiError, api, type ReservationDetail } from '@/lib/api';
-import { formatMoney } from '@/lib/dates';
+import { businessDate, formatMoney } from '@/lib/dates';
 import { ReservationActions } from '@/components/reservation-actions';
 import { StayEditor } from '@/components/stay-editor';
+import { StayExtender } from '@/components/stay-extender';
+
+/** Bookings a modification can still take apart and re-hold. */
+const MODIFIABLE = ['PENDING', 'CONFIRMED'];
+/** Bookings that still have a future to add nights to. */
+const EXTENDABLE = ['PENDING', 'CONFIRMED', 'CHECKED_IN'];
 
 const STATUS_TONE: Record<string, string> = {
   CONFIRMED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -40,9 +46,18 @@ export default async function ReservationDetailPage({
   const me = await api.me();
   const capabilities = me.capabilities;
   const canModify = capabilities.includes('reservation:modify');
-  const [roomTypes, ratePlans] = canModify
-    ? await Promise.all([api.roomTypes(propertyId), api.ratePlans(propertyId)])
-    : [[], []];
+  const [roomTypes, ratePlans, properties] = canModify
+    ? await Promise.all([api.roomTypes(propertyId), api.ratePlans(propertyId), api.properties()])
+    : [[], [], []];
+
+  /*
+   * Today in the PROPERTY's timezone, which decides which of the two editors a
+   * stay gets. A Bangkok hotel served from a European browser must not think a
+   * guest arriving today is still arriving tomorrow.
+   */
+  const today = businessDate(
+    properties.find((property) => property.id === propertyId)?.timezone ?? 'Asia/Bangkok',
+  );
 
   return (
     <div className="space-y-5">
@@ -153,19 +168,36 @@ export default async function ReservationDetailPage({
                     {formatMoney(stay.subtotal.amount, stay.subtotal.currency)}
                   </p>
 
-                  {canModify && (
-                    <StayEditor
-                      propertyId={propertyId}
-                      reservationId={reservation.id}
-                      status={reservation.status}
-                      version={reservation.version}
-                      stay={stay}
-                      roomTypes={roomTypes.filter(
-                        (roomType) => roomType.isActive || roomType.id === stay.roomTypeId,
-                      )}
-                      ratePlans={ratePlans}
-                    />
-                  )}
+                  {/*
+                   * One editor or the other, never both. A stay that has begun
+                   * can only gain nights at the end — the full editor releases
+                   * the old ones first, which the API refuses once a guest has
+                   * slept in one — and offering both would put two date fields
+                   * on screen where only one of them can be saved.
+                   */}
+                  {canModify &&
+                    (stay.checkIn <= today || reservation.status === 'CHECKED_IN'
+                      ? EXTENDABLE.includes(reservation.status) && (
+                          <StayExtender
+                            propertyId={propertyId}
+                            reservationId={reservation.id}
+                            version={reservation.version}
+                            stay={stay}
+                          />
+                        )
+                      : MODIFIABLE.includes(reservation.status) && (
+                          <StayEditor
+                            propertyId={propertyId}
+                            reservationId={reservation.id}
+                            status={reservation.status}
+                            version={reservation.version}
+                            stay={stay}
+                            roomTypes={roomTypes.filter(
+                              (roomType) => roomType.isActive || roomType.id === stay.roomTypeId,
+                            )}
+                            ratePlans={ratePlans}
+                          />
+                        ))}
                 </li>
               ))}
             </ul>

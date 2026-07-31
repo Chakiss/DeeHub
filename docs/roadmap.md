@@ -61,8 +61,8 @@ Phase 4 with it. Delivered:
   now be cleared for a date range as well as set.
 - **Front desk**: physical rooms, housekeeping status, Stay View, room
   assignment, check-in and check-out. Reservations can be taken at the desk
-  (manual booking) and an unstarted stay can have its dates, room type, rate
-  plan or occupancy changed.
+  (manual booking), an unstarted stay can have its dates, room type, rate plan
+  or occupancy changed, and a stay already under way can be extended.
 - **Guests**: profiles and stay history.
 - **Reporting**: occupancy, ADR and RevPAR.
 - **Channels**: created, credentialed, mapped and activated from the
@@ -74,20 +74,15 @@ Phase 4 with it. Delivered:
 
 **What a pilot property still cannot do**, in the order it will hurt:
 
-1. **Extend a stay for a guest already in-house.** Modification is refused
-   once the first night is consumed, because releasing a night someone slept
-   in would retroactively claim the room was free. Adding nights is a
-   different operation — it only ever takes inventory, never returns it — and
-   it is not built. This is an everyday front-desk request.
-2. **Recover a forgotten password without help.** An operator can reset one
+1. **Recover a forgotten password without help.** An operator can reset one
    for a colleague, so nobody is locked out permanently, but self-service
    `forgot-password` / `reset-password` are still specified and not built.
-3. **Sell through an OTA.** The connector framework and Mock OTA work end to
+2. **Sell through an OTA.** The connector framework and Mock OTA work end to
    end and a channel can now be configured from the dashboard, but no real
    channel is connected, `test-connection` and forced sync are not built, and
    pushing anything at all requires `enable_channel_sync`, which adds Redis
    and an always-on worker (roughly $80/month on top of the current ~$22).
-4. **Be told anything.** No notifications: no booking confirmation to the
+3. **Be told anything.** No notifications: no booking confirmation to the
    guest, no alert to staff. Everything is pull-only, in the dashboard.
 
 ## Phase 3 — First Real OTA + Booking Engine (Months 4–6)
