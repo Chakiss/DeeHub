@@ -182,14 +182,17 @@ test.describe('rate plans', () => {
         name: 'Remove prices',
       })
       .click();
-    await page.getByLabel('From').fill(data.dates[3]!);
-    await page.getByLabel('To (exclusive)').fill(data.dates[5]!);
-    await page.getByRole('button', { name: 'Remove prices' }).click();
+    // Scoped to the dialog: every rate plan on the page has its own "Remove
+    // prices" button, so the bare name matches one per row plus this submit.
+    const dialog = page.getByRole('dialog', { name: /Remove prices for/ });
+    await dialog.getByLabel('From').fill(data.dates[3]!);
+    await dialog.getByLabel('To (exclusive)').fill(data.dates[5]!);
+    await dialog.getByRole('button', { name: 'Remove prices' }).click();
 
     // The dialog stays open and says how much of the hotel just went off sale.
-    await expect(page.getByText('Removed 2 prices.')).toBeVisible();
-    await expect(page.getByText(/2 nights can no longer be sold/)).toBeVisible();
-    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(dialog.getByText('Removed 2 prices.')).toBeVisible();
+    await expect(dialog.getByText(/2 nights can no longer be sold/)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Done' }).click();
 
     // Back to unsellable — NOT priced at zero.
     await page.goto(`/properties/${data.propertyId}/inventory?from=${data.dates[3]}`);
