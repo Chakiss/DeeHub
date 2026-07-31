@@ -163,6 +163,24 @@ export interface ReservationDetail {
   }[];
 }
 
+/** Mirrors the API's create schema (api-spec.md §6.5). One stay = one room unit. */
+export interface CreateReservationInput {
+  source: 'DIRECT' | 'OTA' | 'WALK_IN' | 'PHONE' | 'EMAIL';
+  status?: 'PENDING' | 'CONFIRMED';
+  booker: { name: string; email?: string; phone?: string };
+  stays: {
+    roomTypeId: string;
+    ratePlanId: string;
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    children?: number;
+    guestName?: string;
+  }[];
+  specialRequests?: string;
+  guestId?: string;
+}
+
 /** PATCH: absent means "leave it alone". null on guestName clears it. */
 export interface ModifyStayInput {
   version: number;
@@ -184,6 +202,15 @@ export interface ModifiedStay {
   heldNights: string[];
   /** The guest no longer has a room number: the front desk must reassign. */
   roomAssignmentCleared: boolean;
+  total: Money;
+}
+
+export interface CreatedReservation {
+  id: string;
+  code: string;
+  status: string;
+  propertyId: string;
+  currency: string;
   total: Money;
 }
 
@@ -560,6 +587,12 @@ export const api = {
 
   reservation: (propertyId: string, id: string) =>
     request<ReservationDetail>(`/properties/${propertyId}/reservations/${id}`),
+
+  createReservation: (propertyId: string, input: CreateReservationInput) =>
+    request<CreatedReservation>(`/properties/${propertyId}/reservations`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 
   modifyStay: (propertyId: string, reservationId: string, stayId: string, input: ModifyStayInput) =>
     request<ModifiedStay>(

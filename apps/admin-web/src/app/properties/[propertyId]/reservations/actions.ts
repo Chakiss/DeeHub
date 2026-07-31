@@ -1,7 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ApiError, api, type ModifiedStay, type ModifyStayInput } from '@/lib/api';
+import {
+  ApiError,
+  api,
+  type CreateReservationInput,
+  type CreatedReservation,
+  type InventoryGrid,
+  type ModifiedStay,
+  type ModifyStayInput,
+} from '@/lib/api';
 
 export interface ReservationActionResult {
   readonly ok: boolean;
@@ -79,6 +87,58 @@ export async function checkOutReservation(
     return failure(error);
   }
 }
+
+export interface CreateReservationResult extends ReservationActionResult {
+  readonly reservation?: CreatedReservation;
+}
+
+/**
+ * Take a booking at the desk.
+ *
+ * The API is the only authority on whether the nights are sellable — it checks
+ * and decrements allotment inside the same transaction that writes the booking,
+ * so two clerks selling the last room cannot both succeed. The availability
+ * shown on the form is advisory and can be stale by the time Save is pressed;
+ * a refusal here is the correct outcome, not a bug to work around.
+ */
+export async function createReservation(
+  propertyId: string,
+  input: CreateReservationInput,
+): Promise<CreateReservationResult> {
+  try {
+    const reservation = await api.createReservation(propertyId, input);
+    revalidatePath(`/properties/${propertyId}/reservations`);
+    revalidatePath(`/properties/${propertyId}/stay-view`);
+    revalidatePath(`/properties/${propertyId}/inventory`);
+    return { ok: true, reservation };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export interface AvailabilityResult extends ReservationActionResult {
+  readonly grid?: InventoryGrid;
+}
+
+/**
+ * What is sellable over a date window, for the form to show before submitting.
+ *
+ * A read, deliberately: it takes no hold. Showing "2 left" and then refusing
+ * the booking is honest; pretending to reserve one while the clerk types the
+ * guest's name would leak inventory every time a form is abandoned.
+ */
+export async function checkAvailability(
+  propertyId: string,
+  from: string,
+  to: string,
+): Promise<AvailabilityResult> {
+  try {
+    return { ok: true, grid: await api.inventoryGrid(propertyId, from, to) };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export interface ModifyStayActionResult extends ReservationActionResult {
   readonly modified?: ModifiedStay;
 }

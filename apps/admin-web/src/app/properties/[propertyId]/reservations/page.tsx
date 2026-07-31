@@ -25,17 +25,30 @@ export default async function ReservationsPage({
   const { q, status, cursor } = await searchParams;
   const t = await getTranslations('reservations');
 
-  const list = await api.reservations(propertyId, {
-    ...(q ? { q } : {}),
-    ...(status ? { status } : {}),
-    ...(cursor ? { cursor } : {}),
-  });
+  const [list, me] = await Promise.all([
+    api.reservations(propertyId, {
+      ...(q ? { q } : {}),
+      ...(status ? { status } : {}),
+      ...(cursor ? { cursor } : {}),
+    }),
+    api.me(),
+  ]);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
-        <p className="text-sm text-slate-500">{t('subtitle')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
+          <p className="text-sm text-slate-500">{t('subtitle')}</p>
+        </div>
+        {me.capabilities.includes('reservation:create') && (
+          <Link
+            href={`/properties/${propertyId}/reservations/new`}
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            {t('newBooking')}
+          </Link>
+        )}
       </div>
 
       <ReservationFilters

@@ -192,3 +192,88 @@ export async function teardown(data: TestData): Promise<void> {
     await pool.end();
   }
 }
+
+export interface IsolatedRoomType {
+  roomTypeId: string;
+  ratePlanId: string;
+  roomTypeName: string;
+  dates: string[];
+}
+
+/**
+ * A room type, rate plan and inventory that belong to ONE spec.
+ *
+ * The shared fixture room type is asserted on by the inventory and reservation
+ * specs with absolute counts ("0/5"), and the suite runs serially. Any spec
+ * that BOOKS has to bring its own rows, or it silently breaks whichever spec
+ * happens to run after it — which is exactly what happened when the booking
+ * spec was first added.
+ */
+export async function seedIsolatedRoomType(
+  data: TestData,
+  options: { code: string; name: string; dates: string[]; allotment?: number },
+): Promise<IsolatedRoomType> {
+  const pool = new Pool({ connectionString: connectionString(), max: 2 });
+  const roomTypeId = randomUUID();
+  const ratePlanId = randomUUID();
+
+  try {
+    await pool.query(
+      `INSERT INTO room_types (id, organization_id, property_id, code, name,
+                               standard_occupancy, max_occupancy, max_adults, max_children, sort_order)
+       VALUES ($1, $2, $3, $4, $5, 2, 4, 3, 2, 50)`,
+      [roomTypeId, data.organizationId, data.propertyId, options.code, options.name],
+    );
+    await pool.query(
+      `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name)
+       VALUES ($1, $2, $3, $4, $5, 'Isolated Rate')`,
+      [ratePlanId, data.organizationId, data.propertyId, roomTypeId, `${options.code}-BAR`],
+    );
+
+    for (const date of options.dates) {
+      await pool.query(
+        `INSERT INTO inventory_days (organization_id, property_id, room_type_id, date, allotment, booked)
+         VALUES ($1, $2, $3, $4, $5, 0)`,
+        [data.organizationId, data.propertyId, roomTypeId, date, options.allotment ?? 5],
+      );
+      for (const occupancy of [1, 2, 3]) {
+        await pool.query(
+          `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date,
+                                  occupancy, amount_minor, currency)
+           VALUES ($1, $2, $3, $4, $5, 250000, 'THB')`,
+          [data.organizationId, data.propertyId, ratePlanId, date, occupancy],
+        );
+      }
+    }
+
+    return { roomTypeId, ratePlanId, roomTypeName: options.name, dates: options.dates };
+  } finally {
+    await pool.end();
+  }
+}
+
+/** Removes everything `seedIsolatedRoomType` created, bookings included. */
+export async function removeIsolatedRoomType(room: IsolatedRoomType): Promise<void> {
+  const pool = new Pool({ connectionString: connectionString(), max: 2 });
+  try {
+    // Reservations first: their stays reference the room type with RESTRICT.
+    await pool.query(
+      `DELETE FROM reservations WHERE id IN (
+         SELECT reservation_id FROM reservation_stays WHERE room_type_id = $1
+       )`,
+      [room.roomTypeId],
+    );
+    await pool.query('DELETE FROM inventory_days WHERE room_type_id = $1', [room.roomTypeId]);
+    await pool.query('DELETE FROM rate_days WHERE rate_plan_id = $1', [room.ratePlanId]);
+    await pool.query('DELETE FROM channel_rate_plan_mappings WHERE rate_plan_id = $1', [
+      room.ratePlanId,
+    ]);
+    await pool.query('DELETE FROM channel_room_type_mappings WHERE room_type_id = $1', [
+      room.roomTypeId,
+    ]);
+    await pool.query('DELETE FROM rate_plans WHERE id = $1', [room.ratePlanId]);
+    await pool.query('DELETE FROM room_types WHERE id = $1', [room.roomTypeId]);
+  } finally {
+    await pool.end();
+  }
+}
