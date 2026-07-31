@@ -98,4 +98,57 @@ else on the new nights, and the database's exclusion constraint would reject
 the write with an unreadable error rather than a usable message. The API says
 so in the response (`roomAssignmentCleared`) and the screen shows it.
 
+## 6. A channel cannot be activated until every room type is mapped
+
+The channel admin screens are new; before them a channel could only be created
+by hand-written SQL. Activation is now refused while any active room type has
+no mapping.
+
+This is not tidiness. An active channel with a missing mapping does **not**
+fail loudly — the ARI push simply skips that room type, so the OTA keeps
+selling whatever availability it last heard, and the first symptom is a guest
+arriving at a full hotel.
+
+Two consequences worth knowing:
+
+- Adding a new room type to a property **silently un-satisfies** this rule for
+  every active channel. The channel stays ACTIVE (nothing deactivates it) but
+  the list screen shows "2 of 3 room types" in amber. I did not auto-deactivate
+  — cutting off a live OTA because someone added a room type would be worse.
+- `CHANNEL_SYNC_ENABLED` is a separate deployment flag and is currently **off**.
+  An ACTIVE channel pushes nothing until it is on. Turning it on is your call:
+
+  ```bash
+  # infrastructure/terraform/terraform.tfvars
+  enable_channel_sync = true
+  ```
+
+## 7. Channel credentials are write-only, including to you
+
+Credentials go in encrypted (AES-256-GCM) and never come back out through the
+API, the UI, or the audit trail — the audit entry records only
+`credentialsProvided: true`. There is no "show credentials" button and I did not
+build one.
+
+If a credential is lost, it is re-entered, not recovered. That is the intended
+trade.
+
+## 9. The browser suite was stranding a database row on every run
+
+Two bugs found while adding browser coverage for the new screens, both fixed:
+
+- `e2e/fixtures.ts` never deleted the channel tables, so once a test created a
+  channel the organization could not be deleted — every foreign key here is
+  `ON DELETE RESTRICT`.
+- `e2e/global-teardown.ts` wrapped the whole teardown in a bare `catch {}`,
+  which was meant to cover "setup never wrote the file" but also swallowed
+  "the delete failed". The suite reported green while leaving an organization
+  behind. It now reports the failure and rethrows.
+
+Related: the browser specs run **serially against one seeded property**, and
+the inventory and reservation specs assert absolute counts on it ("0/5"). Any
+spec that BOOKS therefore has to bring its own room type — `booking.spec.ts`
+now seeds one via `seedIsolatedRoomType` and removes it afterwards. Adding it
+without that quietly broke five existing tests.
+
 _(Updated as the session continues.)_

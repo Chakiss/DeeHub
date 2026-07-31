@@ -550,19 +550,32 @@ an owner's properties.
 | ------------- | ------------------------------------------------- | --------------------------------- |
 | `GET` `POST`  | `/properties/{pid}/channels`                      | `channel:read` / `channel:create` |
 | `GET` `PATCH` | `/properties/{pid}/channels/{id}`                 | `channel:read` / `channel:update` |
-| `POST`        | `/properties/{pid}/channels/{id}/test-connection` | `channel:update`                  |
-| `GET` `PUT`   | `/properties/{pid}/channels/{id}/mappings`        | `channel:read` / `channel:update` |
-| `POST`        | `/properties/{pid}/channels/{id}/sync`            | `channel:sync` — force full sync  |
-| `GET`         | `/properties/{pid}/channels/{id}/sync-jobs`       | `channel:read`                    |
-| `GET`         | `/properties/{pid}/channels/{id}/health`          | `channel:read`                    |
+| `PUT`         | `/properties/{pid}/channels/{id}/mappings`        | `channel:update`                  |
+| `POST`        | `/properties/{pid}/channels/{id}/test-connection` | `channel:update` — NOT BUILT      |
+| `POST`        | `/properties/{pid}/channels/{id}/sync`            | `channel:sync` — NOT BUILT        |
 
 Credentials are write-only: accepted on `POST`/`PATCH`, never returned. Reads
-show `"credentialsConfigured": true` and nothing more.
+show `"hasCredentials": true` and nothing more. They are absent from the audit
+trail too, which records only `credentialsProvided`.
 
-`/health` powers the dashboard's channel status strip — last successful sync,
-queue depth, consecutive failures. A stalled sync is the failure mode that
-causes overbookings, so it gets a first-class endpoint rather than being
-buried in logs.
+**A channel is created INACTIVE and cannot be activated until every active room
+type is mapped.** This is the rule that prevents the silent failure: an active
+channel with a missing mapping does not error, the ARI push simply skips that
+room type, so the OTA keeps selling availability nobody is updating and the
+first symptom is an overbooking. The `409` names the unmapped room types.
+
+`PUT /mappings` replaces the whole set rather than patching it. Mappings are a
+set, and the unique indexes on `(channel, local)` and `(channel, external)` mean
+an incremental edit can collide with a row the same request is about to delete.
+
+`GET /channels/{id}` folds in what the planned `/sync-jobs`, `/health` and
+`/mappings` reads would each have returned — mappings both ways, the twenty most
+recent sync jobs, and the inbound bookings received. One screen, one request.
+The list endpoint carries the health summary (`status`, `lastSyncAt`,
+`lastError`, mapped-versus-total room types) so the strip needs no extra call.
+
+Two endpoints in the original plan are **not built**: `test-connection` and a
+forced `sync`. Neither has a connector-level operation behind it yet.
 
 ### 6.9 Inbound webhooks (OTA → DeeHub)
 

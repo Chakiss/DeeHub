@@ -1,6 +1,7 @@
 import 'server-only';
 import { apiBaseUrl, getAccessToken } from './session';
 import type { MealPlan } from './meal-plans';
+import type { ChannelType } from './channel-types';
 
 /**
  * Typed client for the DeeHub API.
@@ -408,6 +409,82 @@ export interface Guest {
   possibleDuplicates: number;
 }
 
+export interface ChannelSummary {
+  id: string;
+  type: string;
+  name: string;
+  status: string;
+  syncHorizonDays: number;
+  /** Whether any are stored. The values themselves are never returned. */
+  hasCredentials: boolean;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  mappedRoomTypes: number;
+  totalRoomTypes: number;
+  mappedRatePlans: number;
+  createdAt: string;
+}
+
+export interface ChannelMapping {
+  id: string;
+  localId: string;
+  localName: string;
+  localCode: string;
+  externalId: string;
+  externalName: string | null;
+}
+
+export interface SyncJobSummary {
+  id: string;
+  kind: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  dateFrom: string | null;
+  dateTo: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface InboundBookingSummary {
+  id: string;
+  externalReservationId: string;
+  status: string;
+  error: string | null;
+  receivedAt: string;
+  reservationId: string | null;
+}
+
+export interface ChannelDetail extends ChannelSummary {
+  roomTypeMappings: ChannelMapping[];
+  ratePlanMappings: ChannelMapping[];
+  availableRoomTypes: { id: string; code: string; name: string }[];
+  availableRatePlans: { id: string; roomTypeId: string; code: string; name: string }[];
+  recentJobs: SyncJobSummary[];
+  recentInbound: InboundBookingSummary[];
+}
+
+export interface CreateChannelInput {
+  type: ChannelType;
+  name: string;
+  syncHorizonDays?: number;
+  credentials?: Record<string, string>;
+}
+
+export interface UpdateChannelInput {
+  name?: string;
+  syncHorizonDays?: number;
+  status?: 'ACTIVE' | 'INACTIVE';
+  /** Replaces the stored set. Omit to keep what is already there. */
+  credentials?: Record<string, string>;
+}
+
+export interface MappingInput {
+  localId: string;
+  externalId: string;
+  externalName?: string | null;
+}
+
 export interface AuditEntry {
   id: string;
   createdAt: string;
@@ -557,6 +634,36 @@ export const api = {
     request<{ items: Guest[] }>(
       `/properties/${propertyId}/guests${q ? `?q=${encodeURIComponent(q)}` : ''}`,
     ).then((body) => body.items),
+
+  channels: (propertyId: string) =>
+    request<{ items: ChannelSummary[] }>(`/properties/${propertyId}/channels`).then(
+      (body) => body.items,
+    ),
+
+  channel: (propertyId: string, channelId: string) =>
+    request<ChannelDetail>(`/properties/${propertyId}/channels/${channelId}`),
+
+  createChannel: (propertyId: string, input: CreateChannelInput) =>
+    request<{ id: string }>(`/properties/${propertyId}/channels`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateChannel: (propertyId: string, channelId: string, input: UpdateChannelInput) =>
+    request<ChannelDetail>(`/properties/${propertyId}/channels/${channelId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  replaceChannelMappings: (
+    propertyId: string,
+    channelId: string,
+    input: { roomTypes: MappingInput[]; ratePlans: MappingInput[] },
+  ) =>
+    request<ChannelDetail>(`/properties/${propertyId}/channels/${channelId}/mappings`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
 
   audit: (propertyId: string, params: Record<string, string> = {}) => {
     const query = new URLSearchParams(params).toString();
