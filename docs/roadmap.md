@@ -67,6 +67,9 @@ Phase 4 with it. Delivered:
 - **Reporting**: occupancy, ADR and RevPAR.
 - **Channels**: created, credentialed, mapped and activated from the
   dashboard rather than by hand-written SQL.
+- **Notifications**: booking confirmations and cancellations to guests in
+  Thai or English, and an alert to the desk when a channel sells a room —
+  with a delivery log showing what was sent and what was not.
 - **Operations**: Thai UI, the audit trail readable in the dashboard,
   alerting and error reporting, operator-driven password reset, team
   administration with a one-time credential, and a password change that
@@ -82,8 +85,15 @@ Phase 4 with it. Delivered:
    channel is connected, `test-connection` and forced sync are not built, and
    pushing anything at all requires `enable_channel_sync`, which adds Redis
    and an always-on worker (roughly $80/month on top of the current ~$22).
-3. **Be told anything.** No notifications: no booking confirmation to the
-   guest, no alert to staff. Everything is pull-only, in the dashboard.
+3. **Actually deliver a confirmation.** The messages are written, rendered in
+   the guest's language and visible in the dashboard, but delivery needs an
+   email provider account: Cloud Run blocks outbound SMTP, so a mail server —
+   even the hotel's own — is not reachable. Set `EMAIL_API_KEY` and
+   `EMAIL_FROM` and they start going out with no code change.
+4. **Confirm a booking instantly.** Messages are sent by the maintenance job,
+   now every ten minutes, so a confirmation arrives within ten minutes rather
+   than seconds. The always-on worker sends within seconds but costs the same
+   ~$80/month as channel sync.
 
 ## Phase 3 — First Real OTA + Booking Engine (Months 4–6)
 
@@ -107,8 +117,11 @@ Mostly delivered early; what is left is listed as **remaining**.
 - Guests → CRM: ~~profiles, stay history~~ **done**. Dedupe/merge
   **remaining** — a returning guest booked under a different spelling is two
   records today.
-- Notifications: email/LINE confirmations to guests, alerts to staff —
-  **remaining**, none of it built.
+- Notifications: ~~email/LINE confirmations to guests, alerts to staff~~
+  **done** — booking confirmed, booking cancelled, and a channel booking
+  alerting the desk. **Remaining**: an email provider account. Messages are
+  composed and stored either way; without `EMAIL_API_KEY` they are marked
+  "not sent" in the dashboard rather than delivered.
 - Reporting v1: ~~occupancy, ADR, RevPAR~~ **done**. Pickup **remaining** —
   it needs booking-date history, not just stay dates.
 

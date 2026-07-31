@@ -17,6 +17,7 @@
     "reports": "Reports",
     "guests": "Guests",
     "audit": "Activity",
+    "notifications": "Notifications",
     "channels": "Channels"
   },
   "login": {
@@ -453,6 +454,25 @@
     "system": "System",
     "channel": "Channel",
     "details": "Details"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "What this hotel told guests and staff, and what it could not",
+    "all": "All",
+    "statusSENT": "Sent",
+    "statusPENDING": "Waiting",
+    "statusFAILED": "Failed",
+    "statusSKIPPED": "Not sent",
+    "kindBOOKING_CONFIRMED": "Booking confirmed",
+    "kindBOOKING_CANCELLED": "Booking cancelled",
+    "kindBOOKING_RECEIVED": "Booking received",
+    "empty": "Nothing has been sent yet",
+    "emptyFiltered": "No messages with that status",
+    "emptyHint": "Messages are written when a booking is confirmed, cancelled, or arrives from a channel.",
+    "booking": "Booking",
+    "attempts": "attempt",
+    "show": "Show the message",
+    "loadMore": "Load more"
   },
   "channels": {
     "title": "Channels",

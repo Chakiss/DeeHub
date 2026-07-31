@@ -190,4 +190,46 @@ all still apply.
 what happens to a night already paid for and to the housekeeping schedule, and
 guessing at that inside this operation would be worse than not offering it.
 
+## 11. Notifications are written whether or not they can be delivered
+
+Guests now get a booking confirmation and a cancellation notice; the desk gets
+an alert when a channel sells a room. Four decisions in there you may want to
+overturn.
+
+**Email needs a provider account, and I could not create one.** Cloud Run
+blocks outbound SMTP, so the hotel's own mail server is not reachable from
+where this runs — email has to be an HTTPS API. The adapter is written against
+**Resend** because it is one POST and a free tier; SendGrid or Mailgun would be
+another adapter behind the same port, not a rewrite.
+
+Until `EMAIL_API_KEY` and `EMAIL_FROM` are set, every message is composed,
+rendered, stored and marked **"not sent"** with the reason, and the dashboard
+shows the full text. This is the same call as Sentry: build the thing, leave
+the account to you, and make the gap visible rather than invisible. The
+alternative — not building it until someone signs up — leaves you with nothing
+to look at and no idea what a guest would have been told.
+
+**LINE is for staff, not guests.** A push needs the recipient's LINE user id,
+which only exists once that person has added the hotel's official account. A
+guest who booked by phone has not, and nothing in DeeHub collects one. Staff
+have: one `LINE_STAFF_TARGET` reaches the group the desk already watches.
+
+**Thai or English by the PROPERTY's country, not the guest's.** DeeHub does
+not know a guest's language — nothing in the booking path asks — and guessing
+from a name or an email domain would be worse than a consistent default. When
+the booking engine starts collecting it, `localeFor()` is the one place that
+changes.
+
+**A modification tells the guest nothing.** "Your booking has changed" is only
+useful if it says WHAT changed, and the event carries affected dates rather
+than a before-and-after a guest could read. Sending a vague one would teach
+people to ignore the confirmations too. Say so if you disagree — the hook is
+there, commented, in the relay.
+
+**One knock-on you are paying for:** the maintenance job now sends as well as
+composes, so its schedule is how long a guest waits. I moved it from hourly to
+every ten minutes (`maintenance_schedule` in Terraform). That is 144 Cloud Run
+job runs a day instead of 24 — still inside the free tier, but it is your
+money and the number is easy to change.
+
 _(Updated as the session continues.)_

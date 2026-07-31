@@ -503,6 +503,33 @@ export interface MappingInput {
   externalName?: string | null;
 }
 
+export interface NotificationEntry {
+  id: string;
+  createdAt: string;
+  sentAt: string | null;
+  kind: string;
+  channel: string;
+  audience: string;
+  recipient: string;
+  locale: string;
+  subject: string | null;
+  body: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  /** Why nothing was sent. Set on a SKIPPED row, never on a SENT one. */
+  skippedReason: string | null;
+  reservationId: string | null;
+  context: { code?: string; checkIn?: string; checkOut?: string } | null;
+}
+
+export interface NotificationPage {
+  items: NotificationEntry[];
+  /** Counts across the whole property, not just this page. */
+  summary: Record<string, number>;
+  pageInfo: { nextCursor: string | null; hasMore: boolean };
+}
+
 export interface AuditEntry {
   id: string;
   createdAt: string;
@@ -682,6 +709,13 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+
+  notifications: (propertyId: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request<NotificationPage>(
+      `/properties/${propertyId}/notifications${query ? `?${query}` : ''}`,
+    );
+  },
 
   audit: (propertyId: string, params: Record<string, string> = {}) => {
     const query = new URLSearchParams(params).toString();

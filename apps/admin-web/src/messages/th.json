@@ -17,6 +17,7 @@
     "reports": "รายงาน",
     "guests": "แขก",
     "audit": "ประวัติการใช้งาน",
+    "notifications": "การแจ้งเตือน",
     "channels": "ช่องทางขาย"
   },
   "login": {
@@ -453,6 +454,25 @@
     "system": "ระบบ",
     "channel": "ช่องทาง",
     "details": "รายละเอียด"
+  },
+  "notifications": {
+    "title": "การแจ้งเตือน",
+    "subtitle": "ข้อความที่โรงแรมส่งถึงแขกและพนักงาน รวมถึงที่ส่งไม่ได้",
+    "all": "ทั้งหมด",
+    "statusSENT": "ส่งแล้ว",
+    "statusPENDING": "รอส่ง",
+    "statusFAILED": "ส่งไม่สำเร็จ",
+    "statusSKIPPED": "ไม่ได้ส่ง",
+    "kindBOOKING_CONFIRMED": "ยืนยันการจอง",
+    "kindBOOKING_CANCELLED": "ยกเลิกการจอง",
+    "kindBOOKING_RECEIVED": "ได้รับการจองใหม่",
+    "empty": "ยังไม่มีข้อความที่ส่ง",
+    "emptyFiltered": "ไม่มีข้อความในสถานะนี้",
+    "emptyHint": "ระบบจะสร้างข้อความเมื่อมีการยืนยันการจอง ยกเลิกการจอง หรือมีการจองเข้ามาจากช่องทางออนไลน์",
+    "booking": "การจอง",
+    "attempts": "ครั้งที่",
+    "show": "ดูข้อความ",
+    "loadMore": "ดูเพิ่ม"
   },
   "channels": {
     "title": "ช่องทางขาย",
