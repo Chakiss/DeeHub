@@ -5,6 +5,7 @@ import { DATABASE, type Database } from '../../../database/database.module';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import { physicalRooms, reservationStays, reservations } from '../../../database/schema';
+import { isExclusionViolation, ROOM_OVERLAP_CONSTRAINT } from '../../../database/postgres-errors';
 import { ROOM_REPOSITORY, type RoomRepository } from '../domain/room.repository';
 
 export interface AssignRoomInput {
@@ -13,10 +14,6 @@ export interface AssignRoomInput {
   /** null releases the room without assigning another. */
   readonly roomId: string | null;
 }
-
-/** Postgres `exclusion_violation`. */
-const EXCLUSION_VIOLATION = '23P01';
-const OVERLAP_CONSTRAINT = 'reservation_stays_room_no_overlap';
 
 /**
  * Put a booking in a room, or take it out of one.
@@ -100,7 +97,7 @@ export class AssignRoomUseCase {
       // after cannot be made atomic against a concurrent assignment without
       // locking the room. Translate its refusal into something a front desk can
       // act on rather than a 500.
-      if (isExclusionViolation(error)) {
+      if (isExclusionViolation(error, ROOM_OVERLAP_CONSTRAINT)) {
         const conflict = await this.findConflict(input.propertyId, input.stayId, input.roomId!);
         throw errors.conflict(
           conflict
@@ -162,21 +159,4 @@ export class AssignRoomUseCase {
 
     return rows[0] ?? null;
   }
-}
-
-/** Drizzle wraps driver errors, so the pg error sits down the cause chain. */
-function isExclusionViolation(error: unknown): boolean {
-  let current: unknown = error;
-  for (let depth = 0; depth < 5 && current; depth += 1) {
-    const candidate = current as { code?: unknown; constraint?: unknown; cause?: unknown };
-    if (typeof candidate.code === 'string') {
-      return (
-        candidate.code === EXCLUSION_VIOLATION &&
-        typeof candidate.constraint === 'string' &&
-        candidate.constraint.includes(OVERLAP_CONSTRAINT)
-      );
-    }
-    current = candidate.cause;
-  }
-  return false;
 }
