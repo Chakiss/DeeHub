@@ -16,9 +16,21 @@ function paths(value: unknown, prefix = ''): string[] {
   );
 }
 
-/** Placeholders like {count} — a translation that drops one renders nothing. */
+/**
+ * Argument names like {count} — a translation that drops one renders nothing.
+ *
+ * ICU counts too: `{count, plural, one {# night} other {# nights}}` passes
+ * `count`, and a naive `\{(\w+)\}` sees no argument there at all — which made
+ * every ICU message compare as "no placeholders" against a translation that
+ * correctly kept `{count}`. Match the name up to its `,` or `}` instead, and
+ * ignore the `#` inside a plural branch, which is not an argument.
+ *
+ * Compared as a set: repeating an argument is a legitimate thing for one
+ * language to do and the other not.
+ */
 function placeholders(value: string): string[] {
-  return [...value.matchAll(/\{(\w+)\}/g)].map((match) => match[1]!).sort();
+  const names = [...value.matchAll(/\{\s*(\w+)\s*[,}]/g)].map((match) => match[1]!);
+  return [...new Set(names)].sort();
 }
 
 function flatten(value: unknown, prefix = ''): Map<string, string> {
