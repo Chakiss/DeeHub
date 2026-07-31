@@ -48,28 +48,47 @@ Goal: the 90-day milestone — production-ready core with connector framework.
 **Milestone 1 exit criteria:** pilot hotels manage real inventory; Mock OTA
 round-trips bookings; zero platform-caused overbookings; sync < 60 s.
 
-**Status (2026-07-30). Phase 2 is complete and deployed.** The three items
+**Status (2026-07-31). Phase 2 is complete and deployed.** The three items
 that were outstanding are done: the infrastructure is applied (47 resources,
 clean plan), the first organization exists, and the dashboard has its own
 browser suite. Pushes to `main` build, verify and deploy on their own.
 
-Since then, and beyond the original Phase 2 scope, the product also has: room
-types, rate plans and nightly pricing through the UI — the whole path from an
-empty property to a sellable one — a password change that revokes every other
-session, and team administration with a one-time credential.
+Since then the product has gone well past Phase 2 scope, and has taken most of
+Phase 4 with it. Delivered:
+
+- **Setup path**, end to end: room types, rate plans and nightly pricing
+  through the UI — an empty property to a sellable one without SQL. Rates can
+  now be cleared for a date range as well as set.
+- **Front desk**: physical rooms, housekeeping status, Stay View, room
+  assignment, check-in and check-out. Reservations can be taken at the desk
+  (manual booking) and an unstarted stay can have its dates, room type, rate
+  plan or occupancy changed.
+- **Guests**: profiles and stay history.
+- **Reporting**: occupancy, ADR and RevPAR.
+- **Channels**: created, credentialed, mapped and activated from the
+  dashboard rather than by hand-written SQL.
+- **Operations**: Thai UI, the audit trail readable in the dashboard,
+  alerting and error reporting, operator-driven password reset, team
+  administration with a one-time credential, and a password change that
+  revokes every other session.
 
 **What a pilot property still cannot do**, in the order it will hurt:
 
-1. **Recover a forgotten password.** `forgot-password` / `reset-password` are
-   specified but not built, so an operator has to intervene. This is the first
-   thing to fix before hotel staff use the product daily.
-2. **Assign guests to physical rooms.** Rooms exist in the schema; there is no
-   Stay View, no housekeeping status, no check-in. That is Phase 4, and it is
-   what a front desk actually does all day.
+1. **Extend a stay for a guest already in-house.** Modification is refused
+   once the first night is consumed, because releasing a night someone slept
+   in would retroactively claim the room was free. Adding nights is a
+   different operation — it only ever takes inventory, never returns it — and
+   it is not built. This is an everyday front-desk request.
+2. **Recover a forgotten password without help.** An operator can reset one
+   for a colleague, so nobody is locked out permanently, but self-service
+   `forgot-password` / `reset-password` are still specified and not built.
 3. **Sell through an OTA.** The connector framework and Mock OTA work end to
-   end, but no real channel is connected — and doing so requires
-   `enable_channel_sync`, which adds Redis and an always-on worker (roughly
-   $80/month on top of the current ~$22).
+   end and a channel can now be configured from the dashboard, but no real
+   channel is connected, `test-connection` and forced sync are not built, and
+   pushing anything at all requires `enable_channel_sync`, which adds Redis
+   and an always-on worker (roughly $80/month on top of the current ~$22).
+4. **Be told anything.** No notifications: no booking confirmation to the
+   guest, no alert to staff. Everything is pull-only, in the dashboard.
 
 ## Phase 3 — First Real OTA + Booking Engine (Months 4–6)
 
@@ -80,15 +99,23 @@ session, and team administration with a one-time credential.
 - Direct Booking Engine v1: availability search, book, basic payment
   (deposit via Omise/Stripe — payments enter the roadmap here).
 - Rate Plans v2: derived rates (percentage/amount off parent), promotions.
-- Thai UI translation.
+- ~~Thai UI translation.~~ **Done** — pulled forward, the whole dashboard is
+  bilingual.
 
 ## Phase 4 — PMS Operations + CRM (Months 6–9)
 
-- Front desk: room assignment, check-in/out, folio basics, housekeeping
-  status board.
-- Guests → CRM: profiles, stay history, dedupe/merge.
-- Notifications: email/LINE confirmations to guests, alerts to staff.
-- Reporting v1: occupancy, ADR, RevPAR, pickup.
+Mostly delivered early; what is left is listed as **remaining**.
+
+- Front desk: ~~room assignment, check-in/out, housekeeping status board~~
+  **done**. Folio basics **remaining** — there is a price snapshot per
+  booking, but no per-stay account of charges, payments and balance.
+- Guests → CRM: ~~profiles, stay history~~ **done**. Dedupe/merge
+  **remaining** — a returning guest booked under a different spelling is two
+  records today.
+- Notifications: email/LINE confirmations to guests, alerts to staff —
+  **remaining**, none of it built.
+- Reporting v1: ~~occupancy, ADR, RevPAR~~ **done**. Pickup **remaining** —
+  it needs booking-date history, not just stay dates.
 
 ## Phase 5 — Revenue + AI Assistant (Months 9–12+)
 
