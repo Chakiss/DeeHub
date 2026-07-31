@@ -9,6 +9,7 @@ import { CheckOutUseCase } from './application/check-out.usecase';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
 import { GetReservationQuery } from './application/get-reservation.query';
 import { ListReservationsQuery } from './application/list-reservations.query';
+import { PlanStayService } from './application/plan-stay.service';
 import { RESERVATION_REPOSITORY } from './domain/reservation.repository';
 import { DrizzleReservationRepository } from './infrastructure/drizzle-reservation.repository';
 import { ReservationsController } from './interface/reservations.controller';
@@ -25,6 +26,8 @@ import { ReservationsController } from './interface/reservations.controller';
   controllers: [ReservationsController],
   providers: [
     { provide: RESERVATION_REPOSITORY, useClass: DrizzleReservationRepository },
+    // Shared by create and modify: one place that holds inventory and freezes prices.
+    PlanStayService,
     CreateReservationUseCase,
     CancelReservationUseCase,
     CheckInUseCase,
