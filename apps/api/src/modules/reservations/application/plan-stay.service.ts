@@ -6,7 +6,12 @@ import {
   INVENTORY_REPOSITORY,
   type InventoryRepository,
 } from '../../inventory/domain/inventory.repository';
-import { evaluateStay, isSellable, toDomainError } from '../../inventory/domain/restrictions';
+import {
+  evaluateExtension,
+  evaluateStay,
+  isSellable,
+  toDomainError,
+} from '../../inventory/domain/restrictions';
 import type { InventoryDay } from '../../inventory/domain/inventory-day';
 import {
   PROPERTY_REPOSITORY,
@@ -14,7 +19,7 @@ import {
   type PropertySettings,
 } from '../../properties/domain/property.repository';
 import { RATE_REPOSITORY, type RateRepository } from '../../rates/domain/rate.repository';
-import type { StayRecord } from '../domain/reservation.repository';
+import type { StayNightRecord, StayRecord } from '../domain/reservation.repository';
 
 export interface PlanStayInput {
   readonly roomTypeId: string;
@@ -50,6 +55,23 @@ export interface PlannedStay {
   readonly record: StayRecord;
   readonly nightPrices: readonly Money[];
   readonly overbookings: readonly OverbookingIncident[];
+}
+
+/** Nights being appended to a stay that is already under way. */
+export interface PlanExtensionInput {
+  readonly roomTypeId: string;
+  readonly ratePlanId: string;
+  /** The added nights only — never the ones the stay already holds. */
+  readonly nights: readonly IsoDate[];
+  /** The new departure date. Not a night, but CTD applies to it. */
+  readonly checkOut: IsoDate;
+  /** Unchanged by an extension; occupancy pricing still keys on it. */
+  readonly adults: number;
+}
+
+export interface PlannedExtension {
+  readonly nights: readonly StayNightRecord[];
+  readonly addedSubtotalMinor: number;
 }
 
 /**
@@ -212,6 +234,93 @@ export class PlanStayService {
       nightPrices,
       overbookings,
     };
+  }
+
+  /**
+   * Hold and price nights APPENDED to an existing stay.
+   *
+   * The one guarantee that separates this from `plan()`: it never releases
+   * anything. The nights the guest has already slept in are not re-evaluated,
+   * not re-priced and not handed back — only the new ones are taken.
+   *
+   * The room type is deliberately not re-checked for `isActive`. Deactivating a
+   * room type stops it being SOLD; the guest is already in one, and refusing to
+   * extend them because the hotel stopped selling that type tomorrow would be a
+   * rule about new business applied to existing business. The rate plan IS
+   * checked, because an extension needs a price and an inactive plan has no
+   * business quoting one.
+   */
+  async planExtension(
+    tx: Executor,
+    property: PropertySettings,
+    input: PlanExtensionInput,
+  ): Promise<PlannedExtension> {
+    if (input.nights.length === 0) {
+      throw errors.validation('An extension must add at least one night');
+    }
+
+    const ratePlan = await this.propertyRepo.findRatePlan(tx, input.ratePlanId);
+    if (!ratePlan || ratePlan.propertyId !== property.id) {
+      throw errors.notFound('Rate plan', input.ratePlanId);
+    }
+    if (!ratePlan.isActive) {
+      throw errors.conflict('Rate plan is not active', { ratePlanId: ratePlan.id });
+    }
+    if (ratePlan.roomTypeId !== input.roomTypeId) {
+      throw errors.validation('Rate plan does not belong to the requested room type', {
+        ratePlanId: ratePlan.id,
+        roomTypeId: input.roomTypeId,
+      });
+    }
+
+    // Same lock set and same ordering as plan(): added nights plus the new
+    // departure date, which carries closed-to-departure.
+    const locked = await this.inventory.lockDates(tx, input.roomTypeId, [
+      ...input.nights,
+      input.checkOut,
+    ]);
+    const byDate = new Map<string, InventoryDay>(locked.map((day) => [day.date, day]));
+
+    const request = {
+      roomTypeId: input.roomTypeId,
+      nights: input.nights,
+      checkOut: input.checkOut,
+      units: 1,
+    };
+    const report = evaluateExtension(request, byDate);
+    if (!isSellable(report)) {
+      // REJECT only. ACCEPT_AND_ALERT exists for bookings a channel already
+      // sold; nobody has sold these nights yet, so absorbing an oversell here
+      // would be inventing one.
+      throw toDomainError(request, report);
+    }
+
+    const held = await this.inventory.hold(tx, input.roomTypeId, input.nights, 1);
+    if (held !== input.nights.length) {
+      throw errors.inventoryUnavailable(input.roomTypeId, input.nights);
+    }
+
+    const priced = await this.rates.findPrices(tx, ratePlan.id, input.nights, input.adults);
+    const missing = input.nights.filter((night) => !priced.has(night));
+    if (missing.length > 0) {
+      throw errors.rateMissing(ratePlan.id, input.adults, missing);
+    }
+
+    const nightPrices: Money[] = [];
+    const nights = input.nights.map((night) => {
+      const price = priced.get(night) ?? money(0, property.currency);
+      if (price.currency !== property.currency) {
+        throw errors.conflict('Rate currency does not match the property currency', {
+          ratePlanId: ratePlan.id,
+          expected: property.currency,
+          actual: price.currency,
+        });
+      }
+      nightPrices.push(price);
+      return { date: night, amountMinor: price.amount, currency: price.currency };
+    });
+
+    return { nights, addedSubtotalMinor: sum(nightPrices, property.currency).amount };
   }
 
   private assertOccupancy(

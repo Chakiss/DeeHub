@@ -11,6 +11,7 @@ import type {
   ReservationRecord,
   ReservationRepository,
   ReservationTotals,
+  StayNightRecord,
   StayRecord,
 } from '../domain/reservation.repository';
 
@@ -251,6 +252,53 @@ export class DrizzleReservationRepository implements ReservationRepository {
         reservationId: existing.reservationId,
         propertyId: existing.propertyId,
         roomTypeId: record.roomTypeId,
+        amountMinor: night.amountMinor,
+        currency: night.currency,
+      })),
+    );
+  }
+
+  async extendStay(
+    tx: Executor,
+    existing: ModifiableStay,
+    extension: {
+      readonly checkOut: IsoDate;
+      readonly nights: readonly StayNightRecord[];
+      readonly subtotalMinor: number;
+    },
+  ): Promise<void> {
+    const organizationId = requireOrganizationId();
+
+    /*
+     * The check-out move is what the room-overlap EXCLUDE constraint sees: the
+     * stay's daterange widens, and if the assigned room is taken on the new
+     * nights Postgres refuses this statement. That refusal is the guard — the
+     * caller translates it into a message naming the room.
+     */
+    await tx
+      .update(reservationStays)
+      .set({
+        checkOut: extension.checkOut,
+        subtotalMinor: extension.subtotalMinor,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(reservationStays.id, existing.id),
+          eq(reservationStays.organizationId, organizationId),
+        ),
+      );
+
+    // Inserted, never rewritten: the nights already held carry the prices the
+    // guest was quoted and, for consumed nights, what actually happened.
+    await tx.insert(reservationStayNights).values(
+      extension.nights.map((night) => ({
+        stayId: existing.id,
+        date: night.date,
+        organizationId: existing.organizationId,
+        reservationId: existing.reservationId,
+        propertyId: existing.propertyId,
+        roomTypeId: existing.roomTypeId,
         amountMinor: night.amountMinor,
         currency: night.currency,
       })),

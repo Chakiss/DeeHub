@@ -113,6 +113,58 @@ export function evaluateStay(
   return { missingDates, soldOutDates, violations };
 }
 
+/**
+ * Evaluate nights being ADDED to a stay that is already under way.
+ *
+ * `request.nights` are the added nights only, and `request.checkOut` is the new
+ * departure date.
+ *
+ * Deliberately not `evaluateStay` over the new range. Arrival rules —
+ * closed-to-arrival, min-stay, max-stay — are evaluated on the night the guest
+ * arrived, and that night is in the past and is not changing. Re-running them
+ * here would refuse an extension because the first ADDED night happens to be
+ * closed to arrival, when nobody is arriving; or because a max-stay the revenue
+ * manager set to shape arrivals is shorter than this guest's new total. Both
+ * would block a real front-desk request over a rule about SELLING a stay, not
+ * about staying.
+ *
+ * What still applies is everything about the added nights themselves: the room
+ * type must be open for sale and have a free unit each night, and the guest
+ * must be allowed to depart on the new date.
+ */
+export function evaluateExtension(
+  request: StayRequest,
+  daysByDate: ReadonlyMap<string, InventoryDay>,
+): UnavailabilityReport {
+  const missingDates: IsoDate[] = [];
+  const soldOutDates: IsoDate[] = [];
+  const violations: RestrictionViolation[] = [];
+
+  for (const night of request.nights) {
+    const day = daysByDate.get(night);
+
+    if (!day) {
+      missingDates.push(night);
+      continue;
+    }
+
+    if (day.stopSell) {
+      violations.push({ restriction: 'STOP_SELL', date: night });
+    }
+
+    if (availableUnits(day) < request.units) {
+      soldOutDates.push(night);
+    }
+  }
+
+  const departure = daysByDate.get(request.checkOut);
+  if (departure?.closedToDeparture) {
+    violations.push({ restriction: 'CLOSED_TO_DEPARTURE', date: request.checkOut });
+  }
+
+  return { missingDates, soldOutDates, violations };
+}
+
 /** Turn a report into the typed error the API contract specifies. */
 export function toDomainError(request: StayRequest, report: UnavailabilityReport): Error {
   const firstViolation = report.violations[0];

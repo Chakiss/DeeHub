@@ -429,19 +429,20 @@ staff can see _why_ the system won't sell a room and fix the restriction.
 
 ### 6.6 Reservations
 
-| Method  | Path                                              | Capability                                         |
-| ------- | ------------------------------------------------- | -------------------------------------------------- |
-| `GET`   | `/properties/{pid}/reservations`                  | `reservation:read`                                 |
-| `POST`  | `/properties/{pid}/reservations`                  | `reservation:create`                               |
-| `GET`   | `/properties/{pid}/reservations/{id}`             | `reservation:read`                                 |
-| `PATCH` | `/properties/{pid}/reservations/{id}`             | `reservation:update` — contact/notes only          |
-| `PATCH` | `/properties/{pid}/reservations/{id}/stays/{sid}` | `reservation:modify` — dates, room type, occupancy |
-| `POST`  | `/properties/{pid}/reservations/{id}/confirm`     | `reservation:update`                               |
-| `POST`  | `/properties/{pid}/reservations/{id}/cancel`      | `reservation:cancel`                               |
-| `POST`  | `/properties/{pid}/reservations/{id}/check-in`    | `reservation:checkin`                              |
-| `POST`  | `/properties/{pid}/reservations/{id}/check-out`   | `reservation:checkout`                             |
-| `POST`  | `/properties/{pid}/reservations/{id}/no-show`     | `reservation:update`                               |
-| `GET`   | `/properties/{pid}/reservations/{id}/audit`       | `audit:read`                                       |
+| Method  | Path                                                     | Capability                                         |
+| ------- | -------------------------------------------------------- | -------------------------------------------------- |
+| `GET`   | `/properties/{pid}/reservations`                         | `reservation:read`                                 |
+| `POST`  | `/properties/{pid}/reservations`                         | `reservation:create`                               |
+| `GET`   | `/properties/{pid}/reservations/{id}`                    | `reservation:read`                                 |
+| `PATCH` | `/properties/{pid}/reservations/{id}`                    | `reservation:update` — contact/notes only          |
+| `PATCH` | `/properties/{pid}/reservations/{id}/stays/{sid}`        | `reservation:modify` — dates, room type, occupancy |
+| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/extend` | `reservation:modify` — add nights at the end       |
+| `POST`  | `/properties/{pid}/reservations/{id}/confirm`            | `reservation:update`                               |
+| `POST`  | `/properties/{pid}/reservations/{id}/cancel`             | `reservation:cancel`                               |
+| `POST`  | `/properties/{pid}/reservations/{id}/check-in`           | `reservation:checkin`                              |
+| `POST`  | `/properties/{pid}/reservations/{id}/check-out`          | `reservation:checkout`                             |
+| `POST`  | `/properties/{pid}/reservations/{id}/no-show`            | `reservation:update`                               |
+| `GET`   | `/properties/{pid}/reservations/{id}/audit`              | `audit:read`                                       |
 
 **Modification** is `PATCH` on ONE STAY, not `POST .../modify-stay` as this
 document originally planned. A reservation can hold twenty rooms and the
@@ -456,15 +457,42 @@ The old nights are released BEFORE the new ones are held, in one transaction.
 Moving 3rd–5th to 4th–6th overlaps the booking's own nights; holding first
 would make it compete with itself and fail on a night it already occupies.
 
-Refused with `409` when any night of the stay is already in the past. Releasing
+Refused with `422` when any night of the stay is already in the past. Releasing
 a night a guest slept in would retroactively claim the room was free
-(domain-model.md §3.5). Extending an in-house stay needs a separate operation
-that only adds nights; it is not built yet.
+(domain-model.md §3.5). That case is `/extend` below.
 
 The response carries `roomAssignmentCleared`. Changing dates or room type drops
 any assigned room, because the room may now be occupied by someone else on the
 new nights and the exclusion constraint would reject the write with an
 unreadable database error.
+
+**Extension** is a separate operation, `POST .../stays/{sid}/extend`, taking
+only `version`, `checkOut` and an optional `reason`. It is not a flag on the
+PATCH because the two have opposite relationships with inventory: modifying
+RELEASES the stay's nights before taking new ones, extending only ever TAKES.
+That is precisely why it works on a booking the guest has already started —
+`PENDING`, `CONFIRMED` and `CHECKED_IN` are all extendable — and why the nights
+already held are never re-evaluated, re-priced or given back.
+
+The added nights are `[old check-out, new check-out)`. They are quoted from the
+stay's existing rate plan at TODAY's prices; the nights already booked keep the
+prices the guest was quoted. `422` if the plan has no price for an added night.
+
+Arrival restrictions are deliberately NOT re-evaluated. Closed-to-arrival,
+minimum stay and maximum stay belong to the night the guest arrived, which an
+extension does not touch — enforcing them here would refuse a real front-desk
+request because the first added night is closed to arrival, when nobody is
+arriving. Stop-sell, availability and closed-to-departure on the new date all
+still apply.
+
+The assigned room is KEPT, not cleared. If another booking holds that room on
+one of the added nights the whole operation is refused with `409` naming the
+room and the booking in the way, because a guest who is physically in 302
+tonight cannot be quietly un-assigned — someone has to be moved, and that is the
+desk's decision.
+
+Shortening a stay is not this endpoint and is not built: early departure has to
+decide what happens to a night already paid for.
 
 List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
 `q` (code, guest name, email, phone), `createdFrom/To`, plus `cursor`/`limit`.

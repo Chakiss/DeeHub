@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { nightsBetween, toIsoDate, type IsoDate } from '@deehub/shared';
 import type { InventoryDay } from './inventory-day';
-import { evaluateStay, isSellable, toDomainError, type StayRequest } from './restrictions';
+import {
+  evaluateExtension,
+  evaluateStay,
+  isSellable,
+  toDomainError,
+  type StayRequest,
+} from './restrictions';
 
 const ROOM_TYPE = 'rt-1';
 
@@ -213,6 +219,81 @@ describe('toDomainError()', () => {
     const report = evaluateStay(request, calendar(day('2026-08-12')));
     const error = toDomainError(request, report) as Error & { details: Record<string, unknown> };
     expect(error.details['unavailableDates']).toContain('2026-08-13');
+  });
+});
+
+describe('evaluateExtension()', () => {
+  it('accepts added nights that have capacity', () => {
+    const report = evaluateExtension(
+      stay('2026-08-15', '2026-08-17'),
+      calendar(day('2026-08-15'), day('2026-08-16'), day('2026-08-17')),
+    );
+    expect(isSellable(report)).toBe(true);
+  });
+
+  it('refuses an added night that is sold out', () => {
+    const report = evaluateExtension(
+      stay('2026-08-15', '2026-08-17'),
+      calendar(day('2026-08-15'), day('2026-08-16', { allotment: 2, booked: 2 })),
+    );
+    expect(report.soldOutDates).toEqual(['2026-08-16']);
+  });
+
+  it('refuses an added night that is stop-sold', () => {
+    const report = evaluateExtension(
+      stay('2026-08-15', '2026-08-16'),
+      calendar(day('2026-08-15', { stopSell: true })),
+    );
+    expect(report.violations[0]?.restriction).toBe('STOP_SELL');
+  });
+
+  it('refuses a night that was never opened for sale', () => {
+    const report = evaluateExtension(stay('2026-08-15', '2026-08-17'), calendar(day('2026-08-15')));
+    expect(report.missingDates).toEqual(['2026-08-16']);
+  });
+
+  it('still refuses a departure the hotel has closed', () => {
+    const report = evaluateExtension(
+      stay('2026-08-15', '2026-08-16'),
+      calendar(day('2026-08-15'), day('2026-08-16', { closedToDeparture: true })),
+    );
+    expect(report.violations[0]?.restriction).toBe('CLOSED_TO_DEPARTURE');
+  });
+
+  /*
+   * The three below are the whole reason this function exists rather than a
+   * second call to evaluateStay: arrival rules belong to the night the guest
+   * arrived, which an extension does not touch.
+   */
+  it('ignores closed-to-arrival on the first added night', () => {
+    const report = evaluateExtension(
+      stay('2026-08-15', '2026-08-16'),
+      calendar(day('2026-08-15', { closedToArrival: true })),
+    );
+    expect(isSellable(report)).toBe(true);
+  });
+
+  it('ignores a minimum stay longer than the extension', () => {
+    const report = evaluateExtension(
+      stay('2026-08-15', '2026-08-16'),
+      calendar(day('2026-08-15', { minStay: 5 })),
+    );
+    expect(isSellable(report)).toBe(true);
+  });
+
+  it('ignores a maximum stay the extension would exceed', () => {
+    const report = evaluateExtension(
+      stay('2026-08-15', '2026-08-18'),
+      calendar(day('2026-08-15', { maxStay: 1 }), day('2026-08-16'), day('2026-08-17')),
+    );
+    expect(isSellable(report)).toBe(true);
+  });
+
+  it('reports the unavailable dates through the shared error mapping', () => {
+    const request = stay('2026-08-15', '2026-08-17');
+    const report = evaluateExtension(request, calendar(day('2026-08-15')));
+    const error = toDomainError(request, report) as Error & { details: Record<string, unknown> };
+    expect(error.details['unavailableDates']).toContain('2026-08-16');
   });
 });
 

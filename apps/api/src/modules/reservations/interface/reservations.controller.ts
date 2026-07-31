@@ -11,6 +11,7 @@ import { CheckInUseCase } from '../application/check-in.usecase';
 import { CheckOutUseCase } from '../application/check-out.usecase';
 import { GetReservationQuery } from '../application/get-reservation.query';
 import { ListReservationsQuery } from '../application/list-reservations.query';
+import { ExtendStayUseCase } from '../application/extend-stay.usecase';
 import { ModifyStayUseCase } from '../application/modify-stay.usecase';
 
 // Format AND calendar validity: the regex alone accepts 2026-02-30, which
@@ -95,6 +96,23 @@ type CreateBody = z.infer<typeof createReservationSchema>;
 type CancelBody = z.infer<typeof cancelSchema>;
 type ModifyStayBody = z.infer<typeof modifyStaySchema>;
 
+/**
+ * Extending takes only the new departure date.
+ *
+ * Nothing else about the stay may move: the moment a room type or an occupancy
+ * could change, the old nights would have to be re-held and re-priced, which is
+ * the modification this operation deliberately is not.
+ */
+const extendStaySchema = z
+  .object({
+    version: z.number().int().min(0),
+    checkOut: isoDate,
+    reason: z.string().max(500).optional(),
+  })
+  .strict();
+
+type ExtendStayBody = z.infer<typeof extendStaySchema>;
+
 /** Optimistic locking, same as cancel: a stale tab must not act on old state. */
 const versionSchema = z.object({ version: z.number().int().min(0) }).strict();
 
@@ -115,6 +133,7 @@ export class ReservationsController {
     private readonly getReservation: GetReservationQuery,
     private readonly listReservations: ListReservationsQuery,
     private readonly modifyStayUseCase: ModifyStayUseCase,
+    private readonly extendStayUseCase: ExtendStayUseCase,
   ) {}
 
   @Get()
@@ -279,6 +298,53 @@ export class ReservationsController {
       heldNights: result.heldNights,
       // The front desk has to know: the guest no longer has a room number.
       roomAssignmentCleared: result.roomAssignmentCleared,
+      total: presentMoney(result.total),
+    };
+  }
+
+  @Post(':id/stays/:stayId/extend')
+  @HttpCode(200)
+  @RequireCapability('reservation:modify')
+  @ApiOperation({ summary: 'Keep a guest longer: add nights to the end of a stay' })
+  async extendStay(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Param('stayId') stayId: string,
+    @Body(new ZodValidationPipe(extendStaySchema)) body: ExtendStayBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    // The stay must belong to the reservation in the URL, not merely exist —
+    // otherwise a stay id from another booking could be extended through a
+    // reservation the caller happens to be allowed to see.
+    const reservation = await this.getReservation.byId(id);
+    if (
+      !reservation ||
+      reservation.propertyId !== propertyId ||
+      !reservation.stays.some((stay) => stay.id === stayId)
+    ) {
+      throw errors.notFound('Stay', stayId);
+    }
+
+    const result = await this.extendStayUseCase.execute(
+      {
+        propertyId,
+        stayId,
+        expectedVersion: body.version,
+        // Parsed here so an impossible date such as 2026-02-30 is rejected
+        // before it reaches the domain.
+        checkOut: toIsoDate(body.checkOut),
+        ...(body.reason ? { reason: body.reason } : {}),
+      },
+      this.actor(request),
+    );
+
+    return {
+      reservationId: result.reservationId,
+      stayId: result.stayId,
+      version: result.version,
+      checkOut: result.checkOut,
+      addedNights: result.addedNights,
+      addedAmount: presentMoney(result.addedAmount),
       total: presentMoney(result.total),
     };
   }

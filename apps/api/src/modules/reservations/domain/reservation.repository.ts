@@ -112,6 +112,24 @@ export interface ReservationRepository {
   ): Promise<void>;
 
   /**
+   * Append nights to a stay: move check-out later and add the new nights.
+   *
+   * Distinct from `replaceStay`, which deletes every night and rewrites them.
+   * Here the existing nights must survive untouched — they carry the prices the
+   * guest was quoted and, for nights already slept in, the historical record.
+   */
+  extendStay(
+    tx: Executor,
+    existing: ModifiableStay,
+    extension: {
+      readonly checkOut: IsoDate;
+      readonly nights: readonly StayNightRecord[];
+      /** The stay's new subtotal, old nights included. */
+      readonly subtotalMinor: number;
+    },
+  ): Promise<void>;
+
+  /**
    * Rewrite the aggregate's money, guarded by `version` like `updateStatus`.
    *
    * Returns 0 when the version no longer matches. Modifying a booking someone

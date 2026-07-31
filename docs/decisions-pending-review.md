@@ -162,4 +162,32 @@ spec that BOOKS therefore has to bring its own room type — `booking.spec.ts`
 now seeds one via `seedIsolatedRoomType` and removes it afterwards. Adding it
 without that quietly broke five existing tests.
 
+## 10. Extending a stay refuses rather than moving anyone's room
+
+A stay already under way can now be extended. It is a separate endpoint, not a
+flag on the modification, because the two do opposite things to inventory:
+modifying gives the nights back before taking new ones, extending only ever
+takes. That is what makes it safe for a guest who is in the building.
+
+Two calls in it are worth your disagreement.
+
+**The assigned room is kept, and a clash refuses the whole extension.** If
+another booking holds room 302 on one of the added nights, the API answers 409
+naming the room and the booking in the way. The alternative — silently dropping
+the assignment, which is what a MODIFICATION does — would leave a guest who is
+physically in 302 tonight with no room on the system, discovered at the worst
+moment. Someone has to be moved, and that is a decision for the desk.
+
+**Arrival restrictions are not re-checked.** Closed-to-arrival, minimum stay
+and maximum stay are evaluated on the night a guest arrives; an extension does
+not change that night. Re-running them would refuse a real request because the
+first added night is closed to arrival — when nobody is arriving — or because a
+max-stay set to shape arrivals is shorter than this guest's new total. Stop-sell
+and availability on the added nights, and closed-to-departure on the new date,
+all still apply.
+
+**What this still cannot do:** shorten a stay. Early departure has to decide
+what happens to a night already paid for and to the housekeeping schedule, and
+guessing at that inside this operation would be worse than not offering it.
+
 _(Updated as the session continues.)_
