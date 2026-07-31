@@ -170,9 +170,22 @@ export async function seed(): Promise<TestData> {
 export async function teardown(data: TestData): Promise<void> {
   const pool = new Pool({ connectionString: connectionString(), max: 2 });
   try {
+    /*
+     * Order matters: every foreign key in this schema is ON DELETE RESTRICT,
+     * so a child left behind blocks its parent and ultimately the organization.
+     *
+     * The channel tables were missing until the channel admin screens existed,
+     * and their absence was invisible because globalTeardown swallowed the
+     * error — leaving a stranded organization in the database after every run.
+     */
     for (const table of [
       'outbox_events',
       'audit_logs',
+      'channel_reservations',
+      'sync_jobs',
+      'channel_rate_plan_mappings',
+      'channel_room_type_mappings',
+      'channels',
       'reservations',
       'guests',
       'inventory_days',
