@@ -70,6 +70,10 @@ Phase 4 with it. Delivered:
 - **Notifications**: booking confirmations and cancellations to guests in
   Thai or English, and an alert to the desk when a channel sells a room —
   with a delivery log showing what was sent and what was not.
+- **Account recovery**: self-service `forgot-password` / `reset-password` —
+  a single-use link that expires in an hour, never says whether an account
+  exists, and revokes every session and every other live link when it is used.
+  Needs `admin_web_url` set in Terraform before it works in production.
 - **Operations**: Thai UI, the audit trail readable in the dashboard,
   alerting and error reporting, operator-driven password reset, team
   administration with a one-time credential, and a password change that
@@ -77,20 +81,18 @@ Phase 4 with it. Delivered:
 
 **What a pilot property still cannot do**, in the order it will hurt:
 
-1. **Recover a forgotten password without help.** An operator can reset one
-   for a colleague, so nobody is locked out permanently, but self-service
-   `forgot-password` / `reset-password` are still specified and not built.
-2. **Sell through an OTA.** The connector framework and Mock OTA work end to
+1. **Sell through an OTA.** The connector framework and Mock OTA work end to
    end and a channel can now be configured from the dashboard, but no real
    channel is connected, `test-connection` and forced sync are not built, and
    pushing anything at all requires `enable_channel_sync`, which adds Redis
    and an always-on worker (roughly $80/month on top of the current ~$22).
-3. **Actually deliver a confirmation.** The messages are written, rendered in
-   the guest's language and visible in the dashboard, but delivery needs an
-   email provider account: Cloud Run blocks outbound SMTP, so a mail server —
-   even the hotel's own — is not reachable. Set `EMAIL_API_KEY` and
-   `EMAIL_FROM` and they start going out with no code change.
-4. **Confirm a booking instantly.** Messages are sent by the maintenance job,
+2. **Deliver a confirmation to a guest.** Mail goes out for real — proved end
+   to end through the production path — but the Resend account has no verified
+   domain, so `onboarding@resend.dev` is the only working sender and it
+   delivers only to the account owner. Guest confirmations fail with the
+   provider's reason on the row until a domain is verified. Nothing in the code
+   changes when it is.
+3. **Confirm a booking instantly.** Messages are sent by the maintenance job,
    now every ten minutes, so a confirmation arrives within ten minutes rather
    than seconds. The always-on worker sends within seconds but costs the same
    ~$80/month as channel sync.
@@ -119,9 +121,10 @@ Mostly delivered early; what is left is listed as **remaining**.
   records today.
 - Notifications: ~~email/LINE confirmations to guests, alerts to staff~~
   **done** — booking confirmed, booking cancelled, and a channel booking
-  alerting the desk. **Remaining**: an email provider account. Messages are
-  composed and stored either way; without `EMAIL_API_KEY` they are marked
-  "not sent" in the dashboard rather than delivered.
+  alerting the desk, with a real provider wired. **Remaining**: a verified
+  sending domain, which is an account task rather than a code one. Without one
+  only the Resend account owner receives anything; everyone else's row shows
+  the provider's refusal.
 - Reporting v1: ~~occupancy, ADR, RevPAR~~ **done**. Pickup **remaining** —
   it needs booking-date history, not just stay dates.
 

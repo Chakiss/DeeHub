@@ -18,6 +18,7 @@ export class DrizzleAuthRepository implements AuthRepository {
       .select({
         id: users.id,
         organizationId: users.organizationId,
+        organizationName: organizations.name,
         email: users.email,
         fullName: users.fullName,
         status: users.status,
@@ -43,6 +44,7 @@ export class DrizzleAuthRepository implements AuthRepository {
       .select({
         id: users.id,
         organizationId: users.organizationId,
+        organizationName: organizations.name,
         email: users.email,
         fullName: users.fullName,
         status: users.status,
@@ -102,6 +104,15 @@ export class DrizzleAuthRepository implements AuthRepository {
 
   async updatePasswordHash(tx: Executor, userId: string, passwordHash: string): Promise<void> {
     await tx.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  async findOrganizationSlug(tx: Executor, organizationId: string): Promise<string | null> {
+    const rows = await tx
+      .select({ slug: organizations.slug })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+    return rows[0]?.slug ?? null;
   }
 
   async recordLogin(tx: Executor, userId: string, at: Date): Promise<void> {

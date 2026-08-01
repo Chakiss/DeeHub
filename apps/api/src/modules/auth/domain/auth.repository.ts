@@ -4,6 +4,8 @@ import type { Membership, Role } from './capabilities';
 export interface AuthUser {
   readonly id: string;
   readonly organizationId: string;
+  /** For addressing mail. Both queries already join organizations. */
+  readonly organizationName: string;
   readonly email: string;
   readonly fullName: string;
   readonly status: string;
@@ -45,6 +47,14 @@ export interface AuthRepository {
    */
   findAuthUserById(tx: Executor, userId: string): Promise<AuthUser | null>;
   updatePasswordHash(tx: Executor, userId: string, passwordHash: string): Promise<void>;
+
+  /**
+   * The tenant identifier a person types to sign in. Read after a completed
+   * reset so the dashboard can hand it back — it is the field nobody
+   * remembers, and somebody who has just recovered an account should not then
+   * be stuck on it.
+   */
+  findOrganizationSlug(tx: Executor, organizationId: string): Promise<string | null>;
   recordLogin(tx: Executor, userId: string, at: Date): Promise<void>;
 
   insertRefreshToken(

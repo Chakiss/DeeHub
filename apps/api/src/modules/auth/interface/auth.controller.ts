@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
 import { Public, type AuthenticatedRequest } from '../../../common/guards/auth.guard';
 import { AuthService } from '../application/auth.service';
+import { CompletePasswordResetUseCase } from '../application/complete-password-reset.usecase';
+import { RequestPasswordResetUseCase } from '../application/request-password-reset.usecase';
 import { grantedCapabilities, type Membership } from '../domain/capabilities';
 
 const REFRESH_COOKIE = 'deehub_refresh';
@@ -34,10 +36,41 @@ const changePasswordSchema = z
 
 type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
 
+/**
+ * The locale comes from the client because the client is the only one who
+ * knows it. Nobody is authenticated here, so there is no property whose country
+ * could stand in for a language — but the person is looking at a login screen
+ * they have just chosen Thai or English on.
+ */
+const forgotPasswordSchema = z
+  .object({
+    organizationSlug: z.string().min(1).max(64),
+    email: z.string().min(3).max(320),
+    locale: z.enum(['en', 'th']).default('en'),
+  })
+  .strict();
+
+type ForgotPasswordBody = z.infer<typeof forgotPasswordSchema>;
+
+const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1).max(512),
+    // Same 12 as change-password. A recovery path that accepts a weaker
+    // password than the normal one is the path an attacker uses.
+    newPassword: z.string().min(12, 'Use at least 12 characters').max(512),
+  })
+  .strict();
+
+type ResetPasswordBody = z.infer<typeof resetPasswordSchema>;
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly requestReset: RequestPasswordResetUseCase,
+    private readonly completeReset: CompletePasswordResetUseCase,
+  ) {}
 
   @Public()
   @Post('login')
@@ -97,6 +130,50 @@ export class AuthController {
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     await this.auth.logout(this.readRefreshToken(request));
     response.clearCookie(REFRESH_COOKIE, { path: '/' });
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Email a reset link; always 202, never reveals whether the account exists',
+  })
+  async forgotPassword(
+    @Body(new ZodValidationPipe(forgotPasswordSchema)) body: ForgotPasswordBody,
+    @Req() request: Request,
+  ) {
+    await this.requestReset.execute({
+      organizationSlug: body.organizationSlug,
+      email: body.email,
+      locale: body.locale,
+      ip: request.ip ?? null,
+      userAgent: request.headers['user-agent'] ?? null,
+    });
+
+    // One body for every outcome, including the ones that sent nothing. The
+    // use case does not tell this handler what happened, so there is nothing
+    // here that COULD vary — which is the point.
+    return { accepted: true };
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Consume a reset link and set a new password' })
+  async resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordBody,
+    @Req() request: Request,
+  ) {
+    const result = await this.completeReset.execute({
+      token: body.token,
+      newPassword: body.newPassword,
+      ip: request.ip ?? null,
+      userAgent: request.headers['user-agent'] ?? null,
+    });
+
+    // No session, no cookie. The person signs in with what they just chose —
+    // see the use case for why an emailed link does not become a session.
+    return { organizationSlug: result.organizationSlug, email: result.email };
   }
 
   // Authenticated on purpose — no @Public(). Changing a password is an

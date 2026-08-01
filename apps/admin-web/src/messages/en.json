@@ -32,7 +32,34 @@
     "failed": "Sign in failed",
     "welcomeBack": "Welcome back",
     "useAnotherAccount": "Use another account",
-    "forget": "Forget this account"
+    "forget": "Forget this account",
+    "forgotPassword": "Forgot your password?",
+    "passwordReset": "Your password has been changed. Sign in with the new one."
+  },
+  "forgotPassword": {
+    "title": "Reset your password",
+    "intro": "We will email you a link to choose a new one.",
+    "organization": "Organization",
+    "email": "Email",
+    "submit": "Send the link",
+    "submitting": "Sending…",
+    "sentTitle": "Check your email",
+    "sentBody": "If an account exists for {email}, a link to choose a new password is on its way.",
+    "sentHint": "The link works once and expires in an hour. Look in your spam folder if it has not arrived in a few minutes.",
+    "backToSignIn": "Back to sign in"
+  },
+  "resetPassword": {
+    "title": "Choose a new password",
+    "newPassword": "New password",
+    "confirm": "Confirm new password",
+    "hint": "At least {min} characters.",
+    "mismatch": "The two passwords do not match",
+    "submit": "Set password",
+    "submitting": "Setting…",
+    "failed": "Could not set the password",
+    "noTokenTitle": "This link is incomplete",
+    "noTokenBody": "Open the link from the email exactly as it was sent, or ask for a new one.",
+    "requestAnother": "Send me another link"
   },
   "inventory": {
     "title": "Inventory",

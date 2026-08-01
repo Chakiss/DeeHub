@@ -29,6 +29,15 @@ import { NotificationsController } from './interface/notifications.controller';
     DispatchNotificationsUseCase,
     ListNotificationsQuery,
   ],
-  exports: [ComposeNotificationsUseCase, DispatchNotificationsUseCase, ListNotificationsQuery],
+  // NOTIFICATION_SENDERS is exported for the one message that must NOT be
+  // logged: a password reset link, which the delivery-log screen would show to
+  // anyone holding `notification:read`. Auth sends that one straight down the
+  // port. Everything else still goes through the outbox and the log.
+  exports: [
+    ComposeNotificationsUseCase,
+    DispatchNotificationsUseCase,
+    ListNotificationsQuery,
+    NOTIFICATION_SENDERS,
+  ],
 })
 export class NotificationsModule {}

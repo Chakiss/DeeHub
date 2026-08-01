@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CommonModule } from './common/common.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -26,6 +27,8 @@ import { QueueModule } from './queue/queue.module';
     DatabaseModule,
     CommonModule,
     QueueModule,
+    // For housekeeping only: expired password-reset tokens are purged here.
+    AuthModule,
     PropertiesModule,
     RatesModule,
     InventoryModule,

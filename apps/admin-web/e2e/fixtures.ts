@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { resolve } from 'node:path';
-import { randomUUID, scrypt as scryptCb, randomBytes } from 'node:crypto';
+import { createHash, randomUUID, scrypt as scryptCb, randomBytes } from 'node:crypto';
 
 /**
  * Test data for the dashboard end-to-end suite.
@@ -24,6 +24,8 @@ export interface TestData {
   frontDeskEmail: string;
   /** Dedicated to the change-password spec, which mutates its credential. */
   passwordUserEmail: string;
+  /** Dedicated to the password-reset spec, which also mutates its credential. */
+  recoveryUserEmail: string;
   /**
    * Organization-wide OWNER. Every other fixture user is scoped to a property,
    * which deliberately confers no authority over other people.
@@ -77,6 +79,7 @@ export async function seed(): Promise<TestData> {
     managerEmail: `manager-${short}@e2e.test`,
     frontDeskEmail: `frontdesk-${short}@e2e.test`,
     passwordUserEmail: `password-${short}@e2e.test`,
+    recoveryUserEmail: `recovery-${short}@e2e.test`,
     ownerEmail: `owner-${short}@e2e.test`,
     // Far future so these never collide with seed data or a real booking.
     dates: ['2030-04-01', '2030-04-02', '2030-04-03', '2030-04-04', '2030-04-05', '2030-04-06'],
@@ -116,6 +119,7 @@ export async function seed(): Promise<TestData> {
       [data.managerEmail, 'MANAGER'],
       [data.frontDeskEmail, 'FRONT_DESK'],
       [data.passwordUserEmail, 'MANAGER'],
+      [data.recoveryUserEmail, 'MANAGER'],
     ] as const) {
       const userId = randomUUID();
       await pool.query(
@@ -196,6 +200,7 @@ export async function teardown(data: TestData): Promise<void> {
       'room_types',
       'memberships',
       'refresh_tokens',
+      'password_reset_tokens',
       'users',
       'properties',
     ]) {
@@ -287,6 +292,47 @@ export async function removeIsolatedRoomType(room: IsolatedRoomType): Promise<vo
     ]);
     await pool.query('DELETE FROM rate_plans WHERE id = $1', [room.ratePlanId]);
     await pool.query('DELETE FROM room_types WHERE id = $1', [room.roomTypeId]);
+  } finally {
+    await pool.end();
+  }
+}
+
+/**
+ * Plant a live password-reset token and hand back the raw value.
+ *
+ * The only place the raw token normally exists is the email, which is exactly
+ * what makes the design safe — so a browser test cannot read one out of the
+ * database and has to mint its own. Mirrors the API's token format: 32 random
+ * bytes, base64url, stored as SHA-256.
+ */
+export async function seedResetToken(
+  data: TestData,
+  email: string,
+  options: { expiresInMinutes?: number } = {},
+): Promise<string> {
+  const pool = new Pool({ connectionString: connectionString(), max: 2 });
+  try {
+    const { rows } = await pool.query<{ id: string }>(
+      'SELECT id FROM users WHERE organization_id = $1 AND lower(email) = lower($2)',
+      [data.organizationId, email],
+    );
+    const userId = rows[0]?.id;
+    if (!userId) throw new Error(`No fixture user for ${email}`);
+
+    const token = randomBytes(32).toString('base64url');
+    await pool.query(
+      `INSERT INTO password_reset_tokens
+         (id, organization_id, user_id, token_hash, expires_at)
+       VALUES ($1, $2, $3, $4, now() + make_interval(mins => $5))`,
+      [
+        randomUUID(),
+        data.organizationId,
+        userId,
+        createHash('sha256').update(token).digest('hex'),
+        options.expiresInMinutes ?? 30,
+      ],
+    );
+    return token;
   } finally {
     await pool.end();
   }

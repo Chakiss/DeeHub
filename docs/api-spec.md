@@ -70,28 +70,68 @@ with no pagination — a property has tens of these, not thousands.
 JWT access token (15 min) in `Authorization: Bearer`, refresh token (30 days,
 rotating) in an httpOnly cookie for the dashboard.
 
-| Method  | Path                    | Purpose                                                                             |
-| ------- | ----------------------- | ----------------------------------------------------------------------------------- |
-| `POST`  | `/auth/login`           | email + password → access token + refresh cookie                                    |
-| `POST`  | `/auth/refresh`         | rotate refresh token → new access token                                             |
-| `POST`  | `/auth/logout`          | revoke the current refresh token                                                    |
-| `GET`   | `/auth/me`              | current user, memberships, accessible properties                                    |
-| `POST`  | `/auth/change-password` | change your own password; revokes every other session                               |
-| `GET`   | `/users`                | people in the organization and their roles                                          |
-| `POST`  | `/users`                | create an account; returns a one-time password (no outbound email yet)              |
-| `PATCH` | `/users/{id}`           | change name, role or status; `DISABLED` replaces deletion                           |
-| `POST`  | `/auth/forgot-password` | **planned** — send reset email (always 202, never reveals whether the email exists) |
-| `POST`  | `/auth/reset-password`  | **planned** — consume reset token                                                   |
+| Method  | Path                    | Purpose                                                                  |
+| ------- | ----------------------- | ------------------------------------------------------------------------ |
+| `POST`  | `/auth/login`           | email + password → access token + refresh cookie                         |
+| `POST`  | `/auth/refresh`         | rotate refresh token → new access token                                  |
+| `POST`  | `/auth/logout`          | revoke the current refresh token                                         |
+| `GET`   | `/auth/me`              | current user, memberships, accessible properties                         |
+| `POST`  | `/auth/change-password` | change your own password; revokes every other session                    |
+| `GET`   | `/users`                | people in the organization and their roles                               |
+| `POST`  | `/users`                | create an account; returns a one-time password (no outbound email yet)   |
+| `PATCH` | `/users/{id}`           | change name, role or status; `DISABLED` replaces deletion                |
+| `POST`  | `/auth/forgot-password` | email a reset link; always 202, never reveals whether the account exists |
+| `POST`  | `/auth/reset-password`  | consume a reset link and set a new password                              |
 
-Everything above without a **planned** marker is implemented.
+Everything above is implemented.
 
-Account recovery today is operator-driven: someone with `user:update` calls
-`POST /users/{id}/reset-password` and reads the new credential out. That is a
-deliberate stopping point rather than an oversight — self-service reset means
-sending mail, and there is no mail provider configured. An endpoint that
-answered 202 and sent nothing would be worse than none, because the person
-would wait for an email that never arrives. Choosing a provider is what unblocks
-`forgot-password` / `reset-password`.
+There are two recovery paths and they are for different situations.
+**Self-service** (`forgot-password` → `reset-password`) is the normal one: a
+link is emailed, works once, and expires in an hour. **Operator-driven**
+(`POST /users/{id}/reset-password`) covers the case self-service cannot — a
+mailbox the person can no longer reach.
+
+Four properties of the self-service path are load-bearing:
+
+- **It never says whether an account exists.** Unknown address, disabled
+  account, suspended organization and a real account all produce the same 202
+  with the same body. The endpoint also spends a fixed minimum of time on every
+  request, because otherwise the work it does for a real account is a timing
+  oracle for the answer the body withholds.
+- **The link is emailed directly, not through the notification log.** Every
+  other message is stored with its rendered body and shown on the delivery-log
+  screen to anyone holding `notification:read` — a reset link there would let a
+  front-desk clerk take the owner's account. This one send bypasses the log.
+  The audit trail records that a reset was requested, never the token or its
+  hash.
+- **Completing a reset issues no session.** The person signs in with the
+  password they just chose. A link sitting in a mailbox must not be a session.
+- **It closes every other door.** A completed reset revokes all refresh tokens
+  and invalidates any other reset link in flight; a password CHANGE invalidates
+  live links too, so securing an account cannot be undone an hour later by a
+  link somebody else requested.
+
+At most three live links may exist per account per fifteen minutes. That is
+mailbox protection rather than brute-force protection — the token is 256 bits —
+and being over the limit is silent, because saying so would confirm the account
+exists.
+
+```jsonc
+// POST /auth/forgot-password → 202 (always, whatever happened)
+// { "organizationSlug": "deehub-demo", "email": "owner@deehub.io", "locale": "th" }
+{ "accepted": true }
+
+// POST /auth/reset-password → 200
+// { "token": "<from the emailed link>", "newPassword": "at least 12 characters" }
+{ "organizationSlug": "deehub-demo", "email": "owner@deehub.io" }
+
+// POST /auth/reset-password → 401, for unknown, expired and already-used alike
+{ "error": { "code": "UNAUTHENTICATED", "message": "This reset link is no longer valid. Request a new one." } }
+```
+
+`locale` is supplied by the client because nobody is authenticated: there is no
+property whose country could stand in for a language, but the person is looking
+at a sign-in screen they have just chosen Thai or English on.
 
 Resetting your own password is refused. `POST /auth/change-password` is the path
 for that, and it demands the current password — without that asymmetry a stolen

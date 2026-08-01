@@ -93,6 +93,23 @@ variable "cors_origins" {
   default     = ""
 }
 
+# Where the dashboard is served, for links the API puts in an email — today
+# just the password-reset link.
+#
+# A variable rather than a reference to google_cloud_run_v2_service.web.uri,
+# because the web service already reads the api service's URI and Terraform
+# cannot resolve a cycle between them. Two-pass bootstrap: apply once, read
+# `terraform output dashboard_url`, set this, apply again. A custom domain
+# short-circuits that — set it here from the start.
+#
+# Left empty the API falls back to the first CORS origin, and refuses to send
+# a reset link at all in production rather than mail out a localhost address.
+variable "admin_web_url" {
+  description = "Public URL of the admin dashboard, e.g. https://deehub-web-xxxx.a.run.app"
+  type        = string
+  default     = ""
+}
+
 variable "alert_email" {
   type        = string
   description = "Where alerts go. Google emails a confirmation link that must be clicked before anything is delivered."

@@ -15,6 +15,7 @@ import { OutboxRelayService } from './modules/outbox/outbox-relay.service';
 import { ExpireHoldsUseCase } from './modules/inventory/application/expire-holds.usecase';
 import { ReconcileInventoryUseCase } from './modules/inventory/application/reconcile-inventory.usecase';
 import { DispatchNotificationsUseCase } from './modules/notifications/application/dispatch-notifications.usecase';
+import { PurgeResetTokensUseCase } from './modules/auth/application/purge-reset-tokens.usecase';
 
 /**
  * One-shot maintenance pass, for deployments with no channels connected.
@@ -93,6 +94,11 @@ async function main(): Promise<void> {
      * rather than a fault — and exiting non-zero for it would train whoever
      * watches this job to ignore the exit code that means inventory drift.
      */
+
+    const purged = await app.get(PurgeResetTokensUseCase).execute();
+    if (purged.removed > 0) {
+      logger.log(`Password resets: forgot ${String(purged.removed)} expired token(s)`);
+    }
 
     const holds = await app.get(ExpireHoldsUseCase).execute();
     if (holds.expired > 0) {

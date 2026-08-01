@@ -91,6 +91,16 @@ export const envSchema = z.object({
         .filter((origin) => origin.length > 0),
     ),
 
+  /**
+   * Where the dashboard is served, for links the API puts in an email.
+   *
+   * Optional: with nothing set, the first allowed CORS origin is used, which in
+   * every deployment so far IS the dashboard. Set it explicitly when the two
+   * ever differ — a password-reset link pointing at the wrong host is a link
+   * that 404s for the person locked out.
+   */
+  ADMIN_WEB_URL: optional(),
+
   SENTRY_DSN: z.string().optional(),
 
   /*

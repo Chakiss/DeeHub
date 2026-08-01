@@ -52,6 +52,51 @@ export const users = pgTable(
   ],
 );
 
+/**
+ * One-shot credentials for someone who cannot sign in.
+ *
+ * Hashed at rest for the same reason refresh tokens are: possession of the raw
+ * value IS the authentication, so a database leak must not also be a leak of
+ * every live reset link.
+ *
+ * Rows are kept after they are consumed rather than deleted. "This token was
+ * already used" and "this token never existed" need different answers during an
+ * incident, and a deleted row cannot tell them apart. The maintenance job
+ * removes them once they are old enough to be useless as evidence.
+ */
+export const passwordResetTokens = pgTable(
+  'password_reset_tokens',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** SHA-256 of the token. The raw token exists only in the email. */
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /** Set the moment it is spent. A second attempt with the same link fails. */
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    /**
+     * Set when a LATER event made this token moot — a successful reset through
+     * a different link, or a password change. Distinct from consumed: nobody
+     * clicked this one, it just stopped being valid.
+     */
+    invalidatedAt: timestamp('invalidated_at', { withTimezone: true }),
+    requestedIp: inet('requested_ip'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('password_reset_tokens_hash_uq').on(t.tokenHash),
+    // The throttle reads this: live tokens for one user, newest first.
+    index('password_reset_tokens_user_live_idx')
+      .on(t.userId, t.createdAt.desc())
+      .where(sql`${t.consumedAt} IS NULL AND ${t.invalidatedAt} IS NULL`),
+  ],
+);
+
 export const refreshTokens = pgTable(
   'refresh_tokens',
   {

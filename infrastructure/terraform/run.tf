@@ -28,6 +28,9 @@ locals {
   notification_env = merge(
     var.email_from == "" ? {} : { EMAIL_FROM = var.email_from },
     var.line_staff_target == "" ? {} : { LINE_STAFF_TARGET = var.line_staff_target },
+    # Where an emailed link points. Mounted on both the API (which sends the
+    # reset mail) and the worker (which shares the image and the config).
+    var.admin_web_url == "" ? {} : { ADMIN_WEB_URL = var.admin_web_url },
   )
 }
 

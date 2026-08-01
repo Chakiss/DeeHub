@@ -6,6 +6,10 @@ import { generateTemporaryPassword } from '../../../common/security/temporary-pa
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import { AUTH_REPOSITORY, type AuthRepository } from '../../auth/domain/auth.repository';
 import { PASSWORD_HASHER, type PasswordHasher } from '../../auth/domain/password-hasher';
+import {
+  PASSWORD_RESET_REPOSITORY,
+  type PasswordResetRepository,
+} from '../../auth/domain/password-reset';
 import type { Role } from '../../auth/domain/capabilities';
 import { USER_REPOSITORY, type UserRepository } from '../domain/user.repository';
 import { assertMayAdminister, highestRole } from './user.rules';
@@ -26,10 +30,10 @@ export interface ResetPasswordResult {
 /**
  * Reset a colleague's password when they cannot sign in.
  *
- * This is the whole recovery story today. Self-service `forgot-password`
- * requires sending mail, and there is no mail provider — an endpoint that
- * returned 202 and sent nothing would be worse than not having one, because
- * the person would sit waiting for an email that never arrives.
+ * Still worth having now that `POST /auth/forgot-password` exists: self-service
+ * recovery needs a mailbox the person can actually reach, and the case this
+ * covers is the one where they cannot — a departed colleague's address, a typo
+ * in the account, a mailbox nobody has the password to either.
  *
  * Every session the account had is revoked. If the reason for the reset is
  * that someone else got into the account, leaving their refresh token alive
@@ -42,6 +46,7 @@ export class ResetPasswordUseCase {
     @Inject(USER_REPOSITORY) private readonly repo: UserRepository,
     @Inject(AUTH_REPOSITORY) private readonly auth: AuthRepository,
     @Inject(PASSWORD_HASHER) private readonly hasher: PasswordHasher,
+    @Inject(PASSWORD_RESET_REPOSITORY) private readonly resetTokens: PasswordResetRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -75,8 +80,15 @@ export class ResetPasswordUseCase {
       await this.auth.updatePasswordHash(tx, input.userId, passwordHash);
 
       // Before returning, not after: the point of a reset is that whoever had
-      // the old credential stops having access.
+      // the old credential stops having access. A self-service reset link in
+      // flight is part of that credential — it would set a password this
+      // operator did not choose, an hour after they handed one over.
       const revoked = await this.auth.revokeAllForUser(tx, input.userId);
+      const linksInvalidated = await this.resetTokens.invalidateLiveForUser(
+        tx,
+        input.userId,
+        new Date(),
+      );
 
       await this.audit.record(tx, {
         organizationId,
@@ -85,8 +97,8 @@ export class ResetPasswordUseCase {
         action: 'user.password_reset',
         entityType: 'user',
         entityId: input.userId,
-        // The count, never the password.
-        after: { sessionsRevoked: revoked },
+        // The counts, never the password.
+        after: { sessionsRevoked: revoked, linksInvalidated },
       });
     });
 

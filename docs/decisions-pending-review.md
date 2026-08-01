@@ -232,4 +232,64 @@ every ten minutes (`maintenance_schedule` in Terraform). That is 144 Cloud Run
 job runs a day instead of 24 — still inside the free tier, but it is your
 money and the number is easy to change.
 
+## 12. Self-service password reset — five calls you may want to overturn
+
+`POST /auth/forgot-password` and `POST /auth/reset-password` exist now that
+there is a mail provider. Five decisions in there are judgement, not necessity.
+
+**The reset link is NOT written to the notification log.** Every other message
+this system sends is stored with its rendered body and shown on the delivery-log
+screen to anyone holding `notification:read` — which today includes READ_ONLY,
+by the same blanket `:read` rule as item 4. A reset link on that screen is an
+account takeover: a front-desk clerk requests one for the owner, reads it out of
+the dashboard, and sets a password. So this one message is sent straight down
+the sender port and never stored. The cost is that a reset email does not appear
+in the log at all; the audit trail records that one was requested, and nothing
+records what it said.
+
+**Completing a reset does not sign you in.** You land back at the sign-in screen
+with the password you just chose, and the organization slug carried over. Auto
+sign-in is friendlier and I did not do it, because a link that arrives by email
+should be good for exactly the one thing the person expected and nothing more.
+Say so if you disagree — it is a small change in
+`complete-password-reset.usecase.ts`.
+
+**The endpoint is deliberately slow.** Every request waits out a 1.2-second
+floor whether or not the account exists, because the work for a real account —
+a token insert plus an HTTPS call to Resend — is otherwise a timing oracle for
+the answer the response body is careful not to give. If a locked-out person
+complains the button feels sluggish, that is why, and it is worth keeping.
+
+**Three links per account per fifteen minutes, silently.** Over the limit,
+nothing is sent and nothing is said. This is mailbox protection, not brute-force
+protection — a 256-bit token is not guessable — and telling the caller they hit
+a limit would confirm the account exists.
+
+**A link points wherever `ADMIN_WEB_URL` says.** `cors_origins` is empty in your
+Terraform, so there is nothing to fall back to: **in production the API now
+refuses to send a reset link at all until `admin_web_url` is set**, rather than
+mailing everyone a link to localhost. It is a two-pass bootstrap because
+Terraform cannot resolve a cycle between the two Cloud Run services:
+
+```bash
+cd infrastructure/terraform
+terraform output dashboard_url        # or your custom domain
+# put it in terraform.tfvars as admin_web_url = "https://..."
+terraform apply
+```
+
+Until you do, self-service recovery is built but inert in production, and the
+operator-driven reset remains the working path. It logs the reason loudly on
+every attempt.
+
+## 13. A second unexplained test flake
+
+While running the full API suite, `password-reset.e2e.test.ts` failed once with
+`Parse Error: Expected HTTP/` from supertest, on a case that has passed every
+run since — twenty-odd runs of the file alone and two full-suite runs, all
+green. Recorded rather than called fixed, same as item 8. Two different files
+now, two different unexplained shapes, both looking like something in the shared
+test process rather than the code under test. If a third appears, the suite's
+process model is the thread to pull, not the individual test.
+
 _(Updated as the session continues.)_

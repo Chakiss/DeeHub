@@ -131,11 +131,40 @@ CREATE TABLE refresh_tokens (
 CREATE UNIQUE INDEX refresh_tokens_hash_uq ON refresh_tokens (token_hash);
 CREATE INDEX refresh_tokens_user_active_idx
   ON refresh_tokens (user_id) WHERE revoked_at IS NULL;
+
+CREATE TABLE password_reset_tokens (
+  id              uuid PRIMARY KEY,
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash      text NOT NULL,              -- sha256; the raw token exists only in the email
+  expires_at      timestamptz NOT NULL,
+  consumed_at     timestamptz,                -- somebody clicked this one
+  invalidated_at  timestamptz,                -- a later event made it moot
+  requested_ip    inet,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX password_reset_tokens_hash_uq
+  ON password_reset_tokens (token_hash);
+CREATE INDEX password_reset_tokens_user_live_idx
+  ON password_reset_tokens (user_id, created_at DESC)
+  WHERE consumed_at IS NULL AND invalidated_at IS NULL;
 ```
 
 Rotating refresh tokens with `replaced_by_id` gives reuse detection: if a
 revoked token is presented, the whole chain is compromised and every token
 for that user is revoked.
+
+`password_reset_tokens` separates **consumed** from **invalidated** because the
+two are different events and an incident needs to tell them apart: consumed
+means a person opened that link, invalidated means something else — a
+successful reset through a different link, a password change, an operator reset
+— retired it while nobody was looking. Rows survive being spent rather than
+being deleted, so "already used" and "never existed" stay distinguishable; the
+maintenance job forgets them after thirty days.
+
+The partial index is what the per-account throttle reads: at most three live
+links per fifteen minutes, so the endpoint cannot be used to flood a mailbox
+from the hotel's own verified sender.
 
 ---
 

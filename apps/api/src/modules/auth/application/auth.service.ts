@@ -12,6 +12,7 @@ import {
   type UserPrincipal,
 } from '../domain/auth.repository';
 import { PASSWORD_HASHER, type PasswordHasher } from '../domain/password-hasher';
+import { PASSWORD_RESET_REPOSITORY, type PasswordResetRepository } from '../domain/password-reset';
 
 export interface LoginInput {
   readonly organizationSlug: string;
@@ -66,6 +67,7 @@ export class AuthService {
     @Inject(ENV) private readonly env: Env,
     @Inject(AUTH_REPOSITORY) private readonly repo: AuthRepository,
     @Inject(PASSWORD_HASHER) private readonly hasher: PasswordHasher,
+    @Inject(PASSWORD_RESET_REPOSITORY) private readonly resetTokens: PasswordResetRepository,
     private readonly jwt: JwtService,
     private readonly audit: AuditService,
   ) {}
@@ -161,6 +163,19 @@ export class AuthService {
       // Before issuing the replacement pair, not after.
       const revoked = await this.repo.revokeAllForUser(tx, user.id);
 
+      /*
+       * And any reset link in flight. Someone who suspects their password was
+       * seen changes it — but if the same someone had also triggered a reset,
+       * or an attacker had, that link would still be live and would undo the
+       * change an hour later. Revoking sessions without revoking links leaves
+       * the door open behind you.
+       */
+      const linksInvalidated = await this.resetTokens.invalidateLiveForUser(
+        tx,
+        user.id,
+        new Date(),
+      );
+
       const tokens = await this.issueTokens(tx, principal, input.userAgent, input.ip);
 
       await this.audit.record(tx, {
@@ -176,9 +191,9 @@ export class AuthService {
         action: 'auth.password_changed',
         entityType: 'user',
         entityId: principal.id,
-        // Never the password, in any form. The session count is the part that
+        // Never the password, in any form. The counts are the part that
         // matters when reading this back during an incident.
-        after: { sessionsRevoked: revoked },
+        after: { sessionsRevoked: revoked, linksInvalidated },
       });
 
       return {

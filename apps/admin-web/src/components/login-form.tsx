@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
@@ -27,11 +28,22 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
   const router = useRouter();
   const params = useSearchParams();
 
+  /*
+   * Arriving from a completed password reset.
+   *
+   * The remembered card is deliberately skipped in that case even when there is
+   * one: it may hold a different account, and somebody who has just set a
+   * password should land on the form that shows them which one they are
+   * signing into.
+   */
+  const justReset = params.get('reset') === '1';
+  const slugFromReset = params.get('org') ?? '';
+
   // Start on the remembered card when there is one, and fall back to the full
   // form the moment the person says it is not them.
-  const [remembered, setRemembered] = useState<LastAccount | null>(lastAccount);
+  const [remembered, setRemembered] = useState<LastAccount | null>(justReset ? null : lastAccount);
 
-  const [organizationSlug, setOrganizationSlug] = useState('');
+  const [organizationSlug, setOrganizationSlug] = useState(slugFromReset);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +179,13 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
             >
               {t('useAnotherAccount')}
             </button>
+
+            <Link
+              href="/forgot-password"
+              className="block text-center text-sm text-brand-700 underline-offset-2 hover:underline"
+            >
+              {t('forgotPassword')}
+            </Link>
           </form>
         ) : (
           <form
@@ -177,6 +196,12 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
             className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25"
           >
             <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
+
+            {justReset && (
+              <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                {t('passwordReset')}
+              </p>
+            )}
 
             <Field label={t('organization')} hint={t('organizationHint')}>
               <input
@@ -224,6 +249,13 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
             >
               {submitting ? t('submitting') : t('submit')}
             </button>
+
+            <Link
+              href="/forgot-password"
+              className="block text-center text-sm text-brand-700 underline-offset-2 hover:underline"
+            >
+              {t('forgotPassword')}
+            </Link>
           </form>
         )}
       </div>

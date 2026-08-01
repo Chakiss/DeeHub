@@ -10,7 +10,11 @@ import {
 /** Refresh this far before expiry so a request never races the deadline. */
 const REFRESH_MARGIN_MS = 60_000;
 
-const PUBLIC_PATHS = ['/login', '/api/session'];
+/**
+ * Recovery has to be reachable by someone with no session at all — that is the
+ * entire point of it — so both halves sit alongside /login here.
+ */
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/api/session'];
 
 /**
  * Route guard and silent token refresh.
