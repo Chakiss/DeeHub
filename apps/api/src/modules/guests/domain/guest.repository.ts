@@ -14,8 +14,21 @@ export interface GuestSummary extends GuestRecord {
   readonly stays: number;
   readonly lastStay: string | null;
   readonly revenueMinor: number;
-  /** Other profiles sharing this email — the merge queue, not a merge. */
+  /**
+   * Other live profiles that share an email, a phone or a full name — the
+   * merge queue, not a merge. Nothing is ever folded together without
+   * somebody looking at both records.
+   */
   readonly possibleDuplicates: number;
+}
+
+/** Everything a merge has to reconcile, including what is never returned. */
+export interface GuestMergeRecord extends GuestRecord {
+  readonly nationality: string | null;
+  readonly documentType: string | null;
+  readonly documentNumberEncrypted: Buffer | null;
+  readonly dateOfBirth: string | null;
+  readonly mergedIntoId: string | null;
 }
 
 export interface CreateGuestRecord {
@@ -79,6 +92,45 @@ export interface GuestRepository {
     guestId: string,
     fields: Partial<Pick<GuestRecord, 'firstName' | 'lastName' | 'email' | 'phone' | 'notes'>>,
   ): Promise<void>;
+
+  /**
+   * Live profiles that share an email, a phone or a full name with this one.
+   *
+   * Broader than the booking path's `findMatch`, and deliberately so: that one
+   * decides silently whether to reuse a profile, so it demands email AND last
+   * name. This one only decides what to show a person, so a weak signal that
+   * turns out to be the same guest is worth surfacing.
+   */
+  findDuplicateCandidates(
+    tx: Executor,
+    guestId: string,
+    limit: number,
+  ): Promise<readonly GuestRecord[]>;
+
+  /**
+   * Both records, locked, in a fixed order.
+   *
+   * `FOR UPDATE` on both rows is what stops two operators merging A into B and
+   * B into A at the same moment and leaving a pair of tombstones pointing at
+   * each other — a cycle no read path could resolve. Ordering the lock by id
+   * means the two transactions cannot deadlock against each other either.
+   */
+  lockPairForMerge(
+    tx: Executor,
+    guestIdA: string,
+    guestIdB: string,
+  ): Promise<readonly GuestMergeRecord[]>;
+
+  applyMergedFields(tx: Executor, guestId: string, fields: Record<string, unknown>): Promise<void>;
+
+  /** Point every reservation at the survivor. Returns the ids that moved. */
+  reassignReservations(
+    tx: Executor,
+    fromGuestId: string,
+    toGuestId: string,
+  ): Promise<readonly string[]>;
+
+  markMerged(tx: Executor, guestId: string, intoGuestId: string, at: Date): Promise<void>;
 }
 
 export const GUEST_REPOSITORY = Symbol('GUEST_REPOSITORY');

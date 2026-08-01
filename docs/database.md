@@ -344,15 +344,44 @@ CREATE TABLE guests (
   date_of_birth    date,
   preferences      jsonb NOT NULL DEFAULT '{}'::jsonb,
   notes            text,
+  merged_into_id   uuid REFERENCES guests(id) ON DELETE RESTRICT,   -- tombstone
+  merged_at        timestamptz,
   created_at       timestamptz NOT NULL DEFAULT now(),
-  updated_at       timestamptz NOT NULL DEFAULT now()
+  updated_at       timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT guests_merged_ck CHECK (
+    (merged_into_id IS NULL) = (merged_at IS NULL)
+    AND merged_into_id IS DISTINCT FROM id
+  )
 );
 -- Guests are shared across an organization's properties. Not unique on email:
--- OTAs supply masked/aliased addresses, so duplicates are expected and merged later.
+-- OTAs supply masked/aliased addresses, so duplicates are expected and merged.
 CREATE INDEX guests_org_email_idx ON guests (organization_id, lower(email));
 CREATE INDEX guests_org_phone_idx ON guests (organization_id, phone);
 CREATE INDEX guests_org_name_idx  ON guests (organization_id, lower(last_name), lower(first_name));
 ```
+
+A merged profile is **tombstoned, not deleted**. Its reservations have all moved
+to the survivor so nothing depends on it, and dropping the row would work — but a
+merge cannot be reconstructed from the surviving data, and an id that still
+resolves is what makes "who was this?" answerable afterwards. Every read path
+filters `merged_into_id IS NOT NULL` out: search, fetch by id, the duplicate
+candidate list, and the booking path's `findMatch`, which must never attach a new
+stay to a record nothing reads.
+
+The `guests_merged_ck` constraint keeps the pair honest and forbids a
+self-reference. It does not forbid a CHAIN — A merged into B, later B into C —
+because the application refuses that case with a message an operator can act on,
+and a check constraint cannot see another row anyway. The refusal matters:
+allowing it would leave A's stays behind a tombstone whose own survivor has
+moved on.
+
+The duplicate search compares the **last nine digits** of a phone number, so
+`081 234 5678` and `+66 81 234 5678` are one number. `guests_org_phone_idx`
+does not serve that comparison — the predicate is not sargable against it — and
+deliberately has no expression index of its own: the scan is bounded by one
+organization's guest book and runs when somebody opens a panel, not on every
+page load. If a group's guest count ever makes that hurt, the fix is an index on
+`right(regexp_replace(phone, '\D', '', 'g'), 9)`, not a different rule.
 
 ---
 

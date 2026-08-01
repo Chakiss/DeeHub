@@ -197,20 +197,65 @@ the room would stay blocked for those nights forever.
 
 ### Guests (Phase 4)
 
-| Method  | Path                                | Purpose                                 |
-| ------- | ----------------------------------- | --------------------------------------- |
-| `GET`   | `/properties/{id}/guests`           | search by name, email or phone          |
-| `GET`   | `/properties/{id}/guests/{guestId}` | one profile with stay count and revenue |
-| `PATCH` | `/properties/{id}/guests/{guestId}` | correct a profile                       |
+| Method  | Path                                           | Purpose                                 |
+| ------- | ---------------------------------------------- | --------------------------------------- |
+| `GET`   | `/properties/{id}/guests`                      | search by name, email or phone          |
+| `GET`   | `/properties/{id}/guests/{guestId}`            | one profile with stay count and revenue |
+| `PATCH` | `/properties/{id}/guests/{guestId}`            | correct a profile                       |
+| `GET`   | `/properties/{id}/guests/{guestId}/duplicates` | profiles that might be the same person  |
+| `POST`  | `/properties/{id}/guests/{guestId}/merge`      | fold another profile into this one      |
 
 A profile is created from the booker the first time someone books, and a
 returning guest is matched on email **and** last name — never on email alone.
 Shared addresses are real: a company books its staff through one inbox, and
 matching on the address would show one person another's stay history with
 nothing in the data revealing it. A duplicate profile is the safer failure
-because it is visible and can be merged; a wrong merge is neither. Profiles
-sharing an address are flagged with `possibleDuplicates` for a human to decide.
-Merging itself is not built yet.
+because it is visible and can be merged; a wrong merge is neither.
+
+**Finding duplicates** is broader than that matching rule, because it only
+decides what to show somebody. Three signals, each reported so an operator can
+see the reasoning rather than a score:
+
+| Signal  | Matches on                      | Alone                                         |
+| ------- | ------------------------------- | --------------------------------------------- |
+| `PHONE` | the last nine digits            | `HIGH` — people share an inbox, not a handset |
+| `EMAIL` | the address, case-insensitively | `MEDIUM` — `info@` books a whole company      |
+| `NAME`  | first **and** last, lowercased  | `LOW` — surnames repeat constantly            |
+
+`EMAIL` and `NAME` together are `HIGH`. Nine trailing digits makes
+`081 234 5678` and `+66 81 234 5678` the same number without needing a country
+code the system does not reliably have.
+
+**Merging** names the survivor in the path and the duplicate in the body. The
+direction is never inferred — it decides whose spelling, address and notes lead,
+and the operator looking at both records is the one who knows. In one
+transaction: every reservation moves to the survivor, the survivor fills its own
+blanks from the duplicate and never overwrites a value it already had, notes are
+joined rather than chosen, and the duplicate becomes a tombstone pointing at the
+survivor.
+
+```jsonc
+// POST /properties/{id}/guests/{survivorId}/merge → 201
+// { "duplicateId": "0192..." }
+{
+  "guest": { "id": "0191...", "stays": 4, "email": "somchai@example.com", "phone": "0812345678" },
+  "reservationsMoved": 2,
+  "fieldsFilled": ["phone", "notes"],
+}
+```
+
+A tombstone is not a guest: it is absent from search, from `GET` by id, from the
+candidate list, and from the booking path's matching. It is kept rather than
+deleted because a merge cannot be read back out of the surviving rows, and an id
+that still resolves is what makes "who was this?" answerable. There is **no
+unmerge** — the audit entry names every reservation that moved, so one could be
+built, but it is a second dangerous operation and the merge already requires two
+profiles in front of a person.
+
+Both sides are audited: `guest.merged` against the survivor, `guest.merged_away`
+against the duplicate, because an investigator arrives holding one id and not
+the other. Neither entry carries the encrypted document number — the audit table
+is not encrypted, and copying it there would defeat the column that is.
 
 The profile is organization-wide — the same person across a group is the point
 of keeping one — but the LIST is scoped to guests who have booked at that

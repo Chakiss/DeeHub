@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { organizations } from './identity';
 
@@ -38,6 +39,22 @@ export const guests = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     notes: text('notes'),
+    /**
+     * Set when this profile was folded into another one.
+     *
+     * A tombstone rather than a delete. The row's reservations have all moved
+     * to the survivor, so nothing depends on it any more and dropping it would
+     * work — but a merge is the one guest operation that cannot be reasoned
+     * about afterwards from the surviving data alone, and an id that still
+     * resolves is what makes "who did this used to be?" answerable at all. Old
+     * links and audit entries keep pointing somewhere real.
+     *
+     * Every read path filters these out. A tombstone is not a guest.
+     */
+    mergedIntoId: uuid('merged_into_id').references((): AnyPgColumn => guests.id, {
+      onDelete: 'restrict',
+    }),
+    mergedAt: timestamp('merged_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -50,6 +67,11 @@ export const guests = pgTable(
       t.organizationId,
       sql`lower(${t.lastName})`,
       sql`lower(${t.firstName})`,
+    ),
+    // A tombstone must point somewhere, and never at itself.
+    check(
+      'guests_merged_ck',
+      sql`(${t.mergedIntoId} IS NULL) = (${t.mergedAt} IS NULL) AND ${t.mergedIntoId} IS DISTINCT FROM ${t.id}`,
     ),
     check(
       'guests_document_type_ck',

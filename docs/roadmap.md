@@ -63,7 +63,8 @@ Phase 4 with it. Delivered:
   assignment, check-in and check-out. Reservations can be taken at the desk
   (manual booking), an unstarted stay can have its dates, room type, rate plan
   or occupancy changed, and a stay already under way can be extended.
-- **Guests**: profiles and stay history.
+- **Guests**: profiles and stay history, and a way to fold two profiles into
+  one when the same person booked twice under different details.
 - **Reporting**: occupancy, ADR and RevPAR.
 - **Channels**: created, credentialed, mapped and activated from the
   dashboard rather than by hand-written SQL.
@@ -116,9 +117,9 @@ Mostly delivered early; what is left is listed as **remaining**.
 - Front desk: ~~room assignment, check-in/out, housekeeping status board~~
   **done**. Folio basics **remaining** — there is a price snapshot per
   booking, but no per-stay account of charges, payments and balance.
-- Guests → CRM: ~~profiles, stay history~~ **done**. Dedupe/merge
-  **remaining** — a returning guest booked under a different spelling is two
-  records today.
+- Guests → CRM: ~~profiles, stay history, dedupe/merge~~ **done**. A returning
+  guest booked under a different spelling is found by phone, email or name, and
+  folded into the profile the hotel keeps — never automatically.
 - Notifications: ~~email/LINE confirmations to guests, alerts to staff~~
   **done** — booking confirmed, booking cancelled, and a channel booking
   alerting the desk, with a real provider wired. **Remaining**: a verified

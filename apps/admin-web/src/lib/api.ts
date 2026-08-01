@@ -423,8 +423,34 @@ export interface Guest {
   stays: number;
   lastStay: string | null;
   revenueMinor: number;
-  /** Other profiles sharing this email — a merge queue, not a merge. */
+  /**
+   * Other live profiles sharing an email, a phone or a full name — a merge
+   * queue, not a merge. Nothing is folded together without somebody looking.
+   */
   possibleDuplicates: number;
+}
+
+export type MatchSignal = 'NAME' | 'EMAIL' | 'PHONE';
+export type MatchConfidence = 'LOW' | 'MEDIUM' | 'HIGH';
+
+/** A candidate, with why the system thinks so and how much it trusts it. */
+export interface DuplicateGuest {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  email: string | null;
+  phone: string | null;
+  nationality: string | null;
+  notes: string | null;
+  signals: MatchSignal[];
+  confidence: MatchConfidence;
+}
+
+export interface MergeGuestResult {
+  guest: Guest;
+  reservationsMoved: number;
+  /** Columns the survivor gained from the duplicate, so the screen can say so. */
+  fieldsFilled: string[];
 }
 
 export interface ChannelSummary {
@@ -679,6 +705,18 @@ export const api = {
     request<{ items: Guest[] }>(
       `/properties/${propertyId}/guests${q ? `?q=${encodeURIComponent(q)}` : ''}`,
     ).then((body) => body.items),
+
+  guestDuplicates: (propertyId: string, guestId: string) =>
+    request<{ items: DuplicateGuest[] }>(
+      `/properties/${propertyId}/guests/${guestId}/duplicates`,
+    ).then((body) => body.items),
+
+  /** The guest in the path survives; the one in the body is folded into it. */
+  mergeGuest: (propertyId: string, survivorId: string, duplicateId: string) =>
+    request<MergeGuestResult>(`/properties/${propertyId}/guests/${survivorId}/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ duplicateId }),
+    }),
 
   channels: (propertyId: string) =>
     request<{ items: ChannelSummary[] }>(`/properties/${propertyId}/channels`).then(

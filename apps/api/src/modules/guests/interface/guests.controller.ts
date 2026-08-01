@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { errors } from '@deehub/shared';
 import { z } from 'zod';
@@ -13,6 +13,8 @@ import {
   type GuestRepository,
   type GuestSummary,
 } from '../domain/guest.repository';
+import { FindDuplicatesQuery } from '../application/find-duplicates.query';
+import { MergeGuestsUseCase } from '../application/merge-guests.usecase';
 
 const updateSchema = z
   .object({
@@ -26,6 +28,17 @@ const updateSchema = z
 
 type UpdateBody = z.infer<typeof updateSchema>;
 
+/**
+ * The survivor is the guest in the path; the duplicate is named in the body.
+ *
+ * Deliberately explicit rather than "merge these two and pick one" — the
+ * direction decides whose spelling, whose email and whose notes lead, and it is
+ * the operator looking at both records who knows.
+ */
+const mergeSchema = z.object({ duplicateId: z.string().uuid() }).strict();
+
+type MergeBody = z.infer<typeof mergeSchema>;
+
 /** Enough for a front desk to find someone; not a bulk export. */
 const MAX_RESULTS = 50;
 
@@ -35,6 +48,8 @@ export class GuestsController {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(GUEST_REPOSITORY) private readonly repo: GuestRepository,
+    private readonly duplicates: FindDuplicatesQuery,
+    private readonly merge: MergeGuestsUseCase,
     private readonly audit: AuditService,
   ) {}
 
@@ -55,8 +70,61 @@ export class GuestsController {
     return present(guest);
   }
 
+  @Get(':guestId/duplicates')
+  @RequireCapability('guest:read')
+  @ApiOperation({ summary: 'Other profiles that might be the same person' })
+  async duplicatesFor(@Param('guestId') guestId: string) {
+    const candidates = await this.duplicates.execute(guestId);
+    return {
+      items: candidates.map((candidate) => ({
+        // The same shape the list uses, minus the stay statistics: this is a
+        // decision about identity, and a stay count does not inform it.
+        id: candidate.guest.id,
+        firstName: candidate.guest.firstName,
+        lastName: candidate.guest.lastName,
+        email: candidate.guest.email,
+        phone: candidate.guest.phone,
+        nationality: candidate.guest.nationality,
+        notes: candidate.guest.notes,
+        signals: candidate.signals,
+        confidence: candidate.confidence,
+      })),
+    };
+  }
+
+  /**
+   * `guest:update` rather than a capability of its own.
+   *
+   * A merge is a heavier edit than correcting a spelling, and there was an
+   * argument for restricting it further. It lost: the people who notice a
+   * duplicate are the front desk seeing the same guest twice, and a permission
+   * only a manager holds means the duplicate is never fixed.
+   */
+  @Post(':guestId/merge')
+  @RequireCapability('guest:update')
+  @ApiOperation({ summary: 'Fold another profile into this one' })
+  async mergeInto(
+    @Param('guestId') guestId: string,
+    @Body(new ZodValidationPipe(mergeSchema)) body: MergeBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const result = await this.merge.execute(
+      { survivorId: guestId, duplicateId: body.duplicateId },
+      actorFrom(request),
+    );
+
+    const survivor = await this.repo.findById(this.db, result.survivorId);
+    if (!survivor) throw errors.notFound('Guest', result.survivorId);
+
+    return {
+      guest: present(survivor),
+      reservationsMoved: result.reservationsMoved,
+      fieldsFilled: result.fieldsFilled,
+    };
+  }
+
   // No DELETE: reservations point at a guest, and removing the profile would
-  // detach a stay from who took it.
+  // detach a stay from who took it. A duplicate is merged, not deleted.
   @Patch(':guestId')
   @RequireCapability('guest:update')
   @ApiOperation({ summary: 'Correct a guest profile' })

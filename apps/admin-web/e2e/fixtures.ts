@@ -27,6 +27,13 @@ export interface TestData {
   /** Dedicated to the password-reset spec, which also mutates its credential. */
   recoveryUserEmail: string;
   /**
+   * Genuinely read-only. Front desk is NOT a stand-in for this: it holds
+   * `guest:update` and several other write capabilities, so a spec that used
+   * it to prove "no editing controls" would be asserting the wrong thing on
+   * any screen a receptionist is meant to be able to change.
+   */
+  readOnlyEmail: string;
+  /**
    * Organization-wide OWNER. Every other fixture user is scoped to a property,
    * which deliberately confers no authority over other people.
    */
@@ -80,6 +87,7 @@ export async function seed(): Promise<TestData> {
     frontDeskEmail: `frontdesk-${short}@e2e.test`,
     passwordUserEmail: `password-${short}@e2e.test`,
     recoveryUserEmail: `recovery-${short}@e2e.test`,
+    readOnlyEmail: `readonly-${short}@e2e.test`,
     ownerEmail: `owner-${short}@e2e.test`,
     // Far future so these never collide with seed data or a real booking.
     dates: ['2030-04-01', '2030-04-02', '2030-04-03', '2030-04-04', '2030-04-05', '2030-04-06'],
@@ -120,6 +128,7 @@ export async function seed(): Promise<TestData> {
       [data.frontDeskEmail, 'FRONT_DESK'],
       [data.passwordUserEmail, 'MANAGER'],
       [data.recoveryUserEmail, 'MANAGER'],
+      [data.readOnlyEmail, 'READ_ONLY'],
     ] as const) {
       const userId = randomUUID();
       await pool.query(

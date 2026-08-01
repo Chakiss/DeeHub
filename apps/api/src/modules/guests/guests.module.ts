@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { InventoryModule } from '../inventory/inventory.module';
+import { FindDuplicatesQuery } from './application/find-duplicates.query';
 import { LinkGuestUseCase } from './application/link-guest.usecase';
+import { MergeGuestsUseCase } from './application/merge-guests.usecase';
 import { GUEST_REPOSITORY } from './domain/guest.repository';
 import { DrizzleGuestRepository } from './infrastructure/drizzle-guest.repository';
 import { GuestsController } from './interface/guests.controller';
@@ -15,7 +17,12 @@ import { GuestsController } from './interface/guests.controller';
 @Module({
   imports: [InventoryModule],
   controllers: [GuestsController],
-  providers: [{ provide: GUEST_REPOSITORY, useClass: DrizzleGuestRepository }, LinkGuestUseCase],
+  providers: [
+    { provide: GUEST_REPOSITORY, useClass: DrizzleGuestRepository },
+    LinkGuestUseCase,
+    FindDuplicatesQuery,
+    MergeGuestsUseCase,
+  ],
   exports: [GUEST_REPOSITORY, LinkGuestUseCase],
 })
 export class GuestsModule {}

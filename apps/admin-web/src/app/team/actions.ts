@@ -45,8 +45,9 @@ export interface ResetResult {
 }
 
 /**
- * The whole recovery story today. There is no outbound mail, so the new
- * credential comes back to the operator who asked for it and they relay it.
+ * Recovery for the case self-service cannot reach: a mailbox the person can no
+ * longer open. The new credential comes back to the operator who asked for it
+ * and they relay it — it is never stored and never logged.
  */
 export async function resetUserPassword(userId: string): Promise<ResetResult> {
   try {

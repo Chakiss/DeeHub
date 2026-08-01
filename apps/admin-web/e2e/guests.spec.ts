@@ -18,7 +18,7 @@ async function apiToken(request: import('@playwright/test').APIRequestContext): 
 async function book(
   request: import('@playwright/test').APIRequestContext,
   token: string,
-  booker: { name: string; email?: string },
+  booker: { name: string; email?: string; phone?: string },
   checkIn: string,
   checkOut: string,
 ): Promise<void> {
@@ -128,7 +128,86 @@ test.describe('guests', () => {
 
     await expect(page.getByRole('row', { name: /Anan Sirikul/ })).toHaveCount(1);
     await expect(page.getByRole('row', { name: /Benja Wattana/ })).toHaveCount(1);
-    await expect(page.getByText(/Shares an email with/).first()).toBeVisible();
+    await expect(page.getByText(/Might be the same person as/).first()).toBeVisible();
+  });
+
+  /**
+   * The fix for the problem the flag describes.
+   *
+   * The panel opens on the row that will be KEPT, because the direction decides
+   * whose spelling, email and notes lead — and nothing in the resulting data
+   * says which way round it went.
+   */
+  test('folds a mistyped duplicate into the profile the hotel keeps', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    await openForSale(request, token);
+
+    const surname = `Chaiyo${Date.now().toString(36)}`;
+    const phone = '081 234 5678';
+
+    // Same person, same handset, one letter wrong in the address the second
+    // time. Exactly the case that made a returning guest look like a new one.
+    await book(
+      request,
+      token,
+      { name: `Nid ${surname}`, email: `nid@example.com`, phone },
+      NIGHTS[0]!,
+      NIGHTS[1]!,
+    );
+    await book(
+      request,
+      token,
+      { name: `Nid ${surname}`, email: `ndi@example.com`, phone: '+66 81 234 5678' },
+      NIGHTS[2]!,
+      NIGHTS[3]!,
+    );
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/guests?q=${surname}`);
+    await expect(page.getByRole('row', { name: new RegExp(surname) })).toHaveCount(2);
+
+    // Keep the first profile — the one with the correct address.
+    const survivor = page.getByRole('row', { name: /nid@example\.com/ });
+    await survivor.getByRole('button', { name: /Might be the same person as/ }).click();
+
+    // The phone matched across two spellings of one number.
+    await expect(page.getByText('Very likely').first()).toBeVisible();
+    await expect(page.getByText(/same phone/).first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Fold into this profile' }).first().click();
+    // Named in full before it happens: this cannot be undone.
+    await expect(page.getByText(/This cannot be undone/)).toBeVisible();
+    await page.getByRole('button', { name: 'Merge', exact: true }).click();
+
+    await expect(page.getByRole('status')).toContainText('1 booking');
+
+    await page.goto(`/properties/${data.propertyId}/guests?q=${surname}`);
+    const remaining = page.getByRole('row', { name: new RegExp(surname) });
+    await expect(remaining).toHaveCount(1);
+    // Both stays now sit on one profile, which is the whole point.
+    await expect(remaining).toContainText('2');
+    await expect(remaining).toContainText('nid@example.com');
+  });
+
+  test('offers no merge control to someone who cannot edit guests', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    await openForSale(request, token);
+    const shared = `desk${Date.now().toString(36)}@example.com`;
+
+    await book(request, token, { name: 'Anan Sirikul', email: shared }, NIGHTS[0]!, NIGHTS[1]!);
+    await book(request, token, { name: 'Benja Wattana', email: shared }, NIGHTS[2]!, NIGHTS[3]!);
+
+    // A genuinely read-only user: front desk HOLDS guest:update, so it would
+    // prove nothing here.
+    await login(page, data.readOnlyEmail);
+    await page.goto(`/properties/${data.propertyId}/guests?q=${shared}`);
+
+    // The flag still shows: knowing the guest book has duplicates in it is
+    // useful even to someone who cannot fix them.
+    await expect(page.getByText(/Might be the same person as/).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Might be the same person as/ })).toHaveCount(0);
   });
 
   test('says nobody matches rather than showing an empty table', async ({ page }) => {

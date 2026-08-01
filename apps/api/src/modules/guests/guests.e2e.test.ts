@@ -304,6 +304,330 @@ describeIfDb('Guests', () => {
     expect(serialized).not.toContain('document_number');
   });
 
+  describe('finding and merging duplicates', () => {
+    /** Book, then read back the profile the booking created. */
+    async function bookAndFind(
+      booker: { name: string; email?: string; phone?: string },
+      checkIn = DATES[0]!,
+      checkOut = DATES[1]!,
+    ): Promise<string> {
+      const reservation = await book(booker, checkIn, checkOut);
+      const { rows } = await pool.query<{ guest_id: string }>(
+        'SELECT guest_id FROM reservations WHERE id = $1',
+        [reservation.id],
+      );
+      return rows[0]!.guest_id;
+    }
+
+    function duplicatesOf(guestId: string) {
+      return request(app.getHttpServer())
+        .get(`/api/v1/properties/${propertyId}/guests/${guestId}/duplicates`)
+        .set(auth())
+        .expect(200);
+    }
+
+    it('offers a candidate that shares an email, and calls it uncertain', async () => {
+      const somchai = await bookAndFind({ name: 'Somchai Prasert', email: 'info@company.co.th' });
+      await bookAndFind({ name: 'Malee Wong', email: 'info@company.co.th' }, DATES[2]!, DATES[3]!);
+
+      const response = await duplicatesOf(somchai);
+      expect(response.body.items).toHaveLength(1);
+      // A shared inbox is common enough that an email alone is not proof.
+      expect(response.body.items[0]).toMatchObject({
+        firstName: 'Malee',
+        signals: ['EMAIL'],
+        confidence: 'MEDIUM',
+      });
+    });
+
+    it('recognises one mobile written two ways', async () => {
+      const local = await bookAndFind({ name: 'Ploy A', phone: '081 234 5678' });
+      await bookAndFind({ name: 'Ploy B', phone: '+66 81 234 5678' }, DATES[2]!, DATES[3]!);
+
+      const response = await duplicatesOf(local);
+      expect(response.body.items).toHaveLength(1);
+      expect(response.body.items[0]).toMatchObject({ signals: ['PHONE'], confidence: 'HIGH' });
+    });
+
+    it('finds a returning guest who mistyped their email', async () => {
+      // The case the whole feature exists for.
+      const first = await bookAndFind({
+        name: 'Somchai Prasert',
+        email: 'somchai@example.com',
+        phone: '0812345678',
+      });
+      await bookAndFind(
+        { name: 'Somchai Prasert', email: 'somchia@example.com', phone: '0812345678' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      const response = await duplicatesOf(first);
+      expect(response.body.items[0]).toMatchObject({
+        signals: ['NAME', 'PHONE'],
+        confidence: 'HIGH',
+      });
+    });
+
+    it('offers nobody when there is nothing to match on', async () => {
+      const alone = await bookAndFind({ name: 'Nadia Chen', email: 'nadia@example.com' });
+      await bookAndFind({ name: 'Kwan Lee', email: 'kwan@example.com' }, DATES[2]!, DATES[3]!);
+
+      expect((await duplicatesOf(alone)).body.items).toHaveLength(0);
+    });
+
+    it('moves the stays onto the survivor and leaves one profile', async () => {
+      const survivor = await bookAndFind({
+        name: 'Somchai Prasert',
+        email: 'somchai@example.com',
+        phone: '0812345678',
+      });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'somchia@example.com', phone: '0812345678' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      const merged = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: duplicate })
+        .expect(201);
+
+      expect(merged.body.reservationsMoved).toBe(1);
+      // A split history is what made the returning guest invisible.
+      expect(merged.body.guest).toMatchObject({ id: survivor, stays: 2 });
+
+      const list = await request(app.getHttpServer())
+        .get(`/api/v1/properties/${propertyId}/guests`)
+        .set(auth())
+        .expect(200);
+      expect(list.body.items).toHaveLength(1);
+      expect(list.body.items[0].id).toBe(survivor);
+    });
+
+    it('keeps the survivor own details and fills only its blanks', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'kept@example.com' });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'other@example.com', phone: '0812345678' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      const merged = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: duplicate })
+        .expect(201);
+
+      // The direction is the operator's choice; it has to mean something.
+      expect(merged.body.guest.email).toBe('kept@example.com');
+      expect(merged.body.guest.phone).toBe('0812345678');
+      expect(merged.body.fieldsFilled).toContain('phone');
+      expect(merged.body.fieldsFilled).not.toContain('email');
+    });
+
+    it('keeps both notes rather than choosing one', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'a@example.com' });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'b@example.com' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      for (const [id, note] of [
+        [survivor, 'Allergic to nuts'],
+        [duplicate, 'Prefers a high floor'],
+      ] as const) {
+        await request(app.getHttpServer())
+          .patch(`/api/v1/properties/${propertyId}/guests/${id}`)
+          .set(auth())
+          .send({ notes: note })
+          .expect(200);
+      }
+
+      const merged = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: duplicate })
+        .expect(201);
+
+      // An allergy is exactly the thing nobody can reconstruct later.
+      expect(merged.body.guest.notes).toContain('Allergic to nuts');
+      expect(merged.body.guest.notes).toContain('Prefers a high floor');
+    });
+
+    it('leaves the folded profile unreachable but not deleted', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'a@example.com' });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'b@example.com' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: duplicate })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .get(`/api/v1/properties/${propertyId}/guests/${duplicate}`)
+        .set(auth())
+        .expect(404);
+
+      // Still there, pointing at where its history went.
+      const { rows } = await pool.query<{ merged_into_id: string | null }>(
+        'SELECT merged_into_id FROM guests WHERE id = $1',
+        [duplicate],
+      );
+      expect(rows[0]?.merged_into_id).toBe(survivor);
+    });
+
+    it('refuses to merge a profile into itself', async () => {
+      const guestId = await bookAndFind({ name: 'Somchai Prasert', email: 'a@example.com' });
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${guestId}/merge`)
+        .set(auth())
+        .send({ duplicateId: guestId })
+        .expect(422);
+    });
+
+    it('refuses to merge the same profile twice', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'a@example.com' });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'b@example.com' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      for (const expected of [201, 422]) {
+        await request(app.getHttpServer())
+          .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+          .set(auth())
+          .send({ duplicateId: duplicate })
+          .expect(expected);
+      }
+    });
+
+    it('refuses to merge into a profile that has itself been folded away', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'a@example.com' });
+      const middle = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'b@example.com' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+      const third = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'c@example.com' },
+        DATES[1]!,
+        DATES[2]!,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: middle })
+        .expect(201);
+
+      // Stays behind a tombstone would be invisible to every read path.
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${middle}/merge`)
+        .set(auth())
+        .send({ duplicateId: third })
+        .expect(422);
+    });
+
+    it('never offers a folded profile as a candidate again', async () => {
+      const survivor = await bookAndFind({
+        name: 'Somchai Prasert',
+        email: 'a@example.com',
+        phone: '0812345678',
+      });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'b@example.com', phone: '0812345678' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: duplicate })
+        .expect(201);
+
+      expect((await duplicatesOf(survivor)).body.items).toHaveLength(0);
+    });
+
+    it('records both sides in the audit trail, without the document number', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'a@example.com' });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'b@example.com' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: duplicate })
+        .expect(201);
+
+      const { rows } = await pool.query<{ action: string; entity_id: string; after: unknown }>(
+        `SELECT action, entity_id, after FROM audit_logs
+          WHERE organization_id = $1 AND action LIKE 'guest.merged%'
+            AND entity_id IN ($2, $3)
+          ORDER BY action`,
+        [orgId, survivor, duplicate],
+      );
+
+      // One entry per profile: an investigator arrives holding one id, not both.
+      expect(rows.map((row) => row.action)).toEqual(['guest.merged', 'guest.merged_away']);
+      expect(rows.find((row) => row.action === 'guest.merged')?.entity_id).toBe(survivor);
+      expect(rows.find((row) => row.action === 'guest.merged_away')?.entity_id).toBe(duplicate);
+      // The audit table is not encrypted; the column it would copy from is.
+      expect(JSON.stringify(rows)).not.toContain('documentNumberEncrypted');
+    });
+
+    it('does not let a new booking attach to a folded profile', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'keep@example.com' });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'gone@example.com' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .set(auth())
+        .send({ duplicateId: duplicate })
+        .expect(201);
+
+      // Booking again with the folded address must not resurrect it: the stay
+      // would land on a record nothing reads.
+      const again = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'gone@example.com' },
+        DATES[1]!,
+        DATES[2]!,
+      );
+      expect(again).not.toBe(duplicate);
+    });
+
+    it('refuses a merge from a read-only user', async () => {
+      const survivor = await bookAndFind({ name: 'Somchai Prasert', email: 'a@example.com' });
+      const duplicate = await bookAndFind(
+        { name: 'Somchai Prasert', email: 'b@example.com' },
+        DATES[2]!,
+        DATES[3]!,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/guests/${survivor}/merge`)
+        .send({ duplicateId: duplicate })
+        .expect(401);
+    });
+  });
+
   it('is scoped to the organization', async () => {
     await book({ name: 'Somchai Prasert', email: 'somchai@example.com' });
     const list = await request(app.getHttpServer())
