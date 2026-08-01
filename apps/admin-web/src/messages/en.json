@@ -638,6 +638,16 @@
     "externalReservation": "OTA reference",
     "syncDisabledWarning": "Channel sync is switched off in this deployment, so an active channel will not push anything until CHANNEL_SYNC_ENABLED is turned on.",
     "createTitle": "New channel",
-    "nameRequired": "Give the channel a name."
+    "nameRequired": "Give the channel a name.",
+    "testConnection": "Test connection",
+    "testOk": "The channel answered in {ms}ms.",
+    "testNotOk": "The channel did not accept us: {detail}",
+    "testFailed": "The test could not be run",
+    "syncNow": "Push everything now",
+    "syncNeedsActive": "Only an active channel can be pushed to.",
+    "syncHint": "Sends the whole horizon again. Useful after fixing a mapping, or when you do not trust what the OTA is showing.",
+    "syncOk": "Pushed {nights} nights for {rooms} room type(s).",
+    "syncPartial": "{failed} of {rooms} room type(s) failed. The rest were pushed.",
+    "syncFailed": "The push could not be started"
   }
 }

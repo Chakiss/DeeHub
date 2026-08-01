@@ -3,7 +3,9 @@ import { AesCredentialCipher, CREDENTIAL_CIPHER } from '../../common/crypto/cred
 import { InventoryModule } from '../inventory/inventory.module';
 import { RatesModule } from '../rates/rates.module';
 import { DeliverReservationUseCase } from './application/deliver-reservation.usecase';
+import { ForceSyncUseCase } from './application/force-sync.usecase';
 import { PushAriUseCase } from './application/push-ari.usecase';
+import { TestChannelConnectionUseCase } from './application/test-channel-connection.usecase';
 import { ReceiveWebhookUseCase } from './application/receive-webhook.usecase';
 import { ListChannelsQuery } from './application/list-channels.query';
 import { ManageChannelUseCase } from './application/manage-channel.usecase';
@@ -41,6 +43,8 @@ import { ReservationsModule } from '../reservations/reservations.module';
     DeliverReservationUseCase,
     ListChannelsQuery,
     ManageChannelUseCase,
+    TestChannelConnectionUseCase,
+    ForceSyncUseCase,
   ],
   exports: [
     PushAriUseCase,

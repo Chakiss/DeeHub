@@ -361,4 +361,164 @@ describeIfDb('Channel administration', () => {
 
     expect(response.body.lastError).toBeNull();
   });
+
+  /**
+   * The two operator actions that talk to the channel rather than to us.
+   *
+   * `testConnection` had been on the connector port since the framework was
+   * written and nothing called it, so a wrong credential could only be found by
+   * activating a channel and waiting for a booking that never came.
+   */
+  describe('test connection', () => {
+    it('reports a channel it cannot reach without failing the request', async () => {
+      const channelId = await createChannel({
+        credentials: { baseUrl: 'http://127.0.0.1:9', apiKey: 'k', webhookSecret: 's' },
+      });
+
+      // Port 9 is the discard protocol: nothing listens, so the connector's own
+      // error path runs. A failed test is a successful answer to the question.
+      const response = await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/test-connection`)
+        .set(auth())
+        .expect(200);
+
+      expect(response.body.ok).toBe(false);
+      expect(response.body.detail).toBeTruthy();
+    });
+
+    it('writes the outcome to the health strip so it survives a reload', async () => {
+      const channelId = await createChannel({
+        credentials: { baseUrl: 'http://127.0.0.1:9', apiKey: 'k', webhookSecret: 's' },
+      });
+      await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/test-connection`)
+        .set(auth())
+        .expect(200);
+
+      const detail = await request(app.getHttpServer())
+        .get(`${base()}/${channelId}`)
+        .set(auth())
+        .expect(200);
+      expect(detail.body.lastError).toBeTruthy();
+    });
+
+    it('records the attempt without the credentials that were used', async () => {
+      const channelId = await createChannel({
+        credentials: { baseUrl: 'http://127.0.0.1:9', apiKey: 'super-secret-key' },
+      });
+      await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/test-connection`)
+        .set(auth())
+        .expect(200);
+
+      // Scoped to this channel: audit rows accumulate across the cases above.
+      const { rows } = await pool.query(
+        `SELECT after FROM audit_logs
+          WHERE organization_id = $1 AND action = 'channel.connection_tested'
+            AND entity_id = $2`,
+        [orgId, channelId],
+      );
+      expect(rows).toHaveLength(1);
+      expect(JSON.stringify(rows)).not.toContain('super-secret-key');
+    });
+
+    it('refuses a channel at another property', async () => {
+      const channelId = await createChannel();
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${otherPropertyId}/channels/${channelId}/test-connection`)
+        .set(auth())
+        .expect(404);
+    });
+  });
+
+  describe('forced sync', () => {
+    it('refuses a channel that is not selling', async () => {
+      const channelId = await createChannel();
+
+      // Pushing to an inactive channel would make an OTA start selling rooms
+      // the hotel deliberately took off it.
+      await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/sync`)
+        .set(auth())
+        .expect(409);
+    });
+
+    it('refuses a channel with nothing mapped', async () => {
+      const channelId = await createChannel();
+      // Activation demands mappings, so an ACTIVE channel with none can only be
+      // reached by removing them afterwards — which is exactly what happens
+      // when somebody adds a room type and re-saves.
+      await mapEverything(channelId).expect(200);
+      await request(app.getHttpServer())
+        .patch(`${base()}/${channelId}`)
+        .set(auth())
+        .send({ status: 'ACTIVE' })
+        .expect(200);
+      await pool.query('DELETE FROM channel_room_type_mappings WHERE channel_id = $1', [channelId]);
+
+      await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/sync`)
+        .set(auth())
+        .expect(409);
+    });
+
+    it('reports a per-room-type outcome rather than abandoning the push', async () => {
+      const channelId = await createChannel({
+        credentials: { baseUrl: 'http://127.0.0.1:9', apiKey: 'k', webhookSecret: 's' },
+      });
+      await mapEverything(channelId).expect(200);
+      await request(app.getHttpServer())
+        .patch(`${base()}/${channelId}`)
+        .set(auth())
+        .send({ status: 'ACTIVE' })
+        .expect(200);
+
+      const response = await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/sync`)
+        .set(auth())
+        .expect(200);
+
+      // Both mapped room types are attempted even though the channel is
+      // unreachable: abandoning on the first failure leaves the OTA in a worse
+      // state than before the button was pressed.
+      expect(response.body.roomTypes).toHaveLength(2);
+      expect(response.body.nights).toBeGreaterThan(0);
+      for (const row of response.body.roomTypes as { error: string | null }[]) {
+        expect(row.error).toBeTruthy();
+      }
+    });
+
+    it('records what was pushed and over which window', async () => {
+      const channelId = await createChannel({
+        credentials: { baseUrl: 'http://127.0.0.1:9', apiKey: 'k', webhookSecret: 's' },
+      });
+      await mapEverything(channelId).expect(200);
+      await request(app.getHttpServer())
+        .patch(`${base()}/${channelId}`)
+        .set(auth())
+        .send({ status: 'ACTIVE' })
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/sync`)
+        .set(auth())
+        .expect(200);
+
+      const { rows } = await pool.query<{ after: Record<string, unknown> }>(
+        `SELECT after FROM audit_logs
+          WHERE organization_id = $1 AND action = 'channel.force_synced'
+            AND entity_id = $2`,
+        [orgId, channelId],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.after['nights']).toBeGreaterThan(0);
+    });
+
+    it('refuses a read-only user', async () => {
+      const channelId = await createChannel();
+      await request(app.getHttpServer())
+        .post(`${base()}/${channelId}/sync`)
+        .set({ Authorization: `Bearer ${readerToken}` })
+        .expect(403);
+    });
+  });
 });

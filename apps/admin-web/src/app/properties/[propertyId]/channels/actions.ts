@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache';
 import {
   ApiError,
   api,
+  type ConnectionTest,
   type CreateChannelInput,
+  type ForceSyncResult,
   type MappingInput,
   type UpdateChannelInput,
 } from '@/lib/api';
@@ -80,6 +82,44 @@ export async function replaceMappings(
     await api.replaceChannelMappings(propertyId, channelId, { roomTypes, ratePlans });
     revalidate(propertyId, channelId);
     return { ok: true, channelId };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export interface ConnectionTestResult extends ChannelActionResult {
+  readonly test?: ConnectionTest;
+}
+
+/**
+ * A failed test comes back `ok: true` with `test.ok: false`.
+ *
+ * The action succeeded — we asked the channel and it answered — and collapsing
+ * the two would make a wrong API key render as "could not reach the server",
+ * which sends somebody to look at the wrong thing.
+ */
+export async function testChannelConnection(
+  propertyId: string,
+  channelId: string,
+): Promise<ConnectionTestResult> {
+  try {
+    const test = await api.testChannelConnection(propertyId, channelId);
+    revalidate(propertyId, channelId);
+    return { ok: true, test };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export interface SyncResult extends ChannelActionResult {
+  readonly sync?: ForceSyncResult;
+}
+
+export async function syncChannel(propertyId: string, channelId: string): Promise<SyncResult> {
+  try {
+    const sync = await api.syncChannel(propertyId, channelId);
+    revalidate(propertyId, channelId);
+    return { ok: true, sync };
   } catch (error) {
     return failure(error);
   }

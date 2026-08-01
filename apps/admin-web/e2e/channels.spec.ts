@@ -118,4 +118,42 @@ test.describe('channels', () => {
     // channel:create is ADMIN and above.
     await expect(page.getByRole('button', { name: 'Add channel' })).toHaveCount(0);
   });
+
+  /**
+   * The two buttons that talk to the OTA rather than to us.
+   *
+   * The fixture channel points at a mock endpoint that is not running, so both
+   * come back refused — which is the interesting case: the screen has to tell a
+   * failed CONVERSATION apart from a failed REQUEST, because they send somebody
+   * to look at completely different things.
+   */
+  test('reports a channel it cannot reach without looking like a broken page', async ({ page }) => {
+    const data = testData();
+    // Only ADMIN and above may create a channel; the fixture manager cannot.
+    await login(page, data.ownerEmail);
+    await page.goto(`/properties/${data.propertyId}/channels`);
+    await page.getByRole('button', { name: 'Add channel' }).click();
+    await page.getByLabel('Name', { exact: true }).fill(`Reach ${Date.now().toString(36)}`);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForURL(/\/channels\/[0-9a-f-]{36}$/);
+
+    await page.getByRole('button', { name: 'Test connection' }).click();
+
+    // A status, not an alert: the request worked and the answer was no.
+    await expect(page.getByRole('status')).toContainText('did not accept us');
+  });
+
+  test('offers no push until the channel is actually selling', async ({ page }) => {
+    const data = testData();
+    await login(page, data.ownerEmail);
+    await page.goto(`/properties/${data.propertyId}/channels`);
+    await page.getByRole('button', { name: 'Add channel' }).click();
+    await page.getByLabel('Name', { exact: true }).fill(`Push ${Date.now().toString(36)}`);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForURL(/\/channels\/[0-9a-f-]{36}$/);
+
+    // Pushing to an inactive channel would make an OTA start selling rooms the
+    // hotel deliberately took off it.
+    await expect(page.getByRole('button', { name: 'Push everything now' })).toBeDisabled();
+  });
 });

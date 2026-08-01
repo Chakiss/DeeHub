@@ -621,6 +621,26 @@ export interface InboundBookingSummary {
   reservationId: string | null;
 }
 
+export interface ConnectionTest {
+  ok: boolean;
+  detail: string;
+  latencyMs: number;
+}
+
+export interface ForceSyncResult {
+  from: string;
+  to: string;
+  nights: number;
+  roomTypes: {
+    roomTypeId: string;
+    accepted: number;
+    rejected: number;
+    warnings: string[];
+    /** Set when that room type failed; the others were still attempted. */
+    error: string | null;
+  }[];
+}
+
 export interface ChannelDetail extends ChannelSummary {
   roomTypeMappings: ChannelMapping[];
   ratePlanMappings: ChannelMapping[];
@@ -868,6 +888,16 @@ export const api = {
     request<ChannelDetail>(`/properties/${propertyId}/channels/${channelId}/mappings`, {
       method: 'PUT',
       body: JSON.stringify(input),
+    }),
+
+  testChannelConnection: (propertyId: string, channelId: string) =>
+    request<ConnectionTest>(`/properties/${propertyId}/channels/${channelId}/test-connection`, {
+      method: 'POST',
+    }),
+
+  syncChannel: (propertyId: string, channelId: string) =>
+    request<ForceSyncResult>(`/properties/${propertyId}/channels/${channelId}/sync`, {
+      method: 'POST',
     }),
 
   notifications: (propertyId: string, params: Record<string, string> = {}) => {

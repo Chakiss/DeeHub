@@ -847,8 +847,8 @@ an owner's properties.
 | `GET` `POST`  | `/properties/{pid}/channels`                      | `channel:read` / `channel:create` |
 | `GET` `PATCH` | `/properties/{pid}/channels/{id}`                 | `channel:read` / `channel:update` |
 | `PUT`         | `/properties/{pid}/channels/{id}/mappings`        | `channel:update`                  |
-| `POST`        | `/properties/{pid}/channels/{id}/test-connection` | `channel:update` — NOT BUILT      |
-| `POST`        | `/properties/{pid}/channels/{id}/sync`            | `channel:sync` — NOT BUILT        |
+| `POST`        | `/properties/{pid}/channels/{id}/test-connection` | `channel:sync`                    |
+| `POST`        | `/properties/{pid}/channels/{id}/sync`            | `channel:sync`                    |
 
 Credentials are write-only: accepted on `POST`/`PATCH`, never returned. Reads
 show `"hasCredentials": true` and nothing more. They are absent from the audit
@@ -870,8 +870,69 @@ recent sync jobs, and the inbound bookings received. One screen, one request.
 The list endpoint carries the health summary (`status`, `lastSyncAt`,
 `lastError`, mapped-versus-total room types) so the strip needs no extra call.
 
-Two endpoints in the original plan are **not built**: `test-connection` and a
-forced `sync`. Neither has a connector-level operation behind it yet.
+**`POST /test-connection`** asks the channel whether the credentials work.
+`testConnection` had been on the connector port since the framework was written
+and nothing ever called it, so a wrong credential could only be discovered by
+activating the channel and waiting for a booking that never came.
+
+A refusal from the OTA answers with `200` and `{ "ok": false, "detail": … }`.
+The request succeeded and the answer was no; an HTTP error would render a
+configuration problem as a network one and send somebody to look at the wrong
+thing. The outcome is written to `lastError` so it survives a reload, and
+deliberately does NOT change `status` — an inactive channel that fails a test is
+switched off, not broken, and moving it to `ERROR` would also collide with the
+partial unique index permitting one non-inactive channel per type per property.
+Status belongs to the operator and to the sync engine.
+
+Both endpoints require `channel:sync` rather than `channel:read`. Testing looks
+like a read and is not: it opens an authenticated connection to a third party
+using the hotel's credentials, and rate limits at the other end are real.
+
+**`POST /sync`** pushes the whole horizon for every mapped room type, now. The
+sync engine is event-driven, which is right for the steady state and cannot help
+in the three cases an operator hits: the channel was inactive while prices
+changed, a mapping was fixed after a failed push, or nobody trusts what the OTA
+is currently showing.
+
+It runs INLINE rather than enqueuing. The operator clicked a button and should
+see the result, not a job id — and enqueuing needs Redis, which a deployment
+with `enable_channel_sync` off does not have. **A forced sync is therefore the
+only way such a deployment can push at all**, which is a capability rather than
+a workaround.
+
+Refused with `409` for a channel that is not `ACTIVE` (pushing would make an OTA
+start selling rooms the hotel deliberately took off it) or one with no room type
+mapped. One room type failing does NOT abandon the rest: each is reported
+separately, because a missing rate mapping on one room type is a local problem
+and giving up would leave the channel worse than before the button was pressed.
+
+```jsonc
+// POST /properties/{pid}/channels/{id}/sync → 200
+{
+  "from": "2026-08-01",
+  "to": "2027-08-01",
+  "nights": 365,
+  "roomTypes": [
+    { "roomTypeId": "0191…", "accepted": 365, "rejected": 0, "warnings": [], "error": null },
+    {
+      "roomTypeId": "0192…",
+      "accepted": 0,
+      "rejected": 0,
+      "warnings": [],
+      "error": "No rate plan mapped for this room type",
+    },
+  ],
+}
+```
+
+**No real OTA connector is written.** Creating a channel of a type with no
+connector is already refused, so the gap is visible rather than latent. Writing
+an Agoda adapter needs its certification pack — endpoint URLs, message schemas
+and a test account — and an adapter written against a guess at the wire format
+would pass the contract suite while being wrong about the protocol, which is
+worse than not having one. Everything up to that point is built: the port, the
+registry, the contract test suite the Mock OTA passes, mapping, ARI assembly,
+retry and dead-lettering, inbound webhooks, test-connection and forced sync.
 
 ### 6.9 Inbound webhooks (OTA → DeeHub)
 

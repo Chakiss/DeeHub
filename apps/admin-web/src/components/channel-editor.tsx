@@ -4,7 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import type { ChannelDetail, MappingInput } from '@/lib/api';
-import { replaceMappings, updateChannel } from '@/app/properties/[propertyId]/channels/actions';
+import {
+  replaceMappings,
+  syncChannel,
+  testChannelConnection,
+  updateChannel,
+} from '@/app/properties/[propertyId]/channels/actions';
 
 interface Draft {
   externalId: string;
@@ -45,6 +50,7 @@ export function ChannelEditor({
 
   const [error, setError] = useState<string | null>(null);
   const [unmapped, setUnmapped] = useState<string[]>([]);
+  const [outcome, setOutcome] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   function run(action: () => ReturnType<typeof updateChannel>) {
@@ -61,6 +67,55 @@ export function ChannelEditor({
       const details = result.error?.details as { unmapped?: string[] } | undefined;
       if (details?.unmapped) setUnmapped(details.unmapped);
       setError(result.error?.message ?? null);
+    });
+  }
+
+  /**
+   * Ask the channel whether the credentials work.
+   *
+   * A refusal from the OTA is NOT an error here: the request succeeded and the
+   * answer was no. Rendering it as a failure would send somebody to look at
+   * their network when the problem is an API key.
+   */
+  function test() {
+    setError(null);
+    setOutcome(null);
+    startTransition(async () => {
+      const result = await testChannelConnection(propertyId, channel.id);
+      if (!result.ok || !result.test) {
+        setError(result.error?.message ?? t('testFailed'));
+        return;
+      }
+      setOutcome({
+        ok: result.test.ok,
+        text: result.test.ok
+          ? t('testOk', { ms: result.test.latencyMs })
+          : t('testNotOk', { detail: result.test.detail }),
+      });
+      router.refresh();
+    });
+  }
+
+  function sync() {
+    setError(null);
+    setOutcome(null);
+    startTransition(async () => {
+      const result = await syncChannel(propertyId, channel.id);
+      if (!result.ok || !result.sync) {
+        setError(result.error?.message ?? t('syncFailed'));
+        return;
+      }
+      // Per room type, because one failing does not stop the others and
+      // "synced" over a partial push is the lie that matters here.
+      const failed = result.sync.roomTypes.filter((row) => row.error !== null).length;
+      setOutcome({
+        ok: failed === 0,
+        text:
+          failed === 0
+            ? t('syncOk', { nights: result.sync.nights, rooms: result.sync.roomTypes.length })
+            : t('syncPartial', { failed, rooms: result.sync.roomTypes.length }),
+      });
+      router.refresh();
     });
   }
 
@@ -137,6 +192,40 @@ export function ChannelEditor({
             ))}
           {!fullyMapped && <span className="text-xs text-amber-700">{t('activateBlocked')}</span>}
         </div>
+
+        {canEdit && (
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={test}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {t('testConnection')}
+            </button>
+            <button
+              type="button"
+              disabled={pending || channel.status !== 'ACTIVE'}
+              title={channel.status === 'ACTIVE' ? undefined : t('syncNeedsActive')}
+              onClick={sync}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {t('syncNow')}
+            </button>
+            <span className="text-xs text-slate-400">{t('syncHint')}</span>
+          </div>
+        )}
+
+        {outcome && (
+          <p
+            role="status"
+            className={`mt-2 rounded-md px-3 py-2 text-sm ${
+              outcome.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
+            }`}
+          >
+            {outcome.text}
+          </p>
+        )}
       </Card>
 
       <Card title={t('mappingsHeading')}>

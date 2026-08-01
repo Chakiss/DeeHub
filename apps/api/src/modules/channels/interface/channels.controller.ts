@@ -8,6 +8,8 @@ import type { AuditActor } from '../../../common/audit/audit.service';
 import { CHANNEL_TYPES } from '../domain/channel-connector';
 import { ListChannelsQuery } from '../application/list-channels.query';
 import { ManageChannelUseCase } from '../application/manage-channel.usecase';
+import { ForceSyncUseCase } from '../application/force-sync.usecase';
+import { TestChannelConnectionUseCase } from '../application/test-channel-connection.usecase';
 
 /**
  * Free-form because every OTA names its secrets differently — Booking.com wants
@@ -61,6 +63,8 @@ export class ChannelsController {
   constructor(
     private readonly channels: ListChannelsQuery,
     private readonly manage: ManageChannelUseCase,
+    private readonly testConnection: TestChannelConnectionUseCase,
+    private readonly forceSync: ForceSyncUseCase,
   ) {}
 
   @Get()
@@ -140,6 +144,40 @@ export class ChannelsController {
       this.actor(request),
     );
     return this.channels.byId(propertyId, channelId);
+  }
+
+  /**
+   * `channel:sync` rather than `channel:read`.
+   *
+   * It looks like a read — nothing in DeeHub changes — but it opens an
+   * authenticated connection to a third party using the hotel's credentials,
+   * and rate limits at the other end are real. That belongs to whoever is
+   * allowed to talk to the channel at all.
+   */
+  @Post(':channelId/test-connection')
+  @HttpCode(200)
+  @RequireCapability('channel:sync')
+  @ApiOperation({ summary: 'Ask the channel whether the credentials work' })
+  async test(
+    @Param('propertyId') propertyId: string,
+    @Param('channelId') channelId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    // A failed test is a 200: the request worked, the credential did not, and
+    // an HTTP error would show a network problem where there is a config one.
+    return this.testConnection.execute({ propertyId, channelId }, this.actor(request));
+  }
+
+  @Post(':channelId/sync')
+  @HttpCode(200)
+  @RequireCapability('channel:sync')
+  @ApiOperation({ summary: 'Push the whole horizon to this channel now' })
+  async sync(
+    @Param('propertyId') propertyId: string,
+    @Param('channelId') channelId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.forceSync.execute({ propertyId, channelId }, this.actor(request));
   }
 
   private actor(request: AuthenticatedRequest): AuditActor {

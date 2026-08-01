@@ -72,7 +72,8 @@ Phase 4 with it. Delivered:
 - **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking
   forward — what has been taken for the nights ahead since a week ago.
 - **Channels**: created, credentialed, mapped and activated from the
-  dashboard rather than by hand-written SQL.
+  dashboard rather than by hand-written SQL, with a connection test and a
+  forced full push that works even without the always-on worker.
 - **Notifications**: booking confirmations and cancellations to guests in
   Thai or English, and an alert to the desk when a channel sells a room —
   with a delivery log showing what was sent and what was not.
@@ -87,11 +88,15 @@ Phase 4 with it. Delivered:
 
 **What a pilot property still cannot do**, in the order it will hurt:
 
-1. **Sell through an OTA.** The connector framework and Mock OTA work end to
-   end and a channel can now be configured from the dashboard, but no real
-   channel is connected, `test-connection` and forced sync are not built, and
-   pushing anything at all requires `enable_channel_sync`, which adds Redis
-   and an always-on worker (roughly $80/month on top of the current ~$22).
+1. **Sell through an OTA.** Everything up to the adapter is built: the port,
+   the registry, the contract suite the Mock OTA passes, mapping, ARI assembly,
+   retry and dead-lettering, inbound webhooks, and now test-connection and a
+   forced full sync that runs inline — so a deployment with
+   `enable_channel_sync` off can push manually without Redis. What is missing
+   is a REAL connector, which needs Agoda's certification pack (endpoints,
+   schemas, a test account). Event-driven sync still needs
+   `enable_channel_sync`: Redis and an always-on worker, roughly $80/month on
+   top of the current ~$22.
 2. **Deliver a confirmation to a guest.** Mail goes out for real — proved end
    to end through the production path — but the Resend account has no verified
    domain, so `onboarding@resend.dev` is the only working sender and it

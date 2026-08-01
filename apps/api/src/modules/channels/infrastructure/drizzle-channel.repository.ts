@@ -69,6 +69,17 @@ export class DrizzleChannelRepository implements ChannelRepository {
     };
   }
 
+  async findMappedRoomTypeIds(tx: Executor, channelId: string): Promise<readonly string[]> {
+    const rows = await tx
+      .select({ roomTypeId: channelRoomTypeMappings.roomTypeId })
+      .from(channelRoomTypeMappings)
+      // Keyed on the channel id, like every other read here: this repository
+      // is used by the worker outside any request scope, and the channel id is
+      // the value a caller cannot forge into another tenant.
+      .where(eq(channelRoomTypeMappings.channelId, channelId));
+    return rows.map((row) => row.roomTypeId);
+  }
+
   async findRoomTypeMapping(
     tx: Executor,
     channelId: string,
@@ -126,6 +137,27 @@ export class DrizzleChannelRepository implements ChannelRepository {
       startedAt: job.startedAt,
       completedAt: job.completedAt,
     });
+  }
+
+  async recordConnectionTest(
+    tx: Executor,
+    channelId: string,
+    at: Date,
+    error: string | null,
+  ): Promise<void> {
+    await tx
+      .update(channels)
+      .set({
+        // No status. A test says whether the credentials work, not whether the
+        // hotel wants to sell here — and INACTIVE → ERROR would trip the
+        // partial unique index on non-inactive channels.
+        //
+        // lastSyncAt is untouched too: nothing was synced. A green test on a
+        // channel that has not pushed for a week must not make it look fresh.
+        lastError: error,
+        updatedAt: at,
+      })
+      .where(eq(channels.id, channelId));
   }
 
   async markSynced(tx: Executor, channelId: string, at: Date, error: string | null): Promise<void> {

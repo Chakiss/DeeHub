@@ -38,6 +38,16 @@ export interface ChannelRepository {
 
   findRoomTypeMapping(tx: Executor, channelId: string, roomTypeId: string): Promise<string | null>;
 
+  /**
+   * Every room type this channel is mapped to sell.
+   *
+   * The forced sync needs the whole set; the ARI push needs one at a time. An
+   * unmapped room type is deliberately absent rather than returned with a null
+   * external id — the push already skips those, and a forced sync that reported
+   * "pushed 3 of 5" without saying which is not worth the row.
+   */
+  findMappedRoomTypeIds(tx: Executor, channelId: string): Promise<readonly string[]>;
+
   /** Rate-plan mappings for one room type on one channel. */
   findRatePlanMappings(
     tx: Executor,
@@ -49,6 +59,23 @@ export interface ChannelRepository {
 
   /** Updates the channel health strip the dashboard shows. */
   markSynced(tx: Executor, channelId: string, at: Date, error: string | null): Promise<void>;
+
+  /**
+   * Record the outcome of a connection test WITHOUT touching status.
+   *
+   * Separate from `markSynced`, which is the sync engine's and does move status
+   * — a failing push means an active channel is erroring. A test is diagnostic:
+   * an INACTIVE channel that fails one is still switched off, not broken, and
+   * flipping it to ERROR would also collide with
+   * `channels_property_type_active_uq`, the partial unique index that allows
+   * only one non-inactive channel per type per property.
+   */
+  recordConnectionTest(
+    tx: Executor,
+    channelId: string,
+    at: Date,
+    error: string | null,
+  ): Promise<void>;
 }
 
 export const CHANNEL_REPOSITORY = Symbol('CHANNEL_REPOSITORY');
