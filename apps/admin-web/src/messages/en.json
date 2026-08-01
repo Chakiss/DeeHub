@@ -334,7 +334,6 @@
     "codeTaken": "That code is already used at this property.",
     "failed": "Could not save the rate plan.",
     "noDelete": "Rate plans are never deleted — priced nights and past bookings point at them. Stop selling instead.",
-    "noDerived": "Derived plans (a percentage off another rate) are not available yet: nothing computes the derived price, so the plan would have no rates at all.",
     "pricesFor": "Set prices for {name}",
     "from": "From",
     "to": "To (exclusive)",
@@ -362,7 +361,17 @@
     "clearUnsellable": "{count} nights can no longer be sold: they still have rooms allotted but no price from any active plan.",
     "clearUnsellableNone": "No night lost its last price.",
     "clearFailed": "Could not remove the prices.",
-    "done": "Done"
+    "done": "Done",
+    "derivedLabel": "Price this from another plan",
+    "derivedHint": "It takes its parent price and applies an offset, so one edit reprices every night.",
+    "derivedFrom": "{offset} of {parent}",
+    "parentPlan": "Based on",
+    "offsetType": "Offset",
+    "offsetPercent": "Percent",
+    "offsetAmount": "Fixed amount",
+    "offset": "By",
+    "offsetHint": "Negative for a discount, e.g. -10.",
+    "offsetRequired": "Enter an offset other than zero."
   },
   "mealPlans": {
     "ROOM_ONLY": "Room only",

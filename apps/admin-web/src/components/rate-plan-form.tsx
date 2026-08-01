@@ -11,10 +11,24 @@ interface Props {
   roomTypes: RoomType[];
   /** Absent when creating; present when editing, where code and room type lock. */
   ratePlan?: RatePlan;
+  /**
+   * Plans that can be a parent: active, and holding their own prices.
+   *
+   * Filtered here rather than in the API because it is a UI affordance — the
+   * server refuses the same cases with a message, which is what actually
+   * enforces them.
+   */
+  parentCandidates: RatePlan[];
   onClose: () => void;
 }
 
-export function RatePlanForm({ propertyId, roomTypes, ratePlan, onClose }: Props) {
+export function RatePlanForm({
+  propertyId,
+  roomTypes,
+  ratePlan,
+  parentCandidates,
+  onClose,
+}: Props) {
   const t = useTranslations('ratePlans');
   const meals = useTranslations('mealPlans');
   const editing = ratePlan !== undefined;
@@ -27,6 +41,41 @@ export function RatePlanForm({ propertyId, roomTypes, ratePlan, onClose }: Props
   );
   const [isRefundable, setRefundable] = useState(ratePlan?.isRefundable ?? true);
 
+  /*
+   * Whether a plan is derived is fixed at creation: switching either way would
+   * strand its stored prices or leave it with none. So the toggle only exists
+   * while creating, and editing shows the offset alone.
+   */
+  const [derived, setDerived] = useState(ratePlan?.parentRatePlanId !== null && editing);
+  const [parentId, setParentId] = useState(ratePlan?.parentRatePlanId ?? '');
+  const [derivationType, setDerivationType] = useState<'PERCENTAGE' | 'AMOUNT'>(
+    ratePlan?.derivationType ?? 'PERCENTAGE',
+  );
+  // Shown in percent or in whole currency, stored in basis points or minor
+  // units — the same conversion the folio does for amounts.
+  const [offset, setOffset] = useState(
+    ratePlan?.derivationValue !== null && ratePlan?.derivationValue !== undefined
+      ? String(ratePlan.derivationValue / 100)
+      : '-10',
+  );
+
+  const eligibleParents = parentCandidates.filter(
+    (candidate) => candidate.roomTypeId === roomTypeId && candidate.id !== ratePlan?.id,
+  );
+
+  /*
+   * The <select> shows only plans on the CHOSEN room type, and the chosen
+   * parent has to be one of them. Holding the raw state instead let the room
+   * type change out from under it: the dropdown listed the right options while
+   * `parentId` still pointed at a plan on another room type, and the server —
+   * correctly — refused. Deriving it from the visible list is what makes the
+   * two agree, without an effect that fights the user's own selection.
+   */
+  const selectedParent =
+    eligibleParents.find((candidate) => candidate.id === parentId)?.id ??
+    eligibleParents[0]?.id ??
+    '';
+
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -35,9 +84,40 @@ export function RatePlanForm({ propertyId, roomTypes, ratePlan, onClose }: Props
     setError(null);
     setSaving(true);
 
+    const offsetValue = Math.round(Number(offset) * 100);
+    if (derived && (!Number.isFinite(offsetValue) || offsetValue === 0)) {
+      setSaving(false);
+      setError(t('offsetRequired'));
+      return;
+    }
+
     const result = editing
-      ? await updateRatePlan(propertyId, ratePlan.id, { name, mealPlan, isRefundable })
-      : await createRatePlan(propertyId, { roomTypeId, code, name, mealPlan, isRefundable });
+      ? await updateRatePlan(propertyId, ratePlan.id, {
+          name,
+          mealPlan,
+          isRefundable,
+          ...(ratePlan.derivationType ? { derivationValue: offsetValue } : {}),
+        })
+      : await createRatePlan(propertyId, {
+          roomTypeId,
+          code,
+          name,
+          mealPlan,
+          isRefundable,
+          // selectedParent, never the raw state: `parentId` stays empty until
+          // somebody actually changes the dropdown, and the dropdown SHOWS the
+          // derived default. Reading the state here silently created a base
+          // plan while the form said otherwise.
+          ...(derived && selectedParent
+            ? {
+                derivation: {
+                  parentRatePlanId: selectedParent,
+                  type: derivationType,
+                  value: offsetValue,
+                },
+              }
+            : {}),
+        });
 
     setSaving(false);
 
@@ -130,6 +210,72 @@ export function RatePlanForm({ propertyId, roomTypes, ratePlan, onClose }: Props
           </select>
         </Field>
 
+        {!editing && eligibleParents.length > 0 && (
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={derived}
+              onChange={(event) => setDerived(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300"
+            />
+            <span>
+              {t('derivedLabel')}
+              <span className="block text-xs text-slate-400">{t('derivedHint')}</span>
+            </span>
+          </label>
+        )}
+
+        {(derived || (editing && ratePlan.derivationType)) && (
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
+            <Field id="rp-parent" label={t('parentPlan')}>
+              <select
+                id="rp-parent"
+                value={editing ? (ratePlan.parentRatePlanId ?? '') : selectedParent}
+                onChange={(event) => setParentId(event.target.value)}
+                // The parent is fixed after creation for the same reason the
+                // room type is: the prices already quoted came from it.
+                disabled={editing}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+              >
+                {eligibleParents.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.name}
+                  </option>
+                ))}
+                {editing && ratePlan.parentRatePlanId && eligibleParents.length === 0 && (
+                  <option value={ratePlan.parentRatePlanId}>{t('parentPlan')}</option>
+                )}
+              </select>
+            </Field>
+
+            <Field id="rp-derivation-type" label={t('offsetType')}>
+              <select
+                id="rp-derivation-type"
+                value={derivationType}
+                onChange={(event) =>
+                  setDerivationType(event.target.value as 'PERCENTAGE' | 'AMOUNT')
+                }
+                disabled={editing}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+              >
+                <option value="PERCENTAGE">{t('offsetPercent')}</option>
+                <option value="AMOUNT">{t('offsetAmount')}</option>
+              </select>
+            </Field>
+
+            <Field id="rp-offset" label={t('offset')} hint={t('offsetHint')}>
+              <input
+                id="rp-offset"
+                inputMode="decimal"
+                value={offset}
+                onChange={(event) => setOffset(event.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                placeholder="-10"
+              />
+            </Field>
+          </div>
+        )}
+
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
@@ -141,7 +287,6 @@ export function RatePlanForm({ propertyId, roomTypes, ratePlan, onClose }: Props
         </label>
 
         {/* Said up front rather than discovered as a missing option. */}
-        {!editing && <p className="text-xs text-slate-400">{t('noDerived')}</p>}
 
         {error && (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

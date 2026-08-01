@@ -316,4 +316,259 @@ describeIfDb('Rate plans API', () => {
       expect(rows[0]?.name).not.toBe('Hijacked');
     });
   });
+
+  /**
+   * A plan priced as an offset from another one.
+   *
+   * The columns have existed since the first migration and nothing read them,
+   * so a derived plan could be stored and would have no prices at all. These
+   * cover both halves: that one can be created with rules a hotelier can act
+   * on, and that its prices actually resolve.
+   */
+  describe('derived plans', () => {
+    async function createBase(code: string): Promise<string> {
+      const token = await managerToken();
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body({ code }))
+        .expect(201);
+      return response.body.id as string;
+    }
+
+    function derive(parentId: string, overrides: Record<string, unknown> = {}) {
+      return {
+        parentRatePlanId: parentId,
+        type: 'PERCENTAGE',
+        value: -1000,
+        ...overrides,
+      };
+    }
+
+    it('creates a plan that carries an offset instead of prices', async () => {
+      const parentId = await createBase(`BASE${Date.now().toString(36)}`);
+      const token = await managerToken();
+
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body({ code: `NRF${Date.now().toString(36)}`, derivation: derive(parentId) }))
+        .expect(201);
+
+      expect(response.body.parentRatePlanId).toBe(parentId);
+      expect(response.body.derivationType).toBe('PERCENTAGE');
+      // Rendered once, on the server: three clients would each have to know
+      // the unit depends on the type.
+      expect(response.body.derivationLabel).toBe('−10%');
+    });
+
+    it('prices its nights from the parent', async () => {
+      const parentId = await createBase(`P${Date.now().toString(36)}`);
+      const token = await managerToken();
+      const childResponse = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body({ code: `C${Date.now().toString(36)}`, derivation: derive(parentId) }))
+        .expect(201);
+      const childId = childResponse.body.id as string;
+
+      await pool.query(
+        `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date, occupancy,
+                                amount_minor, currency)
+         VALUES ($1, $2, $3, '2032-01-01', 2, 200000, 'THB')`,
+        [orgId, propertyId, parentId],
+      );
+
+      const { rows } = await pool.query<{ amount_minor: string }>(
+        `SELECT amount_minor FROM effective_rate_days
+          WHERE rate_plan_id = $1 AND date = '2032-01-01' AND occupancy = 2`,
+        [childId],
+      );
+      // 2000.00 less ten percent. The child stores nothing of its own.
+      expect(Number(rows[0]?.amount_minor)).toBe(180000);
+
+      const { rows: stored } = await pool.query('SELECT 1 FROM rate_days WHERE rate_plan_id = $1', [
+        childId,
+      ]);
+      expect(stored).toHaveLength(0);
+    });
+
+    it('reprices the whole horizon when the offset moves', async () => {
+      const parentId = await createBase(`PM${Date.now().toString(36)}`);
+      const token = await managerToken();
+      const childResponse = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body({ code: `CM${Date.now().toString(36)}`, derivation: derive(parentId) }))
+        .expect(201);
+      const childId = childResponse.body.id as string;
+
+      await pool.query(
+        `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date, occupancy,
+                                amount_minor, currency)
+         VALUES ($1, $2, $3, '2032-02-01', 2, 200000, 'THB'),
+                ($1, $2, $3, '2032-02-02', 2, 200000, 'THB')`,
+        [orgId, propertyId, parentId],
+      );
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/rate-plans/${childId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ derivationValue: -2500 })
+        .expect(200);
+
+      const { rows } = await pool.query<{ amount_minor: string }>(
+        `SELECT amount_minor FROM effective_rate_days
+          WHERE rate_plan_id = $1 AND occupancy = 2 ORDER BY date`,
+        [childId],
+      );
+      // One write, every night. That is the point of a derived plan.
+      expect(rows.map((row) => Number(row.amount_minor))).toEqual([150000, 150000]);
+    });
+
+    it('gives a night no price at all when the offset wipes it out', async () => {
+      const parentId = await createBase(`PZ${Date.now().toString(36)}`);
+      const token = await managerToken();
+      const childResponse = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(
+          body({
+            code: `CZ${Date.now().toString(36)}`,
+            derivation: derive(parentId, { type: 'AMOUNT', value: -500000 }),
+          }),
+        )
+        .expect(201);
+
+      await pool.query(
+        `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date, occupancy,
+                                amount_minor, currency)
+         VALUES ($1, $2, $3, '2032-03-01', 2, 200000, 'THB')`,
+        [orgId, propertyId, parentId],
+      );
+
+      const { rows } = await pool.query(
+        'SELECT 1 FROM effective_rate_days WHERE rate_plan_id = $1',
+        [childResponse.body.id],
+      );
+      // Absent, not free. A night with no price cannot be sold, which is the
+      // safe reading of an offset somebody typed wrong.
+      expect(rows).toHaveLength(0);
+    });
+
+    it('refuses a chain of derivations', async () => {
+      const parentId = await createBase(`PC${Date.now().toString(36)}`);
+      const token = await managerToken();
+      const childResponse = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body({ code: `CC${Date.now().toString(36)}`, derivation: derive(parentId) }))
+        .expect(201);
+
+      // The child holds no prices of its own, so a grandchild would resolve to
+      // nothing at all rather than to a compounded discount.
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(
+          body({
+            code: `GC${Date.now().toString(36)}`,
+            derivation: derive(childResponse.body.id as string),
+          }),
+        )
+        .expect(422);
+    });
+
+    it('refuses a parent on another room type', async () => {
+      const parentId = await createBase(`PX${Date.now().toString(36)}`);
+      const token = await managerToken();
+
+      const otherRoomType = crypto.randomUUID();
+      await pool.query(
+        `INSERT INTO room_types (id, organization_id, property_id, code, name)
+         VALUES ($1, $2, $3, $4, 'Standard')`,
+        [otherRoomType, orgId, propertyId, `STD${Date.now().toString(36)}`],
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(
+          body({
+            roomTypeId: otherRoomType,
+            code: `CX${Date.now().toString(36)}`,
+            derivation: derive(parentId),
+          }),
+        )
+        .expect(422);
+    });
+
+    it('refuses an offset that would give the room away', async () => {
+      const parentId = await createBase(`PG${Date.now().toString(36)}`);
+      const token = await managerToken();
+
+      for (const value of [-10000, 0]) {
+        await request(app.getHttpServer())
+          .post(`/api/v1/properties/${propertyId}/rate-plans`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(
+            body({
+              code: `CG${Date.now().toString(36)}${String(value)}`,
+              derivation: derive(parentId, { value }),
+            }),
+          )
+          .expect(422);
+      }
+    });
+
+    it('refuses prices typed directly onto a derived plan', async () => {
+      const parentId = await createBase(`PD${Date.now().toString(36)}`);
+      const token = await managerToken();
+      const childResponse = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/rate-plans`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body({ code: `CD${Date.now().toString(36)}`, derivation: derive(parentId) }))
+        .expect(201);
+
+      /*
+       * Rows written here would land in `rate_days`, where the view never looks
+       * for a derived plan — the editor would show the numbers somebody typed
+       * while the plan kept quoting its parent's offset.
+       */
+      const update = await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/rates`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          updates: [
+            {
+              ratePlanId: childResponse.body.id,
+              from: '2032-04-01',
+              to: '2032-04-02',
+              prices: [{ occupancy: 2, amount: 100000 }],
+            },
+          ],
+        })
+        .expect(422);
+      expect(update.body.error.message).toMatch(/takes its price from its parent/i);
+
+      await request(app.getHttpServer())
+        .delete(`/api/v1/properties/${propertyId}/rates`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          deletions: [{ ratePlanId: childResponse.body.id, from: '2032-04-01', to: '2032-04-02' }],
+        })
+        .expect(422);
+    });
+
+    it('refuses to change the derivation of a plan that has none', async () => {
+      const id = await createBase(`PN${Date.now().toString(36)}`);
+      const token = await managerToken();
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/rate-plans/${id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ derivationValue: -1000 })
+        .expect(422);
+    });
+  });
 });

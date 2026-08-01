@@ -75,7 +75,11 @@ export class DeleteRatesUseCase {
     const planIds = [...new Set(input.deletions.map((deletion) => deletion.ratePlanId))];
 
     const plans = await this.db
-      .select({ id: ratePlans.id, roomTypeId: ratePlans.roomTypeId })
+      .select({
+        id: ratePlans.id,
+        roomTypeId: ratePlans.roomTypeId,
+        parentRatePlanId: ratePlans.parentRatePlanId,
+      })
       .from(ratePlans)
       .where(
         and(
@@ -90,6 +94,21 @@ export class DeleteRatesUseCase {
       // A plan in another property is indistinguishable from one that does not
       // exist (api-spec.md §4).
       if (!roomTypeByPlan.has(planId)) throw errors.notFound('Rate plan', planId);
+    }
+
+    /*
+     * A derived plan has no prices to hold. Writing rows for one would put them
+     * in `rate_days` where `effective_rate_days` never looks — the plan would
+     * keep quoting its parent's offset while the editor showed the numbers
+     * somebody just typed. Refusing says which plan to edit instead.
+     */
+    const derived = plans.filter((plan) => plan.parentRatePlanId !== null);
+    if (derived.length > 0) {
+      throw errors.validation(
+        'A derived plan takes its price from its parent and cannot be cleared directly. ' +
+          'Change the parent plan, or the derivation.',
+        { ratePlanIds: derived.map((plan) => plan.id) },
+      );
     }
 
     return this.db.transaction(async (tx) => {

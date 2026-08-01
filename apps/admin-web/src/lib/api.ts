@@ -357,6 +357,13 @@ export interface RatePlan {
   mealPlan: string;
   isRefundable: boolean;
   isActive: boolean;
+  /** Null on a plan that holds its own prices. */
+  parentRatePlanId: string | null;
+  derivationType: 'PERCENTAGE' | 'AMOUNT' | null;
+  /** Signed: basis points for PERCENTAGE, minor units for AMOUNT. */
+  derivationValue: number | null;
+  /** "−10%", rendered by the API so three clients need not each know the unit. */
+  derivationLabel: string | null;
 }
 
 export interface CreateRatePlanInput {
@@ -365,14 +372,24 @@ export interface CreateRatePlanInput {
   name: string;
   mealPlan: MealPlan;
   isRefundable: boolean;
+  /** Present to price this plan as an offset from another. Fixed at creation. */
+  derivation?: {
+    parentRatePlanId: string;
+    type: 'PERCENTAGE' | 'AMOUNT';
+    value: number;
+  };
 }
 
-/** Neither code nor roomTypeId: both are fixed once the plan exists. */
+/**
+ * Neither code nor roomTypeId: both are fixed once the plan exists. Nor whether
+ * the plan is derived — only the offset itself can move.
+ */
 export interface UpdateRatePlanInput {
   name?: string;
   mealPlan?: MealPlan;
   isRefundable?: boolean;
   isActive?: boolean;
+  derivationValue?: number;
 }
 
 export interface RateUpdate {

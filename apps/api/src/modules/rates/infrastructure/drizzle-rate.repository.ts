@@ -1,11 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { money, toIsoDate, type IsoDate, type Money } from '@deehub/shared';
-import { ratePlans, rateDays, roomTypes } from '../../../database/schema';
+import { effectiveRateDays, ratePlans, roomTypes } from '../../../database/schema';
 import type { Executor } from '../../../database/executor';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import type { LeadRate, RateRepository, RateRow } from '../domain/rate.repository';
 
+/**
+ * Every read here goes through `effective_rate_days`, never `rate_days`.
+ *
+ * A derived plan keeps no rows of its own — its price is its parent's, offset —
+ * and the view is the one place that resolves it. Reading the table directly
+ * would quietly return nothing for a derived plan, which presents as "that
+ * night has no price" rather than as a bug.
+ *
+ * WRITES still go to `rate_days` (see `DrizzleRateWriteRepository` in
+ * update-rates), because a derived plan has nothing to write.
+ */
 @Injectable()
 export class DrizzleRateRepository implements RateRepository {
   async findPrices(
@@ -19,17 +30,17 @@ export class DrizzleRateRepository implements RateRepository {
 
     const rows = await tx
       .select({
-        date: rateDays.date,
-        amountMinor: rateDays.amountMinor,
-        currency: rateDays.currency,
+        date: effectiveRateDays.date,
+        amountMinor: effectiveRateDays.amountMinor,
+        currency: effectiveRateDays.currency,
       })
-      .from(rateDays)
+      .from(effectiveRateDays)
       .where(
         and(
-          eq(rateDays.organizationId, organizationId),
-          eq(rateDays.ratePlanId, ratePlanId),
-          eq(rateDays.occupancy, occupancy),
-          inArray(rateDays.date, [...dates]),
+          eq(effectiveRateDays.organizationId, organizationId),
+          eq(effectiveRateDays.ratePlanId, ratePlanId),
+          eq(effectiveRateDays.occupancy, occupancy),
+          inArray(effectiveRateDays.date, [...dates]),
         ),
       );
 
@@ -46,21 +57,21 @@ export class DrizzleRateRepository implements RateRepository {
 
     const rows = await tx
       .select({
-        ratePlanId: rateDays.ratePlanId,
-        date: rateDays.date,
-        occupancy: rateDays.occupancy,
-        amountMinor: rateDays.amountMinor,
-        currency: rateDays.currency,
+        ratePlanId: effectiveRateDays.ratePlanId,
+        date: effectiveRateDays.date,
+        occupancy: effectiveRateDays.occupancy,
+        amountMinor: effectiveRateDays.amountMinor,
+        currency: effectiveRateDays.currency,
       })
-      .from(rateDays)
+      .from(effectiveRateDays)
       .where(
         and(
-          eq(rateDays.organizationId, organizationId),
-          inArray(rateDays.ratePlanId, [...ratePlanIds]),
-          inArray(rateDays.date, [...dates]),
+          eq(effectiveRateDays.organizationId, organizationId),
+          inArray(effectiveRateDays.ratePlanId, [...ratePlanIds]),
+          inArray(effectiveRateDays.date, [...dates]),
         ),
       )
-      .orderBy(rateDays.date, rateDays.occupancy);
+      .orderBy(effectiveRateDays.date, effectiveRateDays.occupancy);
 
     return rows.map((row) => ({ ...row, date: toIsoDate(row.date) }));
   }
@@ -77,17 +88,18 @@ export class DrizzleRateRepository implements RateRepository {
     const rows = await tx
       .select({
         roomTypeId: ratePlans.roomTypeId,
-        date: rateDays.date,
-        amountMinor: sql<number>`min(${rateDays.amountMinor})::int`,
-        currency: rateDays.currency,
+        date: effectiveRateDays.date,
+        amountMinor: sql<number>`min(${effectiveRateDays.amountMinor})::int`,
+        currency: effectiveRateDays.currency,
         planCount: sql<number>`count(distinct ${ratePlans.id})::int`,
       })
-      .from(rateDays)
+      .from(effectiveRateDays)
       // Inactive plans are excluded: a price nobody can book should not be the
-      // number an operator reads off the grid.
+      // number an operator reads off the grid. A derived plan is included and
+      // may well BE the lead rate — that is usually the point of creating one.
       .innerJoin(
         ratePlans,
-        and(eq(ratePlans.id, rateDays.ratePlanId), eq(ratePlans.isActive, true)),
+        and(eq(ratePlans.id, effectiveRateDays.ratePlanId), eq(ratePlans.isActive, true)),
       )
       // Joined to compare occupancy against each room type's OWN standard.
       // A fixed occupancy would silently show nothing for a family room whose
@@ -96,21 +108,21 @@ export class DrizzleRateRepository implements RateRepository {
         roomTypes,
         and(
           eq(roomTypes.id, ratePlans.roomTypeId),
-          eq(rateDays.occupancy, roomTypes.standardOccupancy),
+          eq(effectiveRateDays.occupancy, roomTypes.standardOccupancy),
         ),
       )
       .where(
         and(
-          eq(rateDays.organizationId, organizationId),
-          eq(rateDays.propertyId, propertyId),
+          eq(effectiveRateDays.organizationId, organizationId),
+          eq(effectiveRateDays.propertyId, propertyId),
           inArray(ratePlans.roomTypeId, [...roomTypeIds]),
-          inArray(rateDays.date, [...dates]),
+          inArray(effectiveRateDays.date, [...dates]),
         ),
       )
       // Currency is grouped, not aggregated: a property has one currency
       // (ADR-0003), so a second row here would mean data we should not average
       // over anyway.
-      .groupBy(ratePlans.roomTypeId, rateDays.date, rateDays.currency);
+      .groupBy(ratePlans.roomTypeId, effectiveRateDays.date, effectiveRateDays.currency);
 
     return rows.map((row) => ({ ...row, date: toIsoDate(row.date) }));
   }

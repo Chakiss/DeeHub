@@ -495,6 +495,62 @@ Capabilities in the right column are the permission checked
 Property `timezone` and `currency` become immutable once a reservation
 exists; attempting to change them returns `409 CONFLICT`.
 
+#### Derived rate plans
+
+A plan may be priced as an OFFSET from another instead of holding prices of its
+own — "non-refundable at 10% less", "breakfast included at 300 more". One edit
+then reprices the whole horizon, which is the point: maintaining four plans by
+hand across 400 nights is how prices drift apart.
+
+```jsonc
+// POST /properties/{pid}/rate-plans
+{
+  "roomTypeId": "0191…",
+  "code": "NRF",
+  "name": "Non-refundable",
+  // Signed. Basis points for PERCENTAGE, minor units for AMOUNT.
+  "derivation": { "parentRatePlanId": "0192…", "type": "PERCENTAGE", "value": -1000 },
+}
+```
+
+Resolution happens in ONE place — the `effective_rate_days` view — because three
+readers need it (the booking path, the ARI push, the grid's lead rate) and three
+implementations is three chances to quote a different number than the guest was
+shown.
+
+Four rules, all refused with `422` at creation rather than discovered later:
+
+- **Same room type as the parent.** Otherwise a room is priced from a different
+  room's price, and the lead-rate query, which groups by the plan's own room
+  type, stops making sense.
+- **One level, no chains.** A derived plan reads its parent's STORED rows; a
+  parent that is itself derived has none, so the child would resolve to no price
+  at all rather than to a compounded discount.
+- **The parent must still be selling.** An inactive parent is excluded from the
+  lead rate and from ARI, so a child of one would look configured and reach
+  nobody.
+- **Not −100%, and not zero.** At −100% every night computes to zero and the
+  room is given away; at zero the plan duplicates its parent, which is a mapping
+  mistake at every OTA it reaches.
+
+A computed price of zero or less is **absent, not free**: the view omits it, and
+every caller already treats a night with no price as unsellable. That is the
+safe reading of an offset somebody typed wrong.
+
+`PATCH` can change the offset VALUE and nothing else about the derivation.
+Switching a plan between derived and not would strand its stored prices or leave
+it with none — a migration of rows, not a patch to one. Prices cannot be written
+to or cleared from a derived plan at all; `PATCH`/`DELETE /rates` answer `422`
+naming the parent, because rows written there would land in `rate_days` where
+the view never looks for a derived plan.
+
+**Promotions are not built.** A derived plan covers the standing case — a rate
+that is always a fixed offset — and not the bounded one: a discount that applies
+to stays in March, booked before January, for three nights or more. That needs
+stay-window, booking-window and length-of-stay conditions plus a rule for what
+happens when two of them match, and the last part is a commercial decision
+rather than a technical one.
+
 ### 6.3 Inventory
 
 The calendar grid is the dashboard's main screen, so reads are shaped for it

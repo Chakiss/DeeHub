@@ -326,6 +326,41 @@ Occupancy-based pricing (single/double/triple) is standard for Thai hotels
 and required by every OTA. Derived rate plans have no rows here — their
 price is computed from the parent at read time and snapshotted on booking.
 
+```sql
+CREATE VIEW effective_rate_days AS
+  -- Base plans: their own stored rows.
+  SELECT ... FROM rate_days rd JOIN rate_plans rp ON rp.id = rd.rate_plan_id
+   WHERE rp.parent_rate_plan_id IS NULL
+  UNION ALL
+  -- Derived plans: the parent's rows, offset.
+  SELECT ..., CASE child.derivation_type
+                WHEN 'PERCENTAGE'
+                  THEN round(rd.amount_minor::numeric * (10000 + child.derivation_value) / 10000)
+                ELSE rd.amount_minor + child.derivation_value
+              END::bigint, ...
+    FROM rate_plans child
+    JOIN rate_plans parent ON parent.id = child.parent_rate_plan_id
+    JOIN rate_days rd ON rd.rate_plan_id = parent.id
+   WHERE parent.parent_rate_plan_id IS NULL   -- one level, no chains
+     AND <computed> > 0;                      -- absent, never free
+```
+
+**Every rate READ goes through the view; writes still go to `rate_days`.** The
+booking path, the ARI push and the grid's lead rate all need a derived plan's
+price, and three implementations of the same arithmetic is three chances to
+quote a different number than the guest was shown.
+
+`numeric`, not float, and `round()` away from zero to match `roundHalfUp` in
+`pricing.ts` — the two must agree or a quoted total and a folio line differ by a
+satang.
+
+Two rules are in the SQL rather than only in the application. **One level**: a
+plan whose parent is itself derived resolves to nothing, so a chain that ever
+got past validation is unsellable rather than compounding. **Zero is absent**:
+a computed price of zero or less is omitted entirely, because a zero-priced
+night sells the room for nothing — the same rule the rate editor follows by
+removing prices instead of zeroing them.
+
 ---
 
 ## 7. Guests

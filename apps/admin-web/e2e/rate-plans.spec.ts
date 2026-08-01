@@ -61,17 +61,18 @@ test.describe('rate plans', () => {
     await expect(page.getByLabel('Room type')).toBeDisabled();
   });
 
-  test('says derived plans are not available rather than offering a broken one', async ({
-    page,
-  }) => {
+  test('offers no parent to derive from when the room type has none', async ({ page }) => {
     const data = testData();
     await login(page, data.managerEmail);
 
+    // The Standard Twin has no rate plan of its own, so there is nothing on
+    // that room type to base a price on. Showing the toggle anyway would open
+    // a form whose only dropdown is empty.
     await page.goto(`/properties/${data.propertyId}/rate-plans`);
     await page.getByRole('button', { name: 'Add rate plan' }).click();
-    // Nothing computes a derived price, so a derived plan would store fine and
-    // have no rates at all.
-    await expect(page.locator('form')).toContainText(/Derived plans .* are not available yet/i);
+    await page.getByLabel('Room type').selectOption({ label: 'Standard Twin' });
+
+    await expect(page.getByLabel('Price this from another plan')).toHaveCount(0);
   });
 
   test('a read-only user gets no editing controls', async ({ page }) => {
@@ -199,5 +200,42 @@ test.describe('rate plans', () => {
     const cleared = page.locator('tbody tr').filter({ hasText: 'Standard Twin' });
     await expect.poll(async () => cleared.textContent()).toContain('no rate');
     expect(await cleared.textContent()).not.toContain('1,500');
+  });
+
+  /**
+   * A plan priced as an offset from another one.
+   *
+   * The point of the feature is that one edit reprices the whole horizon, so
+   * the thing worth proving on screen is that a derived plan is created without
+   * prices and is not offered the buttons that would set them.
+   */
+  test('creates a plan priced from another, and offers it no prices of its own', async ({
+    page,
+  }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/rate-plans`);
+
+    const suffix = Date.now().toString(36).slice(-5);
+    await page.getByRole('button', { name: 'Add rate plan' }).click();
+    await page.getByLabel('Code').fill(`NRF${suffix}`);
+    await page.getByLabel('Name').fill(`Derived ${suffix}`);
+    await page.getByLabel('Price this from another plan').check();
+    // The dropdown defaults to the only eligible parent; the form must SEND
+    // that default rather than the state behind it, which stays empty until
+    // somebody changes the selection.
+    await expect(page.getByLabel('Based on')).toBeVisible();
+    await page.getByLabel('By').fill('-10');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    // Scoped by the generated code: an earlier case in this file creates its
+    // own plan called "Non-refundable", and a name match resolves to both.
+    const row = page.getByRole('row', { name: new RegExp(`NRF${suffix}`, 'i') });
+    await expect(row).toBeVisible();
+    // Says where the price comes from, in the row, because "Set prices" is
+    // absent and that would otherwise read as something missing.
+    await expect(row).toContainText('−10%');
+    await expect(row.getByRole('button', { name: 'Set prices' })).toHaveCount(0);
+    await expect(row.getByRole('button', { name: 'Remove prices' })).toHaveCount(0);
   });
 });

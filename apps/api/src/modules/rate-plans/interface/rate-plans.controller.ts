@@ -7,6 +7,7 @@ import { actorFrom } from '../../inventory/interface/inventory.controller';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { CreateRatePlanUseCase } from '../application/create-rate-plan.usecase';
 import { UpdateRatePlanUseCase } from '../application/update-rate-plan.usecase';
+import { DERIVATION_TYPES, describeDerivation } from '../domain/derivation';
 import {
   MEAL_PLANS,
   RATE_PLAN_REPOSITORY,
@@ -21,6 +22,25 @@ const code = z
   .max(32)
   .regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, 'Use letters, digits, hyphen or underscore');
 
+/**
+ * A derived plan is priced as an offset from another one.
+ *
+ * All three fields together or none: the pairing is a database CHECK, and
+ * expressing it as one nested object means a half-configured derivation is
+ * rejected by validation with a readable message rather than by Postgres.
+ *
+ * `value` is SIGNED — basis points for PERCENTAGE, minor units for AMOUNT — so
+ * −1000 is ten percent off and +30000 is three hundred baht more. Bounds are
+ * checked in the domain, which is where the reasoning for them lives.
+ */
+const derivationSchema = z
+  .object({
+    parentRatePlanId: z.string().uuid(),
+    type: z.enum(DERIVATION_TYPES),
+    value: z.number().int(),
+  })
+  .strict();
+
 const createSchema = z
   .object({
     roomTypeId: z.string().uuid(),
@@ -28,16 +48,23 @@ const createSchema = z
     name: z.string().trim().min(1).max(120),
     mealPlan: z.enum(MEAL_PLANS).default('ROOM_ONLY'),
     isRefundable: z.boolean().default(true),
+    derivation: derivationSchema.optional(),
   })
   .strict();
 
-// Neither code nor roomTypeId appear: both are fixed after creation.
+/*
+ * Neither code nor roomTypeId appear: both are fixed after creation. Nor does
+ * `derivation` — whether a plan is derived is fixed too, because switching
+ * either way strands or erases its prices. Only the OFFSET can move, which is
+ * what a derived plan is for.
+ */
 const updateSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     mealPlan: z.enum(MEAL_PLANS).optional(),
     isRefundable: z.boolean().optional(),
     isActive: z.boolean().optional(),
+    derivationValue: z.number().int().optional(),
   })
   .strict();
 
@@ -99,5 +126,15 @@ function present(row: RatePlanRecord) {
     mealPlan: row.mealPlan,
     isRefundable: row.isRefundable,
     isActive: row.isActive,
+    // Null on a plan that holds its own prices. `derivationLabel` is the
+    // rendering — "−10%" — computed here rather than in three clients, each of
+    // which would have to know that the unit depends on the type.
+    parentRatePlanId: row.parentRatePlanId,
+    derivationType: row.derivationType,
+    derivationValue: row.derivationValue,
+    derivationLabel:
+      row.derivationType && row.derivationValue !== null
+        ? describeDerivation(row.derivationType, row.derivationValue)
+        : null,
   };
 }

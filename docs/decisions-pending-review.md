@@ -376,4 +376,31 @@ missing line there strands the whole test organization — the same trap the
 channel tables set in item 9. It stranded one while I was writing this, which is
 how I found it.
 
+## 16. Derived rates are built; promotions are not, and that is a question for you
+
+A rate plan can now be priced as an offset from another — "non-refundable at 10%
+less" — and one edit reprices the whole horizon. The columns for this have
+existed since the first migration and nothing read them, so a derived plan could
+be stored and would silently have no prices at all.
+
+**Resolution is a database VIEW, not application code.** Three readers need it
+(the booking path, the OTA push, the grid's lead rate) and three implementations
+is three chances to quote a guest a different number than the one they were
+shown. It also means the next reader written gets it for free.
+
+**Promotions are the half I did not build, deliberately.** A derived plan covers
+the standing case: a rate that is always a fixed offset. It does not cover the
+bounded one — 15% off stays in March, booked before the end of January, three
+nights or more. That needs stay-window, booking-window and minimum-stay
+conditions, and then a rule for what happens when two promotions both match:
+best wins, first wins, or they stack. **That last part is a commercial decision,
+not a technical one**, and guessing it would produce a discount engine that
+gives away rooms in a way nobody chose. Tell me the rule and it is a week.
+
+Two smaller calls: a derived plan cannot become a base plan or the reverse
+(either would strand its stored prices or leave it with none — a migration of
+rows, not a PATCH), and a −100% offset is refused rather than allowed to produce
+a free room. An offset that merely happens to exceed the parent's price gives
+the night NO price, which every caller already reads as unsellable.
+
 _(Updated as the session continues.)_

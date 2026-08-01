@@ -58,7 +58,8 @@ Phase 4 with it. Delivered:
 
 - **Setup path**, end to end: room types, rate plans and nightly pricing
   through the UI — an empty property to a sellable one without SQL. Rates can
-  now be cleared for a date range as well as set.
+  be cleared for a date range as well as set, and a plan can be priced as an
+  offset from another so one edit reprices the whole horizon.
 - **Front desk**: physical rooms, housekeeping status, Stay View, room
   assignment, check-in and check-out, and a guest account per booking —
   charges, payments, refunds, voids and a running balance, with what is still
@@ -110,7 +111,12 @@ Phase 4 with it. Delivered:
   and mapped.
 - Direct Booking Engine v1: availability search, book, basic payment
   (deposit via Omise/Stripe — payments enter the roadmap here).
-- Rate Plans v2: derived rates (percentage/amount off parent), promotions.
+- Rate Plans v2: ~~derived rates (percentage/amount off parent)~~ **done** — a
+  plan can be priced as an offset from another, resolved in one view so the
+  booking path, the ARI push and the grid cannot disagree. **Promotions
+  remaining**: a bounded discount (stay window, booking window, minimum stay)
+  needs a rule for what happens when two of them match, which is a commercial
+  decision rather than a technical one.
 - ~~Thai UI translation.~~ **Done** — pulled forward, the whole dashboard is
   bilingual.
 

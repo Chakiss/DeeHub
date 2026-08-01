@@ -37,6 +37,15 @@ export function RatePlanList({
   const [pending, startTransition] = useTransition();
 
   const roomTypeById = new Map(roomTypes.map((roomType) => [roomType.id, roomType]));
+  const planById = new Map(ratePlans.map((plan) => [plan.id, plan]));
+
+  /** Only a plan that holds its own prices can be a parent, and only if active. */
+  const parentCandidates = ratePlans.filter(
+    (plan) => plan.parentRatePlanId === null && plan.isActive,
+  );
+
+  const parentName = (id: string | null): string | null =>
+    id === null ? null : (planById.get(id)?.name ?? null);
 
   function toggleSelling(ratePlan: RatePlan) {
     setError(null);
@@ -114,7 +123,20 @@ export function RatePlanList({
                     }`}
                   >
                     <td className="px-3 py-2 font-mono text-xs">{ratePlan.code}</td>
-                    <td className="px-3 py-2 font-medium text-slate-800">{ratePlan.name}</td>
+                    <td className="px-3 py-2 font-medium text-slate-800">
+                      {ratePlan.name}
+                      {/* A derived plan has no prices of its own, and the
+                          "Set prices" button below is hidden for it — saying
+                          why here is what stops that reading as missing. */}
+                      {ratePlan.derivationLabel && (
+                        <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-xs font-normal text-sky-800">
+                          {t('derivedFrom', {
+                            parent: parentName(ratePlan.parentRatePlanId) ?? '—',
+                            offset: ratePlan.derivationLabel,
+                          })}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-slate-600">{roomType?.name ?? '—'}</td>
                     <td className="px-3 py-2 text-slate-600">{meals(ratePlan.mealPlan)}</td>
                     <td className="px-3 py-2 text-slate-600">
@@ -134,9 +156,16 @@ export function RatePlanList({
                     {canEdit && (
                       <td className="px-3 py-2 text-right">
                         <div className="flex justify-end gap-2">
+                          {/*
+                            A derived plan has no prices to set or clear — the
+                            API refuses both, naming the parent. Hiding the two
+                            buttons is how somebody learns that before typing a
+                            price into a dialog that will not save.
+                          */}
                           <button
                             type="button"
                             disabled={!roomType}
+                            hidden={ratePlan.parentRatePlanId !== null}
                             onClick={() => setPricing(ratePlan)}
                             className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
                           >
@@ -151,6 +180,7 @@ export function RatePlanList({
                           <button
                             type="button"
                             disabled={!roomType}
+                            hidden={ratePlan.parentRatePlanId !== null}
                             onClick={() => setClearing(ratePlan)}
                             className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                           >
@@ -188,6 +218,7 @@ export function RatePlanList({
         <RatePlanForm
           propertyId={propertyId}
           roomTypes={roomTypes}
+          parentCandidates={parentCandidates}
           onClose={() => setCreating(false)}
         />
       )}
@@ -196,6 +227,7 @@ export function RatePlanList({
           propertyId={propertyId}
           roomTypes={roomTypes}
           ratePlan={editing}
+          parentCandidates={parentCandidates}
           onClose={() => setEditing(null)}
         />
       )}

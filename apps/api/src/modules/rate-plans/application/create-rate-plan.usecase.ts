@@ -9,6 +9,7 @@ import {
   ROOM_TYPE_REPOSITORY,
   type RoomTypeRepository,
 } from '../../room-types/domain/room-type.repository';
+import { assertDerivable, assertDerivationValue, type Derivation } from '../domain/derivation';
 import {
   RATE_PLAN_REPOSITORY,
   type MealPlan,
@@ -23,6 +24,11 @@ export interface CreateRatePlanInput {
   readonly name: string;
   readonly mealPlan: MealPlan;
   readonly isRefundable: boolean;
+  /**
+   * Absent for a plan that will hold its own prices; present for one priced as
+   * an offset from another. Fixed at creation — see `UpdateRatePlanFields`.
+   */
+  readonly derivation?: Derivation;
 }
 
 const CODE_CONSTRAINT = 'rate_plans_property_code_uq';
@@ -44,6 +50,21 @@ export class CreateRatePlanUseCase {
     const roomType = await this.roomTypes.findById(this.db, input.propertyId, input.roomTypeId);
     if (!roomType) throw errors.notFound('Room type', input.roomTypeId);
 
+    /*
+     * Both checks before anything is written, and in this order: the value is
+     * cheap to reject and does not need a query, while the parent lookup is
+     * the one that can fail for a reason the operator has to act on.
+     */
+    if (input.derivation) {
+      assertDerivationValue(input.derivation.type, input.derivation.value);
+      const parent = await this.repo.findById(
+        this.db,
+        input.propertyId,
+        input.derivation.parentRatePlanId,
+      );
+      assertDerivable(parent, input.derivation.parentRatePlanId, input.roomTypeId);
+    }
+
     const code = input.code.trim().toUpperCase();
     const id = newId();
 
@@ -58,6 +79,11 @@ export class CreateRatePlanUseCase {
           name: input.name.trim(),
           mealPlan: input.mealPlan,
           isRefundable: input.isRefundable,
+          // All three or none: a database CHECK refuses a half-configured
+          // derivation, so the object is built that way rather than patched.
+          parentRatePlanId: input.derivation?.parentRatePlanId ?? null,
+          derivationType: input.derivation?.type ?? null,
+          derivationValue: input.derivation?.value ?? null,
         };
 
         await this.repo.insert(tx, record);
