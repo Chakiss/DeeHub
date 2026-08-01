@@ -50,6 +50,13 @@
       "when": 1785595678432,
       "tag": "0006_wooden_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785596694374,
+      "tag": "0007_high_luminals",
+      "breakpoints": true
     }
   ]
 }

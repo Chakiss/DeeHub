@@ -6,6 +6,7 @@ import { businessDate, formatMoney } from '@/lib/dates';
 import { ReservationActions } from '@/components/reservation-actions';
 import { StayEditor } from '@/components/stay-editor';
 import { StayDeparture } from '@/components/stay-departure';
+import { FolioPanel } from '@/components/folio-panel';
 
 /** Bookings a modification can still take apart and re-hold. */
 const MODIFIABLE = ['PENDING', 'CONFIRMED'];
@@ -49,6 +50,11 @@ export default async function ReservationDetailPage({
   const [roomTypes, ratePlans, properties] = canModify
     ? await Promise.all([api.roomTypes(propertyId), api.ratePlans(propertyId), api.properties()])
     : [[], [], []];
+
+  // The account, for whoever may see it. Read here rather than in the client
+  // component so the balance is on the page at first paint — it is the number
+  // somebody standing at a desk opened this screen for.
+  const folio = capabilities.includes('folio:read') ? await api.folio(propertyId, id) : null;
 
   /*
    * Today in the PROPERTY's timezone, which decides which of the two editors a
@@ -206,6 +212,12 @@ export default async function ReservationDetailPage({
         </div>
 
         <div className="space-y-5">
+          {/*
+           * The booking's own totals, which are the room charges alone. The
+           * folio below adds extras and payments to them; both are shown
+           * because "what the booking is worth" and "what this guest still
+           * owes" are different questions and a hotel asks each of them.
+           */}
           <Card title={t('chargesHeading')}>
             <dl className="space-y-1.5 text-sm">
               <Amount label={t('subtotal')} money={reservation.subtotal} />
@@ -216,6 +228,16 @@ export default async function ReservationDetailPage({
               </div>
             </dl>
           </Card>
+
+          {folio && (
+            <FolioPanel
+              propertyId={propertyId}
+              reservationId={reservation.id}
+              initial={folio}
+              canPost={capabilities.includes('folio:post')}
+              canVoid={capabilities.includes('folio:void')}
+            />
+          )}
 
           <Card title={t('actions')}>
             <ReservationActions

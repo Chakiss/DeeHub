@@ -63,14 +63,17 @@ const SHORTENABLE = new Set(['PENDING', 'CONFIRMED', 'CHECKED_IN']);
  * from the tail, and only ones that have not started, so a guest standing at the
  * desk this morning can check out four days early.
  *
- * **What it does not do is charge for it.** Most hotels have an early-departure
- * policy — one night, or the whole balance for a non-refundable rate — and this
- * removes the charge for every dropped night with no penalty at all. That is not
- * a position on what hotels should charge; it is that a penalty has to land
- * somewhere, and the folio it would land on does not exist yet. Building a fee
- * with nowhere to put it would mean inventing a second, invisible ledger. The
- * desk takes payment for what the guest owes today, which is what it does now
- * anyway.
+ * **It does not charge a penalty, and will not decide one for you.** Most hotels
+ * have an early-departure policy — one night, or the whole balance on a
+ * non-refundable rate — and this removes the charge for every dropped night with
+ * nothing added back.
+ *
+ * What is missing is not somewhere to put a fee: the guest's folio exists, and
+ * the desk can post one against it in the same breath as this. What is missing
+ * is the POLICY. Nothing on a rate plan says what leaving early costs, so any
+ * number invented here would be a guess applied silently to every booking —
+ * including the flexible ones a hotel deliberately sells as free to cancel.
+ * A rule the hotel wrote is worth building; a rule this code made up is not.
  *
  * The room assignment is kept. The range only narrows, so unlike an extension
  * there is nothing the room-overlap constraint can refuse — and the guest is in
@@ -225,8 +228,9 @@ export class ShortenStayUseCase {
           total: totals.total.amount,
           // Kept: the guest is in that room until they walk out of it.
           assignedRoomId: stay.assignedRoomId,
-          // No early-departure fee was applied. Recorded explicitly so that
-          // when a folio exists, the merge between the two is not a guess.
+          // Nothing was charged for leaving early. Recorded explicitly so a
+          // fee posted to the folio afterwards is visibly a separate, human
+          // decision rather than something this operation might have done.
           earlyDepartureFeeMinor: 0,
         },
         reason: input.reason ?? null,

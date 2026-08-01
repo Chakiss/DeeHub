@@ -2,6 +2,7 @@ import 'server-only';
 import { apiBaseUrl, getAccessToken } from './session';
 import type { MealPlan } from './meal-plans';
 import type { ChannelType } from './channel-types';
+import type { FolioChargeKind, FolioPaymentKind, FolioPaymentMethod } from './folio-types';
 
 /**
  * Typed client for the DeeHub API.
@@ -240,6 +241,62 @@ export interface ShortenedStay {
   /** What came off the bill. No early-departure fee is applied — see the API. */
   refundedAmount: Money;
   total: Money;
+}
+
+export interface FolioRoomCharge {
+  date: string;
+  stayId: string;
+  roomTypeName: string;
+  amount: number;
+}
+
+export interface FolioExtraCharge {
+  id: string;
+  kind: FolioChargeKind;
+  description: string | null;
+  amount: number;
+  taxable: boolean;
+  businessDate: string;
+  postedAt: string;
+  postedBy: string | null;
+  voidedAt: string | null;
+  voidedReason: string | null;
+}
+
+export interface FolioPayment {
+  id: string;
+  kind: FolioPaymentKind;
+  method: FolioPaymentMethod;
+  amount: number;
+  reference: string | null;
+  businessDate: string;
+  recordedAt: string;
+  recordedBy: string | null;
+  voidedAt: string | null;
+  voidedReason: string | null;
+}
+
+export interface Folio {
+  reservationId: string;
+  code: string;
+  status: string;
+  bookerName: string;
+  currency: string;
+  roomCharges: FolioRoomCharge[];
+  extraCharges: FolioExtraCharge[];
+  payments: FolioPayment[];
+  totals: {
+    roomSubtotal: number;
+    extrasSubtotal: number;
+    serviceCharge: number;
+    tax: number;
+    untaxedExtras: number;
+    chargesTotal: number;
+    paid: number;
+    refunded: number;
+    /** Negative means the hotel owes the guest. */
+    balance: number;
+  };
 }
 
 export interface CreatedReservation {
@@ -863,6 +920,47 @@ export const api = {
     request<ShortenedStay>(
       `/properties/${propertyId}/reservations/${reservationId}/stays/${stayId}/shorten`,
       { method: 'POST', body: JSON.stringify(input) },
+    ),
+
+  folio: (propertyId: string, reservationId: string) =>
+    request<Folio>(`/properties/${propertyId}/reservations/${reservationId}/folio`),
+
+  postFolioCharge: (
+    propertyId: string,
+    reservationId: string,
+    input: { kind: FolioChargeKind; amount: number; description?: string; taxable?: boolean },
+  ) =>
+    request<Folio>(`/properties/${propertyId}/reservations/${reservationId}/folio/charges`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  recordFolioPayment: (
+    propertyId: string,
+    reservationId: string,
+    input: {
+      kind?: FolioPaymentKind;
+      method: FolioPaymentMethod;
+      amount: number;
+      reference?: string;
+    },
+  ) =>
+    request<Folio>(`/properties/${propertyId}/reservations/${reservationId}/folio/payments`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  voidFolioLine: (
+    propertyId: string,
+    reservationId: string,
+    line: { kind: 'CHARGE' | 'PAYMENT'; id: string },
+    reason: string,
+  ) =>
+    request<Folio>(
+      `/properties/${propertyId}/reservations/${reservationId}/folio/${
+        line.kind === 'CHARGE' ? 'charges' : 'payments'
+      }/${line.id}/void`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
     ),
 
   cancelReservation: (propertyId: string, id: string, version: number, reason?: string) =>

@@ -49,6 +49,22 @@ export const CAPABILITIES = [
   'audit:read',
   /* Delivery log: what the hotel told guests and staff, and what failed. */
   'notification:read',
+  /*
+   * The guest's account: what they owe, what they have paid, the balance.
+   *
+   * `folio:read` is NOT in the blanket `:read` bundle by accident — it ends in
+   * `:read`, so READ_ONLY receives it, which is the same call item 4 records
+   * for the audit trail. A folio shows money rather than a name, so say if you
+   * want it narrowed.
+   *
+   * Voiding is separated from posting on purpose. Recording a payment is the
+   * everyday work of a front desk; unrecording one is how a till is made to
+   * balance after money has gone missing, and it belongs to whoever is
+   * accountable for the till rather than whoever is standing at it.
+   */
+  'folio:read',
+  'folio:post',
+  'folio:void',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -67,6 +83,8 @@ const FRONT_DESK_CAPABILITIES: readonly Capability[] = [
   'reservation:checkin',
   'reservation:checkout',
   'guest:update',
+  // Taking money is the job. Un-taking it is not — see `folio:void`.
+  'folio:post',
 ];
 
 /** Runs a property: front-desk work plus commercial control. */
@@ -82,6 +100,7 @@ const MANAGER_CAPABILITIES: readonly Capability[] = [
   'rateplan:update',
   'channel:update',
   'channel:sync',
+  'folio:void',
 ];
 
 /** Runs the organization: everything except transferring ownership. */

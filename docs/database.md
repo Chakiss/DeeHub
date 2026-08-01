@@ -469,6 +469,75 @@ rate plan must never change what a past guest was quoted (domain-model §3.5).
 
 ---
 
+### 8.1 Folio
+
+```sql
+CREATE TABLE folio_charges (
+  id               uuid PRIMARY KEY,
+  organization_id  uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  property_id      uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
+  reservation_id   uuid NOT NULL REFERENCES reservations(id) ON DELETE RESTRICT,
+  kind             text NOT NULL,          -- MINIBAR, LAUNDRY, DAMAGE, …
+  description      text,
+  amount_minor     bigint NOT NULL CHECK (amount_minor > 0),
+  currency         char(3) NOT NULL,
+  taxable          boolean NOT NULL DEFAULT true,
+  business_date    date NOT NULL,          -- property timezone, not UTC
+  posted_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  posted_at        timestamptz NOT NULL DEFAULT now(),
+  voided_at        timestamptz,
+  voided_reason    text,
+  voided_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT folio_charges_void_ck CHECK ((voided_at IS NULL) = (voided_reason IS NULL))
+);
+CREATE INDEX folio_charges_reservation_idx    ON folio_charges (reservation_id, posted_at);
+CREATE INDEX folio_charges_business_date_idx  ON folio_charges (property_id, business_date);
+
+CREATE TABLE folio_payments (
+  id               uuid PRIMARY KEY,
+  organization_id  uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  property_id      uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
+  reservation_id   uuid NOT NULL REFERENCES reservations(id) ON DELETE RESTRICT,
+  kind             text NOT NULL CHECK (kind IN ('PAYMENT','REFUND')),
+  method           text NOT NULL,          -- CASH, CARD, PROMPTPAY, OTA_COLLECT, …
+  amount_minor     bigint NOT NULL CHECK (amount_minor > 0),
+  currency         char(3) NOT NULL,
+  reference        text,
+  business_date    date NOT NULL,
+  recorded_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  recorded_at      timestamptz NOT NULL DEFAULT now(),
+  voided_at        timestamptz,
+  voided_reason    text,
+  voided_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT folio_payments_void_ck CHECK ((voided_at IS NULL) = (voided_reason IS NULL))
+);
+CREATE INDEX folio_payments_reservation_idx   ON folio_payments (reservation_id, recorded_at);
+CREATE INDEX folio_payments_business_date_idx ON folio_payments (property_id, business_date);
+```
+
+**No `folios` table.** One booking has one account, so the row would carry a
+reservation id and nothing else — a join to reach the same data and a second
+thing that could fail to exist. A split bill needs one and is not built.
+
+**No room-charge rows either.** They are read from `reservation_stay_nights`,
+which already holds the frozen prices and already moves correctly when a stay is
+extended, shortened or cancelled. Two copies of the same number is a
+reconciliation bug waiting for whichever operation forgets one.
+
+Amounts are `> 0` in both tables and reversal is a VOID, never a negative row.
+A refund is a `folio_payments` row with `kind = 'REFUND'` and a positive amount,
+so a cashier report can show taken and given-back separately — netting them is
+how a drawer stops reconciling.
+
+`business_date` is a property-timezone date (ADR-0003) and is what the cashier
+indexes serve: a charge keyed at 00:30 belongs to that day's trading.
+
+Every reference is `ON DELETE RESTRICT`, including to `reservations`. A booking
+with money against it must not be removable, and test teardown has to delete
+folio rows before the reservation — the same trap the channel tables set.
+
+---
+
 ## 9. Channel
 
 ```sql

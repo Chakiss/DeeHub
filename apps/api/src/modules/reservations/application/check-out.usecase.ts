@@ -5,6 +5,7 @@ import { DATABASE, type Database } from '../../../database/database.module';
 import { requireTenant } from '../../../common/tenant/tenant-context';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { physicalRooms, reservationStays } from '../../../database/schema';
+import { GetFolioQuery } from '../../folio/application/get-folio.query';
 import {
   RESERVATION_REPOSITORY,
   type ReservationRepository,
@@ -23,6 +24,12 @@ export interface CheckOutResult {
   readonly checkedOutAt: Date;
   /** Rooms handed to housekeeping. */
   readonly roomsToClean: readonly string[];
+  /**
+   * What the guest still owes, in minor units. Negative means the hotel owes
+   * them. Reported, never enforced — see below.
+   */
+  readonly outstandingBalance: number;
+  readonly currency: string;
 }
 
 /**
@@ -37,12 +44,21 @@ export interface CheckOutResult {
  * It does not clear the room assignment. Which room someone stayed in is the
  * answer to "who was in 302 last Tuesday" — a question hotels genuinely ask.
  * The exclusion constraint is on date ranges, so a past stay blocks nothing.
+ *
+ * It also does not REFUSE an unpaid balance, and that is a third deliberate
+ * omission rather than an oversight. Plenty of departures are legitimately
+ * unsettled here: an OTA has already collected, a company is billed monthly, a
+ * card is charged after the minibar is checked. Blocking check-out on a
+ * non-zero balance would stop a guest leaving over a bill the hotel never
+ * intended to collect at the desk. So the balance is RETURNED, the screen puts
+ * it in front of whoever is standing there, and the decision stays with them.
  */
 @Injectable()
 export class CheckOutUseCase {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(RESERVATION_REPOSITORY) private readonly reservations: ReservationRepository,
+    private readonly folio: GetFolioQuery,
     private readonly audit: AuditService,
   ) {}
 
@@ -79,6 +95,10 @@ export class CheckOutUseCase {
     const now = new Date();
 
     return this.db.transaction(async (tx) => {
+      // Read before the status changes, and inside the transaction, so the
+      // figure handed to the desk is the one that was true at the moment the
+      // guest was checked out.
+      const folio = await this.folio.load(tx, input.propertyId, reservation.id);
       const updated = await this.reservations.updateStatus(
         tx,
         reservation.id,
@@ -120,6 +140,9 @@ export class CheckOutUseCase {
           status: 'CHECKED_OUT',
           checkedOutAt: now.toISOString(),
           roomsToClean: stays.map((stay) => stay.roomNumber).filter(Boolean),
+          // Recorded even when zero: "they left owing nothing" is the fact
+          // somebody wants back when a bill is disputed a month later.
+          outstandingBalance: folio.totals.balance.amount,
         },
       });
 
@@ -130,6 +153,8 @@ export class CheckOutUseCase {
         roomsToClean: stays
           .map((stay) => stay.roomNumber)
           .filter((roomNumber): roomNumber is string => roomNumber !== null),
+        outstandingBalance: folio.totals.balance.amount,
+        currency: folio.currency,
       };
     });
   }

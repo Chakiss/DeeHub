@@ -15,3 +15,4 @@ export * from './reservation';
 export * from './platform';
 export * from './notification';
 export * from './reporting';
+export * from './folio';

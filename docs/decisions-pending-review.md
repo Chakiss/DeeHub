@@ -320,16 +320,18 @@ question.
 
 **No fee is charged, and that is the decision you may want to overturn.** Most
 hotels charge something for early departure — a night, or the whole balance on a
-non-refundable rate. This charges nothing, not as a view on what hotels should
-do, but because a penalty has to be POSTED somewhere and the folio does not
-exist yet. A fee with nowhere to land would mean inventing a second ledger
-nobody can see, which is worse than the gap. The desk takes payment for what the
-guest owes, which is what it does today anyway.
+non-refundable rate. This charges nothing.
 
-The audit entry records `earlyDepartureFeeMinor: 0` on every shortening, so when
-the folio arrives the reconciliation between the two is a lookup rather than a
-guess about what this operation used to do. The screen says out loud that no fee
-was charged, so nobody discovers it from a monthly report.
+The folio (item 15) means there IS now somewhere to put a fee; the desk can post
+one against the guest's account in the same breath. What is still missing is the
+policy: nothing on a rate plan says what leaving early costs, so a number
+invented here would be applied silently to every booking, including the flexible
+ones you deliberately sell as free to cancel. Say what the rule should be and it
+becomes a field on the rate plan rather than a guess in a use case.
+
+The audit entry records `earlyDepartureFeeMinor: 0` on every shortening, and the
+screen says out loud that nothing was charged, so a fee posted afterwards is
+visibly a separate decision and nobody discovers the gap from a monthly report.
 
 **Two refusals worth knowing.** Shortening to zero nights is refused and points
 at cancellation instead — a zero-night booking holds no inventory, appears on no
@@ -337,5 +339,41 @@ night, and nobody ever closes it. Moving check-out to a date already past is
 refused rather than clamped: "check them out as of yesterday" is usually a
 correction of something else, and silently keeping the slept nights would leave
 a booking whose dates disagree with what happened in the building.
+
+## 15. The folio, and the two things it deliberately is not
+
+Every booking now has an account: room nights, extra charges, payments and
+refunds by method, voids, and a balance. Four calls worth your disagreement.
+
+**Room charges are derived, not posted.** They are read from the booking's
+frozen night prices rather than copied into a ledger, so the folio cannot drift
+from the reservation and a shortened stay drops off the bill with no second
+place to update. The cost is real and is the next piece of work: a night audit
+needs POSTED charges to freeze a day's revenue, and this reports what is owed
+now rather than what was owed at midnight. The Yanolja report you sent is
+exactly that missing thing.
+
+**`folio:read` reaches READ_ONLY.** It ends in `:read`, so the blanket rule in
+`capabilities.ts` grants it — the same call as item 4 for the audit trail, but
+this one is money rather than names. Narrowing it is one line; say the word.
+
+**Voiding is split from posting.** FRONT_DESK holds `folio:post` and not
+`folio:void`: taking money is the everyday job, and un-taking it is how a till
+is made to balance after cash has gone missing. MANAGER and above can void. If
+that makes your one-person night shift unable to fix their own typo, move
+`folio:void` into the front-desk bundle and accept the trade.
+
+**Check-out reports a balance and does not enforce it.** A guest can walk out
+owing money and the screen says so. Refusing would be defensible for a cash
+hotel and wrong here: an OTA-collected booking, a company billed monthly, and a
+card charged after the minibar is read are all legitimately unsettled at the
+desk. If you want a hard stop for CASH bookings specifically, that is a rule
+worth writing down and I would build it.
+
+One knock-on: the e2e fixtures now delete `folio_payments` and `folio_charges`
+before reservations. Both reference a booking with `ON DELETE RESTRICT`, and a
+missing line there strands the whole test organization — the same trap the
+channel tables set in item 9. It stranded one while I was writing this, which is
+how I found it.
 
 _(Updated as the session continues.)_

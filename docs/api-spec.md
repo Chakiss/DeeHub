@@ -263,6 +263,59 @@ property, which is what a front desk means by "our guests" and what makes the
 screen reachable with property-level permission. Stay counts stay
 organization-wide.
 
+### Folio (Phase 4)
+
+| Method | Path                                                            | Capability   |
+| ------ | --------------------------------------------------------------- | ------------ |
+| `GET`  | `/properties/{pid}/reservations/{id}/folio`                     | `folio:read` |
+| `POST` | `/properties/{pid}/reservations/{id}/folio/charges`             | `folio:post` |
+| `POST` | `/properties/{pid}/reservations/{id}/folio/payments`            | `folio:post` |
+| `POST` | `/properties/{pid}/reservations/{id}/folio/charges/{lid}/void`  | `folio:void` |
+| `POST` | `/properties/{pid}/reservations/{id}/folio/payments/{lid}/void` | `folio:void` |
+
+One booking, one account. There is no `folios` table and no folio id — a folio
+row would carry a reservation id and nothing else. Splitting a bill between a
+company and a guest is real, needs one, and is not built.
+
+**Room charges are derived, not stored.** They come from the reservation's
+frozen night prices, which already move correctly when a stay is extended,
+shortened or cancelled. Copying them into a ledger would create two numbers that
+must agree and a reconciliation bug the first time one of those operations
+forgot the copy. The trade: a true posted-charge ledger is what a night audit
+needs to freeze a day's revenue, and this cannot do that yet.
+
+**Extras compose with the room, not alongside it.** A taxable extra joins the
+room subtotal before service charge and VAT are applied, because two separate
+roundings put the total a baht or two away from the sum of the printed lines. A
+line marked `taxable: false` — a damage recovery, a pass-through — is added
+after the tax instead; VAT on it would overcharge the guest and misstate output
+tax.
+
+**Payments and refunds are separate rows with positive amounts.** A refund as a
+negative payment is shorter and is why cash reports come out wrong: "taken
+today" becomes a net figure that hides both sides, and a cashier counting a
+drawer needs them apart. Each row records the trading day in the property's
+timezone and who keyed it, which is what a cashier reconciliation is built on.
+
+Overpaying is allowed and shows a negative balance — the hotel owes the guest.
+Refunding more than was ever taken is refused with `422`: that is not rounding,
+it is a cashier typing into the wrong booking.
+
+**Nothing is deleted; lines are voided** with a reason, which is required. "This
+was charged and reversed" is a different fact from "this was never charged", and
+it is the one somebody wants when a till does not balance. Voiding is behind
+`folio:void`, which FRONT_DESK does not hold — taking money is the job,
+un-taking it belongs to whoever is accountable for the till.
+
+Charges are refused on a `CANCELLED` booking and ALLOWED on a `CHECKED_OUT` one:
+the minibar is checked after the guest leaves, and refusing would send the desk
+to a spreadsheet.
+
+`POST /reservations/{id}/check-out` now returns `outstandingBalance`. It is
+reported, never enforced — plenty of departures are legitimately unsettled (an
+OTA has collected, a company is billed monthly), and blocking one would stop a
+guest leaving over a bill nobody meant to collect at the desk.
+
 ### Reporting (Phase 4)
 
 | Method | Path                                   | Purpose                                             |
@@ -645,12 +698,13 @@ guest is in that room until they walk out of it.
 
 **No early-departure fee is charged.** The dropped nights come off the bill at
 the price they were quoted — `refundedAmount` in the response — and nothing is
-added back. Most hotels do charge one, and this is not a position on whether
-they should: a penalty has to be posted somewhere, the folio does not exist yet
-(roadmap Phase 4), and inventing a second invisible ledger for it would be
-worse than the gap. The audit entry records `earlyDepartureFeeMinor: 0`
-explicitly, so that when the folio arrives the reconciliation between the two is
-not a guess.
+added back. Most hotels do charge one, and the missing piece is not somewhere to
+put it: the guest's folio exists and the desk can post a charge against it. The
+missing piece is the POLICY. Nothing on a rate plan says what leaving early
+costs, so a number invented here would be applied silently to every booking,
+including the flexible ones a hotel deliberately sells as free to cancel. The
+audit entry records `earlyDepartureFeeMinor: 0`, so a fee posted afterwards is
+visibly a separate human decision.
 
 List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
 `q` (code, guest name, email, phone), `createdFrom/To`, plus `cursor`/`limit`.

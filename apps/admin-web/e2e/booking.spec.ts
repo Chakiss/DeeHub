@@ -45,6 +45,12 @@ test.beforeAll(async () => {
     code: 'BKG',
     name: 'Booking Spec Suite',
     dates: [...NIGHTS, ...IN_HOUSE],
+    // Generous on purpose. Every test in this serial file books, several of
+    // them on the first night, and the default of five ran out — as an
+    // INVENTORY_UNAVAILABLE from a test that was not about inventory at all.
+    // Nothing here asserts an absolute count; the availability case matches
+    // "N left".
+    allotment: 30,
   });
 });
 
@@ -297,9 +303,10 @@ test.describe('changing when a guest leaves', () => {
     await expect(page.getByText(/releases the dropped nights/)).toBeVisible();
 
     await page.getByRole('button', { name: 'Save departure date' }).click();
-    // A hotelier will assume a penalty was applied, so the screen says it was
-    // not — there is no folio for one to land on yet.
-    await expect(page.getByText(/no early-departure fee/)).toBeVisible();
+    // A hotelier will assume a penalty was applied. Nothing here decides one —
+    // no rate plan says what leaving early costs — so the screen points at the
+    // guest account, where a fee the hotel DOES charge can be posted.
+    await expect(page.getByText(/early-departure fee/)).toBeVisible();
 
     // And the booking really is shorter.
     await page.reload();
@@ -324,5 +331,78 @@ test.describe('changing when a guest leaves', () => {
     // route announcer with role="alert", so an unscoped query is ambiguous —
     // the same trap the auth spec documents.
     await expect(page.getByText('That is already the departure date.')).toBeVisible();
+  });
+});
+
+/**
+ * The guest's account.
+ *
+ * The API side is covered by `folio.e2e.test.ts`; what these add is that the
+ * balance is on the page at first paint, that posting a line updates it without
+ * a refresh, and that a front desk can take money without being able to un-take
+ * it — which is a permission split that only shows up on screen.
+ */
+test.describe('the guest account', () => {
+  test('bills the room nights and settles to zero when paid', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const booking = await book(request, token, 'Kanya Folio', NIGHTS[0]!, NIGHTS[2]!);
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${booking.id}`);
+
+    const folio = page.getByRole('region', { name: 'Guest account' });
+    await expect(folio.getByText('Balance due')).toBeVisible();
+    // The room nights are on the account without anybody posting them: they
+    // are read from the booking rather than copied into a ledger.
+    await expect(folio.getByText('Room nights')).toBeVisible();
+
+    await folio.getByRole('button', { name: 'Take a payment' }).click();
+    await folio.getByLabel('Amount').fill('999999');
+    await folio.getByRole('button', { name: 'Record it' }).click();
+
+    // Overpaying is allowed, and reads as the hotel owing the guest rather than
+    // as a minus sign next to the word "balance".
+    await expect(folio.getByText('Owed to the guest')).toBeVisible();
+  });
+
+  test('adds an extra charge and moves the balance without a reload', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const booking = await book(request, token, 'Kanya Minibar', NIGHTS[0]!, NIGHTS[1]!);
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${booking.id}`);
+
+    const folio = page.getByRole('region', { name: 'Guest account' });
+    await folio.getByRole('button', { name: 'Add a charge' }).click();
+    await folio.getByLabel('What for').selectOption('MINIBAR');
+    await folio.getByLabel('Amount').fill('150');
+    await folio.getByLabel('Note').fill('Two beers');
+    await folio.getByRole('button', { name: 'Add a charge' }).last().click();
+
+    // Every folio write returns the whole account, so the new line and the new
+    // balance arrive together.
+    await expect(folio.getByText('Two beers')).toBeVisible();
+    await expect(folio.getByText('Extra charges')).toBeVisible();
+  });
+
+  test('offers no void control to someone who can only take money', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const booking = await book(request, token, 'Kanya Void', NIGHTS[0]!, NIGHTS[1]!);
+
+    // Front desk holds folio:post and NOT folio:void: taking money is the job,
+    // un-taking it belongs to whoever is accountable for the till.
+    await login(page, data.frontDeskEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${booking.id}`);
+
+    const folio = page.getByRole('region', { name: 'Guest account' });
+    await folio.getByRole('button', { name: 'Take a payment' }).click();
+    await folio.getByLabel('Amount').fill('100');
+    await folio.getByRole('button', { name: 'Record it' }).click();
+
+    await expect(folio.getByText('Payments')).toBeVisible();
+    await expect(folio.getByRole('button', { name: 'Void' })).toHaveCount(0);
   });
 });

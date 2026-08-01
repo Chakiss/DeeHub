@@ -60,7 +60,9 @@ Phase 4 with it. Delivered:
   through the UI — an empty property to a sellable one without SQL. Rates can
   now be cleared for a date range as well as set.
 - **Front desk**: physical rooms, housekeeping status, Stay View, room
-  assignment, check-in and check-out. Reservations can be taken at the desk
+  assignment, check-in and check-out, and a guest account per booking —
+  charges, payments, refunds, voids and a running balance, with what is still
+  owed shown at check-out. Reservations can be taken at the desk
   (manual booking), an unstarted stay can have its dates, room type, rate plan
   or occupancy changed, and a stay already under way can have its departure
   moved in either direction — extended, or cut short when a guest leaves early.
@@ -116,9 +118,12 @@ Phase 4 with it. Delivered:
 
 Mostly delivered early; what is left is listed as **remaining**.
 
-- Front desk: ~~room assignment, check-in/out, housekeeping status board~~
-  **done**. Folio basics **remaining** — there is a price snapshot per
-  booking, but no per-stay account of charges, payments and balance.
+- Front desk: ~~room assignment, check-in/out, housekeeping status board,
+  folio basics~~ **done**. Each booking has an account: room nights derived
+  from its frozen prices, extra charges, payments and refunds by method, and a
+  balance. **Remaining**: a posted-charge ledger, which is what a night audit
+  needs to freeze a day's revenue — this reports what is owed now, not what was
+  owed at midnight.
 - Guests → CRM: ~~profiles, stay history, dedupe/merge~~ **done**. A returning
   guest booked under a different spelling is found by phone, email or name, and
   folded into the profile the hotel keeps — never automatically.

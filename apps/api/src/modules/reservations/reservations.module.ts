@@ -7,6 +7,7 @@ import { CancelReservationUseCase } from './application/cancel-reservation.useca
 import { CheckInUseCase } from './application/check-in.usecase';
 import { CheckOutUseCase } from './application/check-out.usecase';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
+import { FolioModule } from '../folio/folio.module';
 import { ExtendStayUseCase } from './application/extend-stay.usecase';
 import { ShortenStayUseCase } from './application/shorten-stay.usecase';
 import { GetReservationQuery } from './application/get-reservation.query';
@@ -25,7 +26,9 @@ import { ReservationsController } from './interface/reservations.controller';
  * in docs/domain-model.md §2.
  */
 @Module({
-  imports: [InventoryModule, PropertiesModule, RatesModule, GuestsModule],
+  // FolioModule for the outstanding balance at check-out: letting a guest walk
+  // out is the last moment anybody can ask them for money.
+  imports: [InventoryModule, PropertiesModule, RatesModule, GuestsModule, FolioModule],
   controllers: [ReservationsController],
   providers: [
     { provide: RESERVATION_REPOSITORY, useClass: DrizzleReservationRepository },

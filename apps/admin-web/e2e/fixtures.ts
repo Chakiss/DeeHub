@@ -200,6 +200,11 @@ export async function teardown(data: TestData): Promise<void> {
       'channel_rate_plan_mappings',
       'channel_room_type_mappings',
       'channels',
+      // Before reservations: a folio line references its booking with RESTRICT,
+      // so an unpaid-attention table here strands the whole organization —
+      // which is exactly how the channel tables were found missing.
+      'folio_payments',
+      'folio_charges',
       'reservations',
       'guests',
       'inventory_days',
@@ -284,7 +289,16 @@ export async function seedIsolatedRoomType(
 export async function removeIsolatedRoomType(room: IsolatedRoomType): Promise<void> {
   const pool = new Pool({ connectionString: connectionString(), max: 2 });
   try {
-    // Reservations first: their stays reference the room type with RESTRICT.
+    // Folio lines first, then reservations: both reference their parent with
+    // RESTRICT, so the order is the reverse of how they were created.
+    for (const table of ['folio_payments', 'folio_charges']) {
+      await pool.query(
+        `DELETE FROM ${table} WHERE reservation_id IN (
+           SELECT reservation_id FROM reservation_stays WHERE room_type_id = $1
+         )`,
+        [room.roomTypeId],
+      );
+    }
     await pool.query(
       `DELETE FROM reservations WHERE id IN (
          SELECT reservation_id FROM reservation_stays WHERE room_type_id = $1

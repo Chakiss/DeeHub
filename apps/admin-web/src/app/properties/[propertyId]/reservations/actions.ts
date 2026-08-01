@@ -11,9 +11,11 @@ import {
   type InventoryGrid,
   type ModifiedStay,
   type ModifyStayInput,
+  type Folio,
   type ShortenedStay,
   type ShortenStayInput,
 } from '@/lib/api';
+import type { FolioChargeKind, FolioPaymentKind, FolioPaymentMethod } from '@/lib/folio-types';
 
 export interface ReservationActionResult {
   readonly ok: boolean;
@@ -218,6 +220,65 @@ export async function shortenStay(
     const shortened = await api.shortenStay(propertyId, reservationId, stayId, input);
     revalidate(propertyId, reservationId);
     return { ok: true, shortened };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export interface FolioActionResult extends ReservationActionResult {
+  readonly folio?: Folio;
+}
+
+/**
+ * Every folio write returns the WHOLE account, not just the line it added.
+ *
+ * The balance is what the person is looking at, and it changes with each line —
+ * so returning the new total is the difference between a screen that is correct
+ * and one that needs a refresh nobody remembers to do.
+ */
+export async function postFolioCharge(
+  propertyId: string,
+  reservationId: string,
+  input: { kind: FolioChargeKind; amount: number; description?: string; taxable?: boolean },
+): Promise<FolioActionResult> {
+  try {
+    const folio = await api.postFolioCharge(propertyId, reservationId, input);
+    revalidate(propertyId, reservationId);
+    return { ok: true, folio };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function recordFolioPayment(
+  propertyId: string,
+  reservationId: string,
+  input: {
+    kind?: FolioPaymentKind;
+    method: FolioPaymentMethod;
+    amount: number;
+    reference?: string;
+  },
+): Promise<FolioActionResult> {
+  try {
+    const folio = await api.recordFolioPayment(propertyId, reservationId, input);
+    revalidate(propertyId, reservationId);
+    return { ok: true, folio };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function voidFolioLine(
+  propertyId: string,
+  reservationId: string,
+  line: { kind: 'CHARGE' | 'PAYMENT'; id: string },
+  reason: string,
+): Promise<FolioActionResult> {
+  try {
+    const folio = await api.voidFolioLine(propertyId, reservationId, line, reason);
+    revalidate(propertyId, reservationId);
+    return { ok: true, folio };
   } catch (error) {
     return failure(error);
   }
