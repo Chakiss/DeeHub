@@ -18,6 +18,7 @@ import { RoomsModule } from './modules/rooms/rooms.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { GuestsModule } from './modules/guests/guests.module';
 import { FolioModule } from './modules/folio/folio.module';
+import { BookingEngineModule } from './modules/booking-engine/booking-engine.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { RatePlansModule } from './modules/rate-plans/rate-plans.module';
 import { UsersModule } from './modules/users/users.module';
@@ -52,6 +53,8 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
     ChannelsModule,
     AvailabilityModule,
     NotificationsModule,
+    // Last: the only module a stranger can reach, and the one to read carefully.
+    BookingEngineModule,
   ],
   providers: [
     // Authentication is the DEFAULT. A new controller is protected the moment

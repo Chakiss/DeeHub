@@ -71,6 +71,9 @@ Phase 4 with it. Delivered:
   one when the same person booked twice under different details.
 - **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking
   forward — what has been taken for the nights ahead since a week ago.
+- **Direct bookings**: a public API a guest can search, hold a room through,
+  and pay a deposit on — priced by the hotel's own rate plans, never by the
+  request.
 - **Channels**: created, credentialed, mapped and activated from the
   dashboard rather than by hand-written SQL, with a connection test and a
   forced full push that works even without the always-on worker.
@@ -114,8 +117,14 @@ Phase 4 with it. Delivered:
   Booking.com), certification process.
 - Reservation delivery inbox: channel bookings auto-ingested, deduplicated,
   and mapped.
-- Direct Booking Engine v1: availability search, book, basic payment
-  (deposit via Omise/Stripe — payments enter the roadmap here).
+- Direct Booking Engine v1: ~~availability search, book, deposit payment~~
+  **API done** — public routes resolved by organization slug and property code,
+  bookings taken as fifteen-minute holds, and a deposit charged through a
+  payment port with an Omise adapter that lands on the guest's folio.
+  **Remaining**: an `OMISE_SECRET_KEY` (without one a booking is still taken
+  and held for a human), rate limiting on the public routes, and the
+  guest-facing page itself — the API is what a booking page consumes, and no
+  such page is built.
 - Rate Plans v2: ~~derived rates (percentage/amount off parent)~~ **done** — a
   plan can be priced as an offset from another, resolved in one view so the
   booking path, the ARI push and the grid cannot disagree. **Promotions

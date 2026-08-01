@@ -117,6 +117,18 @@ export const envSchema = z.object({
   LINE_CHANNEL_TOKEN: optional(),
   /** LINE user or group id the staff alerts are pushed to. */
   LINE_STAFF_TARGET: optional(),
+
+  /**
+   * Omise secret key, for deposits taken by the direct booking engine.
+   *
+   * Optional: without it a public booking is still taken and held as PENDING
+   * for the hotel to confirm, which is how most small Thai hotels work anyway.
+   * The public API says so rather than pretending a card was declined.
+   *
+   * The PUBLIC key is not here on purpose — it belongs to the browser, which
+   * tokenises the card directly so no card number ever reaches this server.
+   */
+  OMISE_SECRET_KEY: optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

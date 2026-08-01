@@ -403,4 +403,45 @@ rows, not a PATCH), and a −100% offset is refused rather than allowed to produ
 a free room. An offset that merely happens to exceed the parent's price gives
 the night NO price, which every caller already reads as unsellable.
 
+## 17. The booking engine is public, and two gaps in it are yours to weigh
+
+`/public/{orgSlug}/{propertyCode}/...` is the only part of the system a stranger
+can reach. Search, hold a room for fifteen minutes, pay a deposit. Prices come
+from your rate plans and never from the request; the schemas are strict, so an
+amount in the body is rejected rather than ignored.
+
+**There is no rate limiting, and I did not fake one.** An in-memory limiter is
+useless behind Cloud Run, which scales horizontally — each instance would count
+its own requests and none would see the whole picture. Doing it properly means
+Redis (which this deployment does not have) or Cloud Armor (which is a
+Terraform change and about $5/month). The exposure meanwhile: somebody could
+script holds and keep a small hotel's rooms occupied. Holds expire in fifteen
+minutes and the maintenance job releases them, so it self-heals and nothing is
+lost — but a determined caller could make a Saturday look sold out. **Say the
+word and I will add Cloud Armor.**
+
+**The deposit is the whole stay.** A percentage needs a policy — how much, per
+rate plan, refundable until when — and no rate plan carries one, so any fraction
+I picked would be applied silently to every booking. A hotel wanting 30% can put
+a non-refundable derived plan in front of it today. This is the same shape as
+the early-departure fee in item 14: the mechanism exists, the RULE is yours.
+
+**No guest-facing page.** The API is what a booking page consumes, and building
+one is a second web app rather than a screen — a public site has its own domain,
+its own design, its own SEO. What exists can be driven by any front end, and the
+e2e suite drives it with no browser at all.
+
+**Omise, not Stripe**, because Thailand-first: it settles in THB, supports
+PromptPay, and is what a Bangkok accountant recognises. It is a port, so Stripe
+is another adapter rather than a rewrite. Set `OMISE_SECRET_KEY` and card
+payments start with no code change; without it a booking is still taken and held
+`PENDING` for you to confirm, which is how most small Thai hotels work anyway.
+
+One thing worth knowing about the failure mode: if the card clears and the
+booking changes in the same instant — the hold expiring, the desk cancelling —
+the transaction rolls back and the payment row goes with it, but the money is
+still taken at Omise. The error names the provider reference and says to
+reconcile it by hand. That window is milliseconds wide and I chose to make it
+loud rather than to hold a database transaction open across a call to a bank.
+
 _(Updated as the session continues.)_

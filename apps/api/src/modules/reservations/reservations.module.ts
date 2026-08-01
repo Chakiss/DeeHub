@@ -46,6 +46,9 @@ import { ReservationsController } from './interface/reservations.controller';
     ListReservationsQuery,
   ],
   exports: [
+    // The port, so the booking engine can read a booking by its code without
+    // reaching into this module's tables. Nothing outside writes through it.
+    RESERVATION_REPOSITORY,
     CreateReservationUseCase,
     ModifyStayUseCase,
     ExtendStayUseCase,

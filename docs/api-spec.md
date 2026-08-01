@@ -934,6 +934,82 @@ worse than not having one. Everything up to that point is built: the port, the
 registry, the contract test suite the Mock OTA passes, mapping, ARI assembly,
 retry and dead-lettering, inbound webhooks, test-connection and forced sync.
 
+### 6.8b Direct booking engine (public)
+
+| Method | Path                                                       | Auth |
+| ------ | ---------------------------------------------------------- | ---- |
+| `GET`  | `/public/{orgSlug}/{propertyCode}`                         | none |
+| `GET`  | `/public/{orgSlug}/{propertyCode}/availability`            | none |
+| `POST` | `/public/{orgSlug}/{propertyCode}/bookings`                | none |
+| `POST` | `/public/{orgSlug}/{propertyCode}/bookings/{code}/deposit` | none |
+
+The only routes a stranger can reach, so the rules are about what they cannot
+do.
+
+**Tenancy comes from the URL**, resolved by `(organization slug, property code)`
+— both must match — and nothing in the request can widen it. A wrong slug, a
+wrong code, a suspended organization and a closed property all answer the same
+`404`; none of those distinctions are a stranger's business.
+
+**No price comes from the request.** The caller names a room type, a rate plan
+and dates; what it costs is read server-side by the same query and the same rate
+resolution the front desk uses. The schemas are `.strict()`, so an amount smuggled
+into the body is rejected rather than ignored.
+
+**Availability returns only what can be booked.** The staff-facing search
+returns unbookable room types WITH a reason, because a clerk needs to see that a
+three-night minimum is in the way. A guest gets the bookable set: the hotel's
+commercial rules are not theirs, and a list of rooms they may not have reads as
+a broken page.
+
+**A booking is a HOLD.** `POST /bookings` creates a `PENDING` reservation that
+holds inventory for fifteen minutes — the same expiring hold the front desk
+uses, released by the maintenance job. A `CONFIRMED` booking nobody has paid for
+is a room given away. The response carries the CODE, never the id: the code is
+what a guest quotes on the phone and the only handle the deposit step accepts.
+
+Bounds, all `422`: at most 30 nights, at most 5 rooms in one request, and no
+arrival more than 730 days out — the inventory horizon, beyond which there are
+no rows to sell anyway. An email address is required, unlike a desk booking,
+because nothing else can reach a guest who booked online.
+
+**`POST /bookings/{code}/deposit`** charges a one-time provider token and
+confirms the booking. The card never reaches this server: the browser tokenises
+it against the provider directly, which keeps the API out of PCI DSS scope.
+
+```jsonc
+// → 200. A decline is a 200 too: the request worked and the bank said no.
+{ "status": "PAID", "amountMinor": 240000, "reservationStatus": "CONFIRMED" }
+{ "status": "DECLINED", "reason": "insufficient funds", "retryable": false }
+{ "status": "UNAVAILABLE", "reason": "This hotel does not take card payments online yet" }
+```
+
+The deposit is the WHOLE stay, not a fraction. A percentage needs a policy — how
+much, per rate plan, refundable until when — and no rate plan carries one; the
+full amount is the only figure that is unambiguous and already computed. A hotel
+wanting 30% can put a non-refundable derived plan in front of it.
+
+Payment lands on the guest's FOLIO as a `CARD` payment with the provider's
+reference, not in a column of its own — the front desk has to see it when the
+guest arrives asking what they still owe. `recordedByUserId` is null: nobody at
+the hotel took it, and naming somebody would put their name on a cashier
+reconciliation.
+
+Only a `PENDING` booking can be charged. With nothing but a booking code, a
+public endpoint that charged a `CONFIRMED` one would be a way to bill a
+stranger's card twice.
+
+With no `OMISE_SECRET_KEY` the booking is still taken and stays `PENDING` for a
+human to confirm, which is how most small Thai hotels already work. Answering
+`DECLINED` would be a lie about the hotel's own setup.
+
+**There is no rate limiting yet**, and it is a real gap rather than an oversight:
+an in-memory limiter is useless behind a service that scales horizontally, and
+doing it properly needs Redis or Cloud Armor. The exposure is a stranger
+creating expiring holds — bounded and self-healing, since holds release
+themselves — but a determined caller could keep a small hotel's inventory
+occupied.
+
 ### 6.9 Inbound webhooks (OTA → DeeHub)
 
 ```
