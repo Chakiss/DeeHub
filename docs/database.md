@@ -668,6 +668,50 @@ CREATE INDEX notifications_pending_idx ON notifications (created_at) WHERE statu
 CREATE INDEX notifications_property_time_idx ON notifications (property_id, created_at DESC);
 ```
 
+### 10.1 On-the-books snapshots
+
+```sql
+CREATE TABLE otb_snapshots (
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  property_id     uuid NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  as_of           date NOT NULL,          -- business date in the PROPERTY's timezone
+  room_type_id    uuid NOT NULL REFERENCES room_types(id) ON DELETE CASCADE,
+  stay_date       date NOT NULL,
+  rooms_sold      integer NOT NULL,
+  revenue_minor   bigint NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (property_id, as_of, room_type_id, stay_date)
+);
+CREATE INDEX otb_snapshots_stay_idx ON otb_snapshots (property_id, stay_date, as_of);
+```
+
+The one table in the system that holds derived data, and it exists because
+pickup cannot be derived. Live rows do not remember when they arrived, and
+`reservations.created_at` is wrong in exactly the cases that matter: a booking
+made on Monday and cancelled on Wednesday WAS on the books on Tuesday, and a
+stay whose dates moved was never on the books for the dates it now holds.
+
+Written by the maintenance job, idempotent per `(property, as_of)` through the
+natural primary key and `ON CONFLICT DO UPDATE` — the job runs every ten minutes
+and the last run before midnight is the one that stands, which is the correct
+meaning of "as of that date". Rows for today whose bookings have all been
+cancelled are DELETED on the same pass; left alone they would keep reporting
+business that no longer exists.
+
+`as_of` is a property-timezone date, not a timestamp (ADR-0003). A snapshot
+taken at 00:30 in Bangkok belongs to that day's trading, and a UTC date would
+file it under the previous one for every property east of Greenwich.
+
+The foreign keys CASCADE rather than RESTRICT, unlike every business table.
+RESTRICT exists to stop a parent being deleted while records that mean something
+still point at it; a snapshot means nothing on its own, so blocking a deletion
+on one would be a false alarm.
+
+Bounded on both sides: stay dates more than 400 days out are not captured, and
+snapshots older than 800 days are purged. **History starts when the first
+capture runs and cannot be backfilled** — the report says so rather than
+comparing against nothing.
+
 ---
 
 ## 11. The queries that matter

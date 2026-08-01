@@ -66,7 +66,8 @@ Phase 4 with it. Delivered:
   moved in either direction — extended, or cut short when a guest leaves early.
 - **Guests**: profiles and stay history, and a way to fold two profiles into
   one when the same person booked twice under different details.
-- **Reporting**: occupancy, ADR and RevPAR.
+- **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking
+  forward — what has been taken for the nights ahead since a week ago.
 - **Channels**: created, credentialed, mapped and activated from the
   dashboard rather than by hand-written SQL.
 - **Notifications**: booking confirmations and cancellations to guests in
@@ -127,8 +128,10 @@ Mostly delivered early; what is left is listed as **remaining**.
   sending domain, which is an account task rather than a code one. Without one
   only the Resend account owner receives anything; everyone else's row shows
   the provider's refusal.
-- Reporting v1: ~~occupancy, ADR, RevPAR~~ **done**. Pickup **remaining** —
-  it needs booking-date history, not just stay dates.
+- Reporting v1: ~~occupancy, ADR, RevPAR, pickup~~ **done**. Pickup needed
+  booking-date history, which live rows do not keep, so the maintenance job now
+  freezes on-the-books figures once per business date. History starts from the
+  first snapshot and cannot be backfilled.
 
 ## Phase 5 — Revenue + AI Assistant (Months 9–12+)
 

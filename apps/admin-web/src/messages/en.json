@@ -450,7 +450,25 @@
     "next": "Next",
     "last7": "Last 7 days",
     "last30": "Last 30 days",
-    "noData": "Nothing sold in this range."
+    "noData": "Nothing sold in this range.",
+    "pickupTitle": "Pickup",
+    "pickupSubtitle": "Business taken for the nights ahead, since a week ago."
+  },
+  "pickup": {
+    "pickupRooms": "Rooms picked up",
+    "pickupRoomsHint": "Net change since {date}, across the nights below.",
+    "pickupRevenue": "Revenue picked up",
+    "pickupRevenueHint": "What those rooms are worth at the prices they were sold.",
+    "onTheBooks": "On the books",
+    "onTheBooksHint": "Room-nights sold for the window, right now.",
+    "date": "Night",
+    "was": "Was",
+    "now": "Now",
+    "change": "Rooms",
+    "revenueChange": "Revenue",
+    "baselineMoved": "No snapshot exists for {requested}, so this compares against {used} instead — a longer span than it says.",
+    "noBaseline": "Pickup needs a few days of history first",
+    "noBaselineHint": "On-the-books figures are recorded once a day, and pickup is the difference between two of them. Nothing can be compared until the second one exists — check back tomorrow."
   },
   "guests": {
     "title": "Guests",

@@ -430,6 +430,36 @@ export interface Performance {
   };
 }
 
+export interface PickupNight {
+  date: string;
+  roomsSold: number;
+  revenueMinor: number;
+  /** Null when there is no baseline at all — history starts when it starts. */
+  baselineRoomsSold: number | null;
+  baselineRevenueMinor: number | null;
+  pickupRooms: number | null;
+  pickupRevenueMinor: number | null;
+}
+
+export interface Pickup {
+  from: string;
+  to: string;
+  currency: string;
+  asOfRequested: string;
+  /** The baseline actually found. Differs from requested when a day is missing. */
+  asOfUsed: string | null;
+  earliestSnapshot: string | null;
+  nights: PickupNight[];
+  totals: {
+    roomsSold: number;
+    revenueMinor: number;
+    baselineRoomsSold: number | null;
+    baselineRevenueMinor: number | null;
+    pickupRooms: number | null;
+    pickupRevenueMinor: number | null;
+  };
+}
+
 export interface Guest {
   id: string;
   firstName: string;
@@ -780,6 +810,9 @@ export const api = {
 
   performance: (propertyId: string, from: string, to: string) =>
     request<Performance>(`/properties/${propertyId}/reports/performance?from=${from}&to=${to}`),
+
+  pickup: (propertyId: string, from: string, to: string, asOf: string) =>
+    request<Pickup>(`/properties/${propertyId}/reports/pickup?from=${from}&to=${to}&asOf=${asOf}`),
 
   stayView: (propertyId: string, from: string, to: string) =>
     request<StayView>(`/properties/${propertyId}/stay-view?from=${from}&to=${to}`),

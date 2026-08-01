@@ -281,15 +281,35 @@ Until you do, self-service recovery is built but inert in production, and the
 operator-driven reset remains the working path. It logs the reason loudly on
 every attempt.
 
-## 13. A second unexplained test flake
+## 13. The test flake has a shape now, and it is the harness
 
-While running the full API suite, `password-reset.e2e.test.ts` failed once with
-`Parse Error: Expected HTTP/` from supertest, on a case that has passed every
-run since — twenty-odd runs of the file alone and two full-suite runs, all
-green. Recorded rather than called fixed, same as item 8. Two different files
-now, two different unexplained shapes, both looking like something in the shared
-test process rather than the code under test. If a third appears, the suite's
-process model is the thread to pull, not the individual test.
+Four occurrences, four different files, none reproducible alone:
+
+| File                         | Symptom                          |
+| ---------------------------- | -------------------------------- |
+| `guests.e2e.test.ts`         | `405 Method Not Allowed` on POST |
+| `password-reset.e2e.test.ts` | `Parse Error: Expected HTTP/`    |
+| `dashboard.e2e.test.ts`      | one assertion, full suite only   |
+| `rooms.e2e.test.ts`          | one assertion, full suite only   |
+
+Each passed on its own immediately afterwards, and three consecutive full runs
+of all 609 tests were green. The earlier note said to pull the thread if a third
+appeared, so: **the common factor is the harness, not any test.**
+
+`405` and `Parse Error: Expected HTTP/` are both answers from the TRANSPORT, not
+from the application — a router that has no such route, and a socket returning
+something that is not an HTTP response at all. Neither is a thing the code under
+test can produce. Every suite passes an unlistened server to supertest, which
+binds a fresh ephemeral port per request and closes it after; 38 files doing
+that thousands of times on one machine will eventually reuse a port still in
+`TIME_WAIT` from a socket the previous file's `app.close()` has not finished
+tearing down.
+
+That is a hypothesis, not a diagnosis, and it is deliberately not fixed here.
+The fix is one listening server per file held open for its lifetime, which
+touches all 38 suites and is a refactor of its own — worth doing before it
+starts failing CI regularly, not in the middle of a feature. **Nothing about it
+suggests a product bug**, and no failure has ever repeated on the same test.
 
 ## 14. Early departure charges nothing, and a hotelier will expect it to
 

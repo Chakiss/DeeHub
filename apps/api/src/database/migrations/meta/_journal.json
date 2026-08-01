@@ -43,6 +43,13 @@
       "when": 1785593387318,
       "tag": "0005_steady_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785595678432,
+      "tag": "0006_wooden_calypso",
+      "breakpoints": true
     }
   ]
 }

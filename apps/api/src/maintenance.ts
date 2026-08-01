@@ -16,6 +16,7 @@ import { ExpireHoldsUseCase } from './modules/inventory/application/expire-holds
 import { ReconcileInventoryUseCase } from './modules/inventory/application/reconcile-inventory.usecase';
 import { DispatchNotificationsUseCase } from './modules/notifications/application/dispatch-notifications.usecase';
 import { PurgeResetTokensUseCase } from './modules/auth/application/purge-reset-tokens.usecase';
+import { CaptureOtbSnapshotUseCase } from './modules/reports/application/capture-otb-snapshot.usecase';
 
 /**
  * One-shot maintenance pass, for deployments with no channels connected.
@@ -94,6 +95,14 @@ async function main(): Promise<void> {
      * rather than a fault — and exiting non-zero for it would train whoever
      * watches this job to ignore the exit code that means inventory drift.
      */
+
+    /*
+     * Before reconciliation, and on every run rather than once a day: the
+     * capture is idempotent per business date, so the last run before midnight
+     * is the one that sticks. Running it hourly would leave the snapshot
+     * reflecting mid-afternoon and call it "end of day".
+     */
+    await app.get(CaptureOtbSnapshotUseCase).execute();
 
     const purged = await app.get(PurgeResetTokensUseCase).execute();
     if (purged.removed > 0) {

@@ -114,4 +114,23 @@ test.describe('performance report', () => {
     // 7 nights plus a header row.
     await expect(page.locator('tbody tr')).toHaveCount(7);
   });
+
+  /**
+   * Pickup is the only figure in the product that cannot be derived from live
+   * rows, so the screen has to be honest when it has no history to compare
+   * against — which on a fresh property is every day until tomorrow.
+   */
+  test('explains that pickup needs history rather than showing a made-up zero', async ({
+    page,
+  }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reports`);
+
+    await expect(page.getByRole('heading', { name: 'Pickup' })).toBeVisible();
+    // The e2e organization is created fresh for each run, so no snapshot of it
+    // has ever been taken. Reporting every existing booking as new business
+    // would be the alternative.
+    await expect(page.getByText('Pickup needs a few days of history first')).toBeVisible();
+  });
 });

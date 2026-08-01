@@ -265,9 +265,10 @@ organization-wide.
 
 ### Reporting (Phase 4)
 
-| Method | Path                                   | Purpose                                     |
-| ------ | -------------------------------------- | ------------------------------------------- |
-| `GET`  | `/properties/{id}/reports/performance` | rooms sold, revenue, ADR, RevPAR, occupancy |
+| Method | Path                                   | Purpose                                             |
+| ------ | -------------------------------------- | --------------------------------------------------- |
+| `GET`  | `/properties/{id}/reports/performance` | rooms sold, revenue, ADR, RevPAR, occupancy         |
+| `GET`  | `/properties/{id}/reports/pickup`      | business taken for each stay date since a past date |
 
 Two denominators are reported, deliberately. `occupancy` and `revPar` use
 PHYSICAL rooms — the industry definitions, and the figures an owner compares
@@ -275,6 +276,55 @@ against an STR report or a previous PMS — and are **null** until rooms exist,
 because a property can operate on allotment alone and reporting 0% would be a
 lie. `sellThrough` uses allotment and answers "how much of what I offered did I
 sell", which is always computable. `adr` needs no denominator choice.
+
+**Pickup** answers the forward-looking question: how much business arrived for
+the nights ahead since a past business date. `from`/`to` bound the STAY dates;
+`asOf` names the baseline and defaults to a week ago.
+
+It is the one report that cannot be derived from live rows, because live rows do
+not remember when they arrived. `reservations.created_at` almost works and is
+wrong in exactly the cases a revenue manager is looking at: a booking made on
+Monday and cancelled on Wednesday was genuinely on the books on Tuesday, and a
+stay whose dates moved was never on the books for the dates it now holds. So the
+maintenance job freezes on-the-books figures once per property per business date
+into `otb_snapshots`, and pickup is the difference between then and now.
+
+"Now" is read LIVE, not from today's snapshot — it has to equal the number the
+performance report shows on the same screen, and a figure ten minutes stale next
+to a booking the clerk just took would cost trust in both.
+
+Three properties of the response matter:
+
+- `asOfUsed` is the snapshot actually found (the newest at or before `asOf`),
+  and may differ from `asOfRequested`. If the job missed three days, "pickup
+  over the last week" silently spans ten; the field is how a caller notices.
+- Every pickup figure is **null** when no snapshot exists at all, never zero.
+  Comparing against nothing would report every existing booking as new business.
+- Pickup goes **negative** when more was cancelled than booked. That is a
+  reading, not an error.
+
+History starts when the first snapshot is taken and cannot be backfilled;
+`earliestSnapshot` says when that was.
+
+```jsonc
+// GET /properties/{id}/reports/pickup?from=2026-08-01&to=2026-10-01&asOf=2026-07-25
+{
+  "asOfRequested": "2026-07-25",
+  "asOfUsed": "2026-07-25",
+  "earliestSnapshot": "2026-07-02",
+  "currency": "THB",
+  "nights": [
+    {
+      "date": "2026-08-01",
+      "roomsSold": 9,
+      "baselineRoomsSold": 6,
+      "pickupRooms": 3,
+      "pickupRevenueMinor": 750000,
+    },
+  ],
+  "totals": { "roomsSold": 9, "pickupRooms": 3, "pickupRevenueMinor": 750000 },
+}
+```
 
 Rooms sold counts the same statuses the inventory grid counts as booked. A
 report that disagreed with the grid on the same refresh would make an operator

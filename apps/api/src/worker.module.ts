@@ -8,6 +8,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { PropertiesModule } from './modules/properties/properties.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { RatesModule } from './modules/rates/rates.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { QueueModule } from './queue/queue.module';
@@ -36,6 +37,8 @@ import { QueueModule } from './queue/queue.module';
     ReservationsModule,
     OutboxModule,
     NotificationsModule,
+    // For the daily on-the-books snapshot, which pickup is measured against.
+    ReportsModule,
   ],
 })
 export class WorkerModule {}
