@@ -19,13 +19,32 @@ const API = process.env.DEEHUB_API_URL ?? 'http://127.0.0.1:3001/api/v1';
 /** Outside the shared fixture's window, so nothing else asserts on these. */
 const NIGHTS = ['2031-06-01', '2031-06-02', '2031-06-03', '2031-06-04', '2031-06-05'];
 
+/**
+ * Today in the PROPERTY's timezone, and the days after it.
+ *
+ * The departure control only appears once a stay has begun — before that the
+ * full editor is the right one — so the cases that exercise it have to book
+ * real dates rather than 2031.
+ */
+function bangkokToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+}
+
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+const IN_HOUSE = [0, 1, 2, 3, 4, 5].map((offset) => addDays(bangkokToday(), offset));
+
 let room: IsolatedRoomType;
 
 test.beforeAll(async () => {
   room = await seedIsolatedRoomType(testData(), {
     code: 'BKG',
     name: 'Booking Spec Suite',
-    dates: NIGHTS,
+    dates: [...NIGHTS, ...IN_HOUSE],
   });
 });
 
@@ -233,5 +252,77 @@ test.describe('reading and changing a booking', () => {
     await login(page, data.frontDeskEmail);
     await page.goto(`/properties/${data.propertyId}/reservations/${reservation.id}`);
     await expect(page.getByRole('button', { name: 'Cancel booking' })).toBeVisible();
+  });
+});
+
+/**
+ * The departure date, moved in both directions from one control.
+ *
+ * The API keeps extending and shortening apart — they do opposite things to
+ * inventory — but at the desk it is one question, and these prove the screen
+ * asks it that way and sends the right call either way.
+ */
+test.describe('changing when a guest leaves', () => {
+  test('moves check-out later, and says what the extra nights cost', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const booking = await book(request, token, 'Anong Extend', IN_HOUSE[0]!, IN_HOUSE[1]!);
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${booking.id}`);
+
+    await page.getByRole('button', { name: 'Change departure date' }).click();
+    await page.getByLabel('New check-out').fill(IN_HOUSE[3]!);
+    // Named before it happens: the two directions cost the hotel opposite
+    // things and the button says neither.
+    await expect(page.getByText(/adds nights to the end/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Save departure date' }).click();
+    await expect(page.getByText(/The added nights come to/)).toBeVisible();
+  });
+
+  test('moves check-out earlier, releases the nights, and charges no fee', async ({
+    page,
+    request,
+  }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const booking = await book(request, token, 'Anong Shorten', IN_HOUSE[0]!, IN_HOUSE[3]!);
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${booking.id}`);
+
+    await page.getByRole('button', { name: 'Change departure date' }).click();
+    await page.getByLabel('New check-out').fill(IN_HOUSE[1]!);
+    await expect(page.getByText(/releases the dropped nights/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Save departure date' }).click();
+    // A hotelier will assume a penalty was applied, so the screen says it was
+    // not — there is no folio for one to land on yet.
+    await expect(page.getByText(/no early-departure fee/)).toBeVisible();
+
+    // And the booking really is shorter.
+    await page.reload();
+    await expect(page.getByText(`${IN_HOUSE[0]!} → ${IN_HOUSE[1]!}`)).toBeVisible();
+  });
+
+  test('refuses to save a date that has not changed', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const booking = await book(request, token, 'Anong Same', IN_HOUSE[0]!, IN_HOUSE[2]!);
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${booking.id}`);
+
+    await page.getByRole('button', { name: 'Change departure date' }).click();
+    await page.getByRole('button', { name: 'Save departure date' }).click();
+
+    // Caught before a request: neither endpoint would accept it, and both
+    // would answer with something less obvious than this.
+    //
+    // Scoped to the paragraph, not getByRole('alert'): Next always renders a
+    // route announcer with role="alert", so an unscoped query is ambiguous —
+    // the same trap the auth spec documents.
+    await expect(page.getByText('That is already the departure date.')).toBeVisible();
   });
 });

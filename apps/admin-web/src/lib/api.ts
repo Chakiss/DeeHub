@@ -224,6 +224,24 @@ export interface ExtendedStay {
   total: Money;
 }
 
+/** Only the departure date moves, exactly as with an extension. */
+export interface ShortenStayInput {
+  version: number;
+  checkOut: string;
+  reason?: string;
+}
+
+export interface ShortenedStay {
+  reservationId: string;
+  stayId: string;
+  version: number;
+  checkOut: string;
+  releasedNights: string[];
+  /** What came off the bill. No early-departure fee is applied — see the API. */
+  refundedAmount: Money;
+  total: Money;
+}
+
 export interface CreatedReservation {
   id: string;
   code: string;
@@ -800,6 +818,17 @@ export const api = {
   extendStay: (propertyId: string, reservationId: string, stayId: string, input: ExtendStayInput) =>
     request<ExtendedStay>(
       `/properties/${propertyId}/reservations/${reservationId}/stays/${stayId}/extend`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+
+  shortenStay: (
+    propertyId: string,
+    reservationId: string,
+    stayId: string,
+    input: ShortenStayInput,
+  ) =>
+    request<ShortenedStay>(
+      `/properties/${propertyId}/reservations/${reservationId}/stays/${stayId}/shorten`,
       { method: 'POST', body: JSON.stringify(input) },
     ),
 

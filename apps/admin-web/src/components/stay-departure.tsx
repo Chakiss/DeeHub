@@ -4,20 +4,25 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import type { ReservationDetail } from '@/lib/api';
-import { extendStay } from '@/app/properties/[propertyId]/reservations/actions';
+import { extendStay, shortenStay } from '@/app/properties/[propertyId]/reservations/actions';
 import { addDays, formatMoney } from '@/lib/dates';
 
 type Stay = ReservationDetail['stays'][number];
 
 /**
- * Keep a guest longer: push check-out later, nothing else.
+ * When is this guest actually leaving?
  *
- * This is the only way to change a stay the guest has already started, and the
+ * One control for both directions, because that is one question at the desk.
+ * The API keeps extending and shortening apart — they do opposite things to
+ * inventory, and only one of them can be refused for a room clash — but making
+ * a clerk pick the right verb before they can type a date would be the API's
+ * shape leaking onto the screen.
+ *
+ * It is the only way to change a stay the guest has already started, and the
  * form says so rather than offering fields it would have to refuse. Moving the
- * arrival or the room type would mean giving back nights already slept in,
- * which the API will not do.
+ * arrival or the room type would mean giving back nights already slept in.
  */
-export function StayExtender({
+export function StayDeparture({
   propertyId,
   reservationId,
   version,
@@ -32,7 +37,7 @@ export function StayExtender({
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [checkOut, setCheckOut] = useState(addDays(stay.checkOut, 1));
+  const [checkOut, setCheckOut] = useState(stay.checkOut);
   const [reason, setReason] = useState('');
 
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +45,7 @@ export function StayExtender({
   const [pending, startTransition] = useTransition();
 
   function reset() {
-    setCheckOut(addDays(stay.checkOut, 1));
+    setCheckOut(stay.checkOut);
     setReason('');
     setError(null);
     setOpen(false);
@@ -49,23 +54,24 @@ export function StayExtender({
   function save() {
     setError(null);
 
-    if (checkOut <= stay.checkOut) {
-      setError(t('extendMustBeLater'));
+    if (checkOut === stay.checkOut) {
+      setError(t('departureUnchanged'));
       return;
     }
+    const input = {
+      version,
+      checkOut,
+      ...(reason.trim() ? { reason: reason.trim() } : {}),
+    };
 
     startTransition(async () => {
-      const result = await extendStay(propertyId, reservationId, stay.id, {
-        version,
-        checkOut,
-        ...(reason.trim() ? { reason: reason.trim() } : {}),
-      });
+      const result =
+        checkOut > stay.checkOut
+          ? await extendStay(propertyId, reservationId, stay.id, input)
+          : await shortenStay(propertyId, reservationId, stay.id, input);
 
       if (result.ok) {
-        const added = result.extended?.addedAmount;
-        setNotice(
-          added ? t('extendDone', { amount: formatMoney(added.amount, added.currency) }) : null,
-        );
+        setNotice(describe(result));
         setOpen(false);
         router.refresh();
         return;
@@ -75,10 +81,27 @@ export function StayExtender({
         return;
       }
       // Everything else — a sold-out night, a missing price, the assigned room
-      // taken by someone else — already arrives as a sentence a clerk can act
-      // on, and naming the conflict is the whole value of it.
+      // taken by someone else, a date already slept through — already arrives
+      // as a sentence a clerk can act on, and naming the cause is its value.
       setError(result.error?.message ?? null);
     });
+  }
+
+  function describe(result: Awaited<ReturnType<typeof extendStay | typeof shortenStay>>): string {
+    if ('extended' in result && result.extended) {
+      const { amount, currency } = result.extended.addedAmount;
+      return t('extendDone', { amount: formatMoney(amount, currency) });
+    }
+    if ('shortened' in result && result.shortened) {
+      const { amount, currency } = result.shortened.refundedAmount;
+      // Says what came OFF the bill, and — because a hotelier will assume
+      // otherwise — that nothing was charged for leaving early.
+      return t('shortenDone', {
+        amount: formatMoney(amount, currency),
+        nights: result.shortened.releasedNights.length,
+      });
+    }
+    return '';
   }
 
   if (!open) {
@@ -94,7 +117,7 @@ export function StayExtender({
           onClick={() => setOpen(true)}
           className="rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
         >
-          {t('extendStay')}
+          {t('changeDeparture')}
         </button>
       </div>
     );
@@ -102,16 +125,18 @@ export function StayExtender({
 
   return (
     <div className="mt-3 space-y-3 rounded-lg border border-slate-300 bg-slate-50 p-3">
-      <p className="text-sm font-medium text-slate-900">{t('extendTitle')}</p>
-      <p className="text-xs text-slate-500">{t('extendHint')}</p>
+      <p className="text-sm font-medium text-slate-900">{t('departureTitle')}</p>
+      <p className="text-xs text-slate-500">{t('departureHint')}</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">{t('extendNewCheckOut')}</span>
+          <span className="mb-1 block text-xs text-slate-500">{t('departureNewCheckOut')}</span>
           <input
             type="date"
             value={checkOut}
-            min={addDays(stay.checkOut, 1)}
+            // A stay must keep at least one night; cutting it to nothing is a
+            // cancellation, which the API refuses and this does not offer.
+            min={addDays(stay.checkIn, 1)}
             onChange={(event) => setCheckOut(event.target.value)}
             className={inputClass}
           />
@@ -127,8 +152,19 @@ export function StayExtender({
         </label>
       </div>
 
+      {/* Named before it happens, because the two directions cost the hotel
+          opposite things and the button says neither. */}
+      {checkOut !== stay.checkOut && (
+        <p className="text-xs text-slate-600">
+          {checkOut > stay.checkOut ? t('departureWillExtend') : t('departureWillShorten')}
+        </p>
+      )}
+
       {error && (
-        <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p
+          role="alert"
+          className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+        >
           {error}
         </p>
       )}
@@ -140,7 +176,7 @@ export function StayExtender({
           onClick={save}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
         >
-          {pending ? t('savingStay') : t('extendConfirm')}
+          {pending ? t('savingStay') : t('departureConfirm')}
         </button>
         <button
           type="button"

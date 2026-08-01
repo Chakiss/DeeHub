@@ -11,6 +11,8 @@ import {
   type InventoryGrid,
   type ModifiedStay,
   type ModifyStayInput,
+  type ShortenedStay,
+  type ShortenStayInput,
 } from '@/lib/api';
 
 export interface ReservationActionResult {
@@ -171,6 +173,10 @@ export interface ExtendStayActionResult extends ReservationActionResult {
   readonly extended?: ExtendedStay;
 }
 
+export interface ShortenStayActionResult extends ReservationActionResult {
+  readonly shortened?: ShortenedStay;
+}
+
 /**
  * Keep a guest longer by adding nights to the end of a stay.
  *
@@ -189,6 +195,29 @@ export async function extendStay(
     const extended = await api.extendStay(propertyId, reservationId, stayId, input);
     revalidate(propertyId, reservationId);
     return { ok: true, extended };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * A guest leaves early: drop nights from the end of a stay.
+ *
+ * The mirror of `extendStay`, and the other half of the only change a stay in
+ * progress accepts. It releases the dropped nights back into inventory and
+ * takes them off the bill — with no early-departure fee, because there is no
+ * folio for one to land on yet.
+ */
+export async function shortenStay(
+  propertyId: string,
+  reservationId: string,
+  stayId: string,
+  input: ShortenStayInput,
+): Promise<ShortenStayActionResult> {
+  try {
+    const shortened = await api.shortenStay(propertyId, reservationId, stayId, input);
+    revalidate(propertyId, reservationId);
+    return { ok: true, shortened };
   } catch (error) {
     return failure(error);
   }

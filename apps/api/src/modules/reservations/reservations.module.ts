@@ -8,6 +8,7 @@ import { CheckInUseCase } from './application/check-in.usecase';
 import { CheckOutUseCase } from './application/check-out.usecase';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
 import { ExtendStayUseCase } from './application/extend-stay.usecase';
+import { ShortenStayUseCase } from './application/shorten-stay.usecase';
 import { GetReservationQuery } from './application/get-reservation.query';
 import { ListReservationsQuery } from './application/list-reservations.query';
 import { ModifyStayUseCase } from './application/modify-stay.usecase';
@@ -34,6 +35,7 @@ import { ReservationsController } from './interface/reservations.controller';
     CreateReservationUseCase,
     ModifyStayUseCase,
     ExtendStayUseCase,
+    ShortenStayUseCase,
     CancelReservationUseCase,
     CheckInUseCase,
     CheckOutUseCase,
@@ -44,6 +46,7 @@ import { ReservationsController } from './interface/reservations.controller';
     CreateReservationUseCase,
     ModifyStayUseCase,
     ExtendStayUseCase,
+    ShortenStayUseCase,
     CancelReservationUseCase,
     GetReservationQuery,
     ListReservationsQuery,

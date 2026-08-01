@@ -5,12 +5,12 @@ import { ApiError, api, type ReservationDetail } from '@/lib/api';
 import { businessDate, formatMoney } from '@/lib/dates';
 import { ReservationActions } from '@/components/reservation-actions';
 import { StayEditor } from '@/components/stay-editor';
-import { StayExtender } from '@/components/stay-extender';
+import { StayDeparture } from '@/components/stay-departure';
 
 /** Bookings a modification can still take apart and re-hold. */
 const MODIFIABLE = ['PENDING', 'CONFIRMED'];
-/** Bookings that still have a future to add nights to. */
-const EXTENDABLE = ['PENDING', 'CONFIRMED', 'CHECKED_IN'];
+/** Bookings whose departure date can still move, in either direction. */
+const DEPARTURE_MOVABLE = ['PENDING', 'CONFIRMED', 'CHECKED_IN'];
 
 const STATUS_TONE: Record<string, string> = {
   CONFIRMED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -170,15 +170,16 @@ export default async function ReservationDetailPage({
 
                   {/*
                    * One editor or the other, never both. A stay that has begun
-                   * can only gain nights at the end — the full editor releases
-                   * the old ones first, which the API refuses once a guest has
-                   * slept in one — and offering both would put two date fields
-                   * on screen where only one of them can be saved.
+                   * can only have its departure moved — the full editor
+                   * releases every night first and re-holds them, which the API
+                   * refuses once a guest has slept in one — and offering both
+                   * would put two date fields on screen where only one of them
+                   * can be saved.
                    */}
                   {canModify &&
                     (stay.checkIn <= today || reservation.status === 'CHECKED_IN'
-                      ? EXTENDABLE.includes(reservation.status) && (
-                          <StayExtender
+                      ? DEPARTURE_MOVABLE.includes(reservation.status) && (
+                          <StayDeparture
                             propertyId={propertyId}
                             reservationId={reservation.id}
                             version={reservation.version}

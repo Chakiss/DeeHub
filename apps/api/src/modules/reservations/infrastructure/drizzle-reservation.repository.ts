@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { toIsoDate, type IsoDate } from '@deehub/shared';
 import { reservationStayNights, reservationStays, reservations } from '../../../database/schema';
 import type { Executor } from '../../../database/executor';
@@ -303,6 +303,49 @@ export class DrizzleReservationRepository implements ReservationRepository {
         currency: night.currency,
       })),
     );
+  }
+
+  async shortenStay(
+    tx: Executor,
+    existing: ModifiableStay,
+    reduction: { readonly checkOut: IsoDate; readonly subtotalMinor: number },
+  ): Promise<number> {
+    const organizationId = requireOrganizationId();
+
+    /*
+     * Nights first, then the stay's own dates.
+     *
+     * The room-overlap EXCLUDE constraint only ever fires on a range that
+     * WIDENS, and this one narrows, so unlike `extendStay` there is nothing
+     * here that Postgres can refuse. The order still matters for the deferred
+     * foreign key: a night pointing outside its stay's range for the duration
+     * of one statement is a state no reader should be able to observe.
+     */
+    const removed = await tx
+      .delete(reservationStayNights)
+      .where(
+        and(
+          eq(reservationStayNights.stayId, existing.id),
+          eq(reservationStayNights.organizationId, organizationId),
+          gte(reservationStayNights.date, reduction.checkOut),
+        ),
+      );
+
+    await tx
+      .update(reservationStays)
+      .set({
+        checkOut: reduction.checkOut,
+        subtotalMinor: reduction.subtotalMinor,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(reservationStays.id, existing.id),
+          eq(reservationStays.organizationId, organizationId),
+        ),
+      );
+
+    return removed.rowCount ?? 0;
   }
 
   async updateTotals(

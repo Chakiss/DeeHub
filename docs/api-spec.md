@@ -514,20 +514,21 @@ staff can see _why_ the system won't sell a room and fix the restriction.
 
 ### 6.6 Reservations
 
-| Method  | Path                                                     | Capability                                         |
-| ------- | -------------------------------------------------------- | -------------------------------------------------- |
-| `GET`   | `/properties/{pid}/reservations`                         | `reservation:read`                                 |
-| `POST`  | `/properties/{pid}/reservations`                         | `reservation:create`                               |
-| `GET`   | `/properties/{pid}/reservations/{id}`                    | `reservation:read`                                 |
-| `PATCH` | `/properties/{pid}/reservations/{id}`                    | `reservation:update` — contact/notes only          |
-| `PATCH` | `/properties/{pid}/reservations/{id}/stays/{sid}`        | `reservation:modify` — dates, room type, occupancy |
-| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/extend` | `reservation:modify` — add nights at the end       |
-| `POST`  | `/properties/{pid}/reservations/{id}/confirm`            | `reservation:update`                               |
-| `POST`  | `/properties/{pid}/reservations/{id}/cancel`             | `reservation:cancel`                               |
-| `POST`  | `/properties/{pid}/reservations/{id}/check-in`           | `reservation:checkin`                              |
-| `POST`  | `/properties/{pid}/reservations/{id}/check-out`          | `reservation:checkout`                             |
-| `POST`  | `/properties/{pid}/reservations/{id}/no-show`            | `reservation:update`                               |
-| `GET`   | `/properties/{pid}/reservations/{id}/audit`              | `audit:read`                                       |
+| Method  | Path                                                      | Capability                                         |
+| ------- | --------------------------------------------------------- | -------------------------------------------------- |
+| `GET`   | `/properties/{pid}/reservations`                          | `reservation:read`                                 |
+| `POST`  | `/properties/{pid}/reservations`                          | `reservation:create`                               |
+| `GET`   | `/properties/{pid}/reservations/{id}`                     | `reservation:read`                                 |
+| `PATCH` | `/properties/{pid}/reservations/{id}`                     | `reservation:update` — contact/notes only          |
+| `PATCH` | `/properties/{pid}/reservations/{id}/stays/{sid}`         | `reservation:modify` — dates, room type, occupancy |
+| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/extend`  | `reservation:modify` — add nights at the end       |
+| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/shorten` | `reservation:modify` — drop nights from the end    |
+| `POST`  | `/properties/{pid}/reservations/{id}/confirm`             | `reservation:update`                               |
+| `POST`  | `/properties/{pid}/reservations/{id}/cancel`              | `reservation:cancel`                               |
+| `POST`  | `/properties/{pid}/reservations/{id}/check-in`            | `reservation:checkin`                              |
+| `POST`  | `/properties/{pid}/reservations/{id}/check-out`           | `reservation:checkout`                             |
+| `POST`  | `/properties/{pid}/reservations/{id}/no-show`             | `reservation:update`                               |
+| `GET`   | `/properties/{pid}/reservations/{id}/audit`               | `audit:read`                                       |
 
 **Modification** is `PATCH` on ONE STAY, not `POST .../modify-stay` as this
 document originally planned. A reservation can hold twenty rooms and the
@@ -576,8 +577,30 @@ room and the booking in the way, because a guest who is physically in 302
 tonight cannot be quietly un-assigned — someone has to be moved, and that is the
 desk's decision.
 
-Shortening a stay is not this endpoint and is not built: early departure has to
-decide what happens to a night already paid for.
+**Early departure** is `POST .../stays/{sid}/shorten`, the mirror of `/extend`
+and the same body. Separate from the PATCH for the same reason: it releases only
+the TAIL of the stay, never the nights already slept, so it works on a booking
+in progress. The released nights are `[new check-out, old check-out)`.
+
+`422` when the new date is not earlier than the current one, when it is before
+the property's business date — releasing a night the guest slept through would
+claim the room was free — or when it would leave the stay with no nights at all.
+That last case is a cancellation: it releases the room, tells the guest and
+moves the booking to `CANCELLED`, none of which a zero-night reservation would
+do. The refusal says so.
+
+The assigned room is KEPT and nothing can refuse the write: the stay's date
+range only narrows, so the room-overlap constraint has nothing to object to. The
+guest is in that room until they walk out of it.
+
+**No early-departure fee is charged.** The dropped nights come off the bill at
+the price they were quoted — `refundedAmount` in the response — and nothing is
+added back. Most hotels do charge one, and this is not a position on whether
+they should: a penalty has to be posted somewhere, the folio does not exist yet
+(roadmap Phase 4), and inventing a second invisible ledger for it would be
+worse than the gap. The audit entry records `earlyDepartureFeeMinor: 0`
+explicitly, so that when the folio arrives the reconciliation between the two is
+not a guess.
 
 List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
 `q` (code, guest name, email, phone), `createdFrom/To`, plus `cursor`/`limit`.

@@ -62,7 +62,8 @@ Phase 4 with it. Delivered:
 - **Front desk**: physical rooms, housekeeping status, Stay View, room
   assignment, check-in and check-out. Reservations can be taken at the desk
   (manual booking), an unstarted stay can have its dates, room type, rate plan
-  or occupancy changed, and a stay already under way can be extended.
+  or occupancy changed, and a stay already under way can have its departure
+  moved in either direction — extended, or cut short when a guest leaves early.
 - **Guests**: profiles and stay history, and a way to fold two profiles into
   one when the same person booked twice under different details.
 - **Reporting**: occupancy, ADR and RevPAR.

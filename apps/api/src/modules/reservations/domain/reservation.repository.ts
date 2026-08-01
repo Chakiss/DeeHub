@@ -130,6 +130,25 @@ export interface ReservationRepository {
   ): Promise<void>;
 
   /**
+   * Drop nights from the END of a stay: move check-out earlier, delete those
+   * nights, and leave every remaining night's frozen price alone.
+   *
+   * The mirror of `extendStay`, and separate from `replaceStay` for the same
+   * reason: the nights that survive carry the prices the guest was quoted and,
+   * for nights already slept in, the historical record. Rewriting them would
+   * re-quote a stay in progress.
+   */
+  shortenStay(
+    tx: Executor,
+    existing: ModifiableStay,
+    reduction: {
+      readonly checkOut: IsoDate;
+      /** The stay's new subtotal, with the dropped nights taken off. */
+      readonly subtotalMinor: number;
+    },
+  ): Promise<number>;
+
+  /**
    * Rewrite the aggregate's money, guarded by `version` like `updateStatus`.
    *
    * Returns 0 when the version no longer matches. Modifying a booking someone

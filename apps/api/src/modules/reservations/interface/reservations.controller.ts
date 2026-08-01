@@ -12,6 +12,7 @@ import { CheckOutUseCase } from '../application/check-out.usecase';
 import { GetReservationQuery } from '../application/get-reservation.query';
 import { ListReservationsQuery } from '../application/list-reservations.query';
 import { ExtendStayUseCase } from '../application/extend-stay.usecase';
+import { ShortenStayUseCase } from '../application/shorten-stay.usecase';
 import { ModifyStayUseCase } from '../application/modify-stay.usecase';
 
 // Format AND calendar validity: the regex alone accepts 2026-02-30, which
@@ -113,6 +114,17 @@ const extendStaySchema = z
 
 type ExtendStayBody = z.infer<typeof extendStaySchema>;
 
+/**
+ * Shortening takes only the new departure date, for the same reason.
+ *
+ * Same shape as extending on purpose: the two are one decision at the desk —
+ * "when is this guest actually leaving" — and the API should not make them
+ * look like different kinds of operation.
+ */
+const shortenStaySchema = extendStaySchema;
+
+type ShortenStayBody = z.infer<typeof shortenStaySchema>;
+
 /** Optimistic locking, same as cancel: a stale tab must not act on old state. */
 const versionSchema = z.object({ version: z.number().int().min(0) }).strict();
 
@@ -134,6 +146,7 @@ export class ReservationsController {
     private readonly listReservations: ListReservationsQuery,
     private readonly modifyStayUseCase: ModifyStayUseCase,
     private readonly extendStayUseCase: ExtendStayUseCase,
+    private readonly shortenStayUseCase: ShortenStayUseCase,
   ) {}
 
   @Get()
@@ -345,6 +358,50 @@ export class ReservationsController {
       checkOut: result.checkOut,
       addedNights: result.addedNights,
       addedAmount: presentMoney(result.addedAmount),
+      total: presentMoney(result.total),
+    };
+  }
+
+  @Post(':id/stays/:stayId/shorten')
+  @HttpCode(200)
+  @RequireCapability('reservation:modify')
+  @ApiOperation({ summary: 'A guest leaves early: drop nights from the end of a stay' })
+  async shortenStay(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Param('stayId') stayId: string,
+    @Body(new ZodValidationPipe(shortenStaySchema)) body: ShortenStayBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    // Same ownership check as extending: a stay id from another booking must
+    // not be reachable through a reservation the caller happens to see.
+    const reservation = await this.getReservation.byId(id);
+    if (
+      !reservation ||
+      reservation.propertyId !== propertyId ||
+      !reservation.stays.some((stay) => stay.id === stayId)
+    ) {
+      throw errors.notFound('Stay', stayId);
+    }
+
+    const result = await this.shortenStayUseCase.execute(
+      {
+        propertyId,
+        stayId,
+        expectedVersion: body.version,
+        checkOut: toIsoDate(body.checkOut),
+        ...(body.reason ? { reason: body.reason } : {}),
+      },
+      this.actor(request),
+    );
+
+    return {
+      reservationId: result.reservationId,
+      stayId: result.stayId,
+      version: result.version,
+      checkOut: result.checkOut,
+      releasedNights: result.releasedNights,
+      refundedAmount: presentMoney(result.refundedAmount),
       total: presentMoney(result.total),
     };
   }

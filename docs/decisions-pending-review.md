@@ -186,9 +186,8 @@ max-stay set to shape arrivals is shorter than this guest's new total. Stop-sell
 and availability on the added nights, and closed-to-departure on the new date,
 all still apply.
 
-**What this still cannot do:** shorten a stay. Early departure has to decide
-what happens to a night already paid for and to the housekeeping schedule, and
-guessing at that inside this operation would be worse than not offering it.
+**This no longer stands: shortening is built** (item 14), as its own endpoint
+for the same reason extending is its own endpoint.
 
 ## 11. Notifications are written whether or not they can be delivered
 
@@ -291,5 +290,32 @@ green. Recorded rather than called fixed, same as item 8. Two different files
 now, two different unexplained shapes, both looking like something in the shared
 test process rather than the code under test. If a third appears, the suite's
 process model is the thread to pull, not the individual test.
+
+## 14. Early departure charges nothing, and a hotelier will expect it to
+
+A guest can now leave early: `POST .../stays/{sid}/shorten` releases the nights
+they are not staying and takes them off the bill. Both directions sit behind one
+"Change departure date" control on the booking, because at the desk it is one
+question.
+
+**No fee is charged, and that is the decision you may want to overturn.** Most
+hotels charge something for early departure — a night, or the whole balance on a
+non-refundable rate. This charges nothing, not as a view on what hotels should
+do, but because a penalty has to be POSTED somewhere and the folio does not
+exist yet. A fee with nowhere to land would mean inventing a second ledger
+nobody can see, which is worse than the gap. The desk takes payment for what the
+guest owes, which is what it does today anyway.
+
+The audit entry records `earlyDepartureFeeMinor: 0` on every shortening, so when
+the folio arrives the reconciliation between the two is a lookup rather than a
+guess about what this operation used to do. The screen says out loud that no fee
+was charged, so nobody discovers it from a monthly report.
+
+**Two refusals worth knowing.** Shortening to zero nights is refused and points
+at cancellation instead — a zero-night booking holds no inventory, appears on no
+night, and nobody ever closes it. Moving check-out to a date already past is
+refused rather than clamped: "check them out as of yesterday" is usually a
+correction of something else, and silently keeping the slept nights would leave
+a booking whose dates disagree with what happened in the building.
 
 _(Updated as the session continues.)_
