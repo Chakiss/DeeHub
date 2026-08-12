@@ -33,3 +33,7 @@ coverage/
 terraform.tfvars
 .terraform.lock.hcl
 crash.log
+
+# Personal Claude Code permissions. settings.json is the shared, read-only set;
+# anything that mutates infrastructure stays on the machine that granted it.
+.claude/settings.local.json
