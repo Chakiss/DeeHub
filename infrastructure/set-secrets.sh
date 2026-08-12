@@ -43,6 +43,26 @@ set_generated jwt-refresh-secret 48
 # credentials. `openssl rand -base64 32` produces exactly that.
 set_generated credentials-key 32
 
+# Says WHERE a value came from, never what it was.
+#
+# This used to be one line of parameter expansion —
+#   "${value:+set from \$$label}${value:-placeholder}"
+# — which reads as "if set say this, otherwise say that" and is not what bash
+# does: `${value:-placeholder}` substitutes the DEFAULT when value is empty and
+# THE VALUE ITSELF when it is not. So a configured secret printed its own
+# plaintext to the terminal, into the operator's scrollback, and into whatever
+# was recording the session. It leaked a live Resend key on 2026-08-12, which is
+# how it was found. Spelt out as a branch here because the terse form was wrong
+# in the one case that mattered and looked right in review.
+report() {
+  local secret="$1" value="$2" label="$3" placeholder="$4"
+  if [ -n "$value" ]; then
+    echo "  $secret — set from \$$label"
+  else
+    echo "  $secret — $placeholder"
+  fi
+}
+
 # Optional. Secret Manager rejects an empty payload and Cloud Run refuses to
 # start a container whose secret has no version, so an unconfigured Sentry gets
 # the literal "disabled" — which the app treats as off because it is not a URL.
@@ -52,7 +72,7 @@ if have_version "$SENTRY_SECRET"; then
 else
   printf '%s' "${SENTRY_DSN:-disabled}" |
     gcloud secrets versions add "$SENTRY_SECRET" --project="$PROJECT" --data-file=- >/dev/null
-  echo "  $SENTRY_SECRET — ${SENTRY_DSN:+set from \$SENTRY_DSN}${SENTRY_DSN:-placeholder (Sentry off)}"
+  report "$SENTRY_SECRET" "${SENTRY_DSN:-}" SENTRY_DSN "placeholder (Sentry off)"
 fi
 
 # Sending credentials, the same placeholder trick as Sentry: an unconfigured
@@ -66,7 +86,7 @@ set_optional() {
   fi
   printf '%s' "${value:-disabled}" |
     gcloud secrets versions add "$secret" --project="$PROJECT" --data-file=- >/dev/null
-  echo "  $secret — ${value:+set from \$$label}${value:-placeholder (off)}"
+  report "$secret" "$value" "$label" "placeholder (off)"
 }
 
 set_optional email-api-key "${EMAIL_API_KEY:-}" EMAIL_API_KEY
