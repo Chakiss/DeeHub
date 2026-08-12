@@ -64,6 +64,35 @@ every credential, Artifact Registry for images.
 
 ---
 
+### Pausing scheduled maintenance
+
+`maintenance_paused = true` stops the Cloud Scheduler trigger, so the job never
+runs. It exists for one situation: the alert email has become noise the
+operator has stopped reading. Pausing removes the noise by removing the signal,
+which is only defensible while the deployment has no live guests — and never
+the right first move if the job still mostly succeeds, because it trades
+working housekeeping for a quiet inbox.
+
+On `enable_channel_sync = false` this job is the only housekeeping process, so
+while it is paused:
+
+| Stops                        | Consequence                                       |
+| ---------------------------- | ------------------------------------------------- |
+| Outbox relay + notifications | Confirmations are composed and never sent          |
+| Hold expiry                  | Lapsed holds keep nights off sale indefinitely     |
+| OTB snapshot capture         | Permanent gap in the pickup report's history       |
+| Inventory reconciliation     | Booking-path drift goes undetected                 |
+| Reset-token purge            | Expired rows accumulate; expiry is still checked at use |
+
+Unpausing catches up on the outbox and holds on the next pass. **The missed OTB
+snapshots do not come back** — each one is a photograph of a business date that
+has passed. That is the cost that grows with every day paused.
+
+> **Currently paused in production** (set 2026-08-11) while a daily failure is
+> diagnosed. See §9.
+
+---
+
 ## 2. Networking
 
 Cloud SQL and Memorystore have **no public IP**. Cloud Run reaches them with
@@ -460,6 +489,16 @@ cover Singapore.
    `terraform validate`, and both images have been built and run locally
    against a real database — but nothing here has touched GCP yet. The first
    apply should be treated as a first apply, not a routine deploy.
-5. **Single region, zonal database.** Accepted for Milestone 1
+5. **Maintenance is paused in production**, `maintenance_paused = true` since
+   2026-08-11 (§1), to stop the alert email. The underlying failure is known
+   and unfixed: roughly one run in three dies on `Connection terminated due to
+   connection timeout`, the pool's 5s `connectionTimeoutMillis`
+   (`apps/api/src/database/database.module.ts`) against a shared-core
+   `db-f1-micro` with no SLA. The other two in three succeed. Fix is a longer
+   connect timeout plus `max_retries = 1` on the job — a transient connect
+   failure is exactly what a retry should absorb, and unlike drift it will not
+   be masked by one, because drift fails the retry too. **Unpause before the
+   first live guest:** while paused no confirmation email is delivered.
+6. **Single region, zonal database.** Accepted for Milestone 1
    (architecture.md §11); regional HA is a tier change when revenue justifies
    it.

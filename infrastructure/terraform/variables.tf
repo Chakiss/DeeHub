@@ -57,6 +57,30 @@ variable "maintenance_schedule" {
   default     = "*/10 * * * *"
 }
 
+variable "maintenance_paused" {
+  description = <<-EOT
+    Stops the scheduler from triggering the maintenance job.
+
+    An escape hatch for when the alert email has become noise the operator has
+    stopped reading. It buys quiet, not a fix, and it is a bad trade whenever
+    the job still mostly succeeds: on `enable_channel_sync = false` there is no
+    worker, so this job is the ONLY thing that:
+
+      - drains the outbox and SENDS guest email (a booking confirmation is
+        composed but never delivered while this is paused);
+      - expires lapsed holds, so held nights are never released back to sale;
+      - captures the on-the-books snapshot the pickup report reads, leaving a
+        permanent hole in that history for every day it stays paused;
+      - runs the inventory drift check, the alarm for booking-path bugs.
+
+    Nothing catches up on unpause except the outbox and holds; the missed OTB
+    snapshots are gone for good. Treat as a matter of days, not weeks, and only
+    on a deployment not yet taking live guests.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "db_tier" {
   # db-g1-small is the smallest tier that is not shared-core; it is enough for a
   # handful of pilot properties and is trivially resizable later.

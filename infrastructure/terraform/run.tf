@@ -530,6 +530,10 @@ resource "google_cloud_scheduler_job" "maintenance" {
   schedule  = var.maintenance_schedule
   time_zone = "Asia/Bangkok"
 
+  # Paused, the job never runs and the failure alert goes quiet — along with
+  # guest email, hold expiry and the drift check. See var.maintenance_paused.
+  paused = var.maintenance_paused
+
   # A missed run is not worth retrying: the next tick does the same work.
   retry_config {
     retry_count = 0
