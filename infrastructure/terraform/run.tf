@@ -42,11 +42,24 @@ resource "google_cloud_run_v2_service" "api" {
   deletion_protection = false
 
   # secret_key_ref names the secret CONTAINER, so Terraform's implicit graph
-  # only waits for the container — not for the version holding the value. Cloud
-  # Run then refuses to start ("version latest was not found") because a secret
-  # with no versions cannot be mounted. Explicit here; the remaining secrets are
-  # populated by set-secrets.sh before apply (see README).
-  depends_on = [google_secret_manager_secret_version.database_url]
+  # only waits for the container — not for the version holding the value, and
+  # not for the IAM that lets this service account read it. Both gaps are the
+  # same shape and both fail at deploy time rather than at plan time:
+  #
+  #   - no version:  "version latest was not found". The remaining secrets are
+  #     populated by set-secrets.sh before apply (see README).
+  #   - no binding:  "Permission denied on secret ... The service account used
+  #     must be granted the 'Secret Manager Secret Accessor' role". Terraform
+  #     is free to create the binding and update the service in PARALLEL, and
+  #     on the apply that first adds a secret it does exactly that — the
+  #     revision is rejected while the grant it needs is still being written.
+  #     Adding a secret to this map without the matching binding here is an
+  #     apply that fails once, then succeeds on a retry, which is the most
+  #     expensive way to learn about an ordering bug.
+  depends_on = [
+    google_secret_manager_secret_version.database_url,
+    google_secret_manager_secret_iam_member.api_access,
+  ]
 
   # Service-level `scaling` is returned by the API as zeros even though we never
   # set it — we scale per-revision, in template.scaling below. Without this,
@@ -187,9 +200,13 @@ resource "google_cloud_run_v2_service" "worker" {
   name     = "deehub-worker-${local.suffix}"
   location = var.region
 
-  # See the api service: the secret version is not an implicit dependency, and
-  # the image belongs to the deploy pipeline rather than to Terraform.
-  depends_on = [google_secret_manager_secret_version.database_url]
+  # See the api service: neither the secret version nor the accessor binding is
+  # an implicit dependency, and the image belongs to the deploy pipeline rather
+  # than to Terraform.
+  depends_on = [
+    google_secret_manager_secret_version.database_url,
+    google_secret_manager_secret_iam_member.worker_access,
+  ]
 
   lifecycle {
     ignore_changes = [scaling, template[0].containers[0].image, client, client_version]
@@ -348,8 +365,11 @@ resource "google_cloud_run_v2_job" "migrate" {
 
   deletion_protection = false
 
-  # See the api service: the secret version is not an implicit dependency.
-  depends_on = [google_secret_manager_secret_version.database_url]
+  # See the api service. This job runs as the API's service account.
+  depends_on = [
+    google_secret_manager_secret_version.database_url,
+    google_secret_manager_secret_iam_member.api_access,
+  ]
 
   # Jobs nest one level deeper than services. The image is the deploy
   # pipeline's, not Terraform's — reverting it here would mean migrations run
@@ -436,8 +456,11 @@ resource "google_cloud_run_v2_job" "maintenance" {
 
   deletion_protection = false
 
-  # See the api service: the secret version is not an implicit dependency.
-  depends_on = [google_secret_manager_secret_version.database_url]
+  # See the api service. This job runs as the worker's service account.
+  depends_on = [
+    google_secret_manager_secret_version.database_url,
+    google_secret_manager_secret_iam_member.worker_access,
+  ]
 
   # See the migrate job. Reverting this one to the placeholder would be quieter
   # and worse: the hourly pass would stop draining the outbox and stop
