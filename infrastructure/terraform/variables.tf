@@ -117,6 +117,27 @@ variable "cors_origins" {
   default     = ""
 }
 
+variable "custom_domain" {
+  description = <<-EOT
+    Apex domain the services are served under, e.g. "deehubhotel.com". Empty
+    leaves everything on its generated run.app URL.
+
+    Set it and Terraform maps `app.<domain>` to the dashboard and
+    `api.<domain>` to the API — the apex itself is left alone for the booking
+    site that does not exist yet. Requires the domain to be verified to the
+    account running the apply (`gcloud domains verify <domain>`), and the
+    records from `terraform output custom_domain_dns_records` to be live at the
+    registrar before Cloud Run can issue a certificate. See domains.tf.
+
+    This does NOT move anything on its own: admin_web_url and cors_origins are
+    separate settings, and should only be pointed at the custom domain once it
+    is actually serving, or the dashboard will refuse its own API calls and
+    reset links will name a host that does not resolve.
+  EOT
+  type        = string
+  default     = ""
+}
+
 # Where the dashboard is served, for links the API puts in an email — today
 # just the password-reset link.
 #

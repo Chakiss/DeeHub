@@ -7,7 +7,14 @@ region     = "asia-southeast1"
 api_image = "gcr.io/cloudrun/placeholder"
 web_image = "gcr.io/cloudrun/placeholder"
 
+# Apex domain. Empty keeps the generated run.app URLs. Setting it maps
+# app.<domain> and api.<domain>; the domain must be verified first and the
+# records from `terraform output custom_domain_dns_records` must be live before
+# either serves. See domains.tf.
+custom_domain = ""
+
 # Set once the dashboard has a URL, so the API will accept its requests.
+# Point these at the custom domain only once it is actually serving.
 cors_origins = ""
 
 # Where monitoring alerts are emailed.

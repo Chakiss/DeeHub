@@ -104,6 +104,60 @@ Egress is `PRIVATE_RANGES_ONLY`: traffic to the database and Redis goes through
 the VPC, while calls out to OTAs take the normal public path. Routing all
 egress through the VPC would need a Cloud NAT we do not otherwise want.
 
+### Custom domain
+
+`custom_domain` maps two subdomains and leaves the apex alone:
+
+| Name             | Serves                                              |
+| ---------------- | --------------------------------------------------- |
+| `app.<domain>`   | the dashboard                                       |
+| `api.<domain>`   | the API                                             |
+| `<domain>` (apex) | nothing — reserved for the guest booking site       |
+
+The apex is unmapped on purpose. It is the address a guest will type, and the
+booking site that belongs there is not built (roadmap Phase 3). Parking the
+dashboard on it now costs a migration later, once staff have bookmarked it.
+
+The order matters, and each step fails unhelpfully if the one before it is
+skipped:
+
+```bash
+# 1. Prove ownership. Opens Search Console; ownership is a TXT record.
+#    Applies run from a laptop, not CI, so this is your own Google account
+#    and no service account needs adding as a co-owner.
+gcloud domains verify deehubhotel.com
+gcloud domains list-user-verified --project=deehub-hotel   # confirm
+
+# 2. Create the mappings.
+#    custom_domain = "deehubhotel.com"   in terraform.tfvars
+terraform apply
+
+# 3. Add what Cloud Run asks for at the registrar (CNAMEs to
+#    ghs.googlehosted.com, one per subdomain).
+terraform output custom_domain_dns_records
+
+# 4. Wait. Cloud Run issues the certificate itself and cannot start until the
+#    name resolves to it — minutes to a few hours, mostly DNS propagation.
+gcloud beta run domain-mappings describe --domain=app.deehubhotel.com \
+  --region=asia-southeast1 --project=deehub-hotel
+```
+
+**Created is not serving.** Terraform reports the mapping as created the moment
+the API accepts it, while the certificate is still pending. Step 4 is how you
+find out which one you have.
+
+**Only when `app.` actually serves**, point the application at it — these are
+separate settings and moving them early breaks the working deployment:
+
+```hcl
+admin_web_url = "https://app.deehubhotel.com"   # reset links
+cors_origins  = "https://app.deehubhotel.com"   # what the API will accept
+```
+
+**If DNS is behind a proxy** (Cloudflare's orange cloud), turn it off for these
+two records. A proxied name answers with the proxy's own address, so Cloud Run
+never sees its challenge succeed and the certificate never issues.
+
 ---
 
 ## 3. Secrets
@@ -147,6 +201,37 @@ delivery with no code change.
 **Email must be an HTTP API.** Cloud Run blocks outbound connections on the
 SMTP ports, so the hotel's own mail server is not reachable from where this
 runs. That is a platform constraint, not a preference.
+
+#### The sending domain is what actually blocks guest email
+
+`EMAIL_API_KEY` is set and mail leaves the building — that much is proved end
+to end. What does not work is mail to _anyone else_: with no verified domain,
+Resend accepts only `onboarding@resend.dev` as a sender and delivers it only to
+the Resend account owner. Every guest confirmation is composed, stored, and
+marked failed with the provider's refusal on the row.
+
+This is an account task, not a code one. Nothing in the repository changes:
+
+1. Resend dashboard → **Domains → Add domain** → `deehubhotel.com`.
+2. It returns three records — a DKIM `TXT` on a selector subdomain, an SPF
+   `TXT`, and an optional `MX` for bounce feedback. The values are generated
+   per account and cannot be written down here in advance.
+3. Add them at the registrar alongside the Cloud Run CNAMEs. These are TXT and
+   MX records on names Cloud Run does not use, so the two sets do not collide.
+4. Wait for Resend to report **Verified**, then set the sender and apply:
+
+   ```hcl
+   email_from = "DeeHub Hotel <bookings@deehubhotel.com>"
+   ```
+
+Use a subdomain (`send.deehubhotel.com`) instead if the domain will also carry
+the hotel's own mailboxes one day — a sending reputation earned by a booking
+robot is then kept separate from the one your staff mail depends on.
+
+**One thing still stands between a verified domain and a delivered
+confirmation:** the maintenance job is what drains the outbox, and it is
+paused (§1). Verifying the domain makes delivery possible; unpausing is what
+makes it happen.
 
 **Rotating `CREDENTIALS_KEY` is not a drop-in.** It encrypts channel
 credentials at rest. The stored format is versioned (`v1:iv:tag:ciphertext`)
