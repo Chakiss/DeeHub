@@ -34,6 +34,54 @@
   --color-ink-800: oklch(0.26 0.05 258);
   --color-ink-900: oklch(0.21 0.045 258);
   --color-ink-950: oklch(0.17 0.04 258);
+
+  /*
+   * The warm layer (docs/design-restyle-plan.md §3).
+   *
+   * The reference dashboard's canvas is cream, not grey — that warmth is most
+   * of its mood. Three surfaces: `ground` behind everything, `raised` (plain
+   * white) for cards, `sunk` for stat tiles and table header bands that sit
+   * below the card surface.
+   */
+  --color-ground: #f7f4ec;
+  --color-raised: #ffffff;
+  --color-sunk: #f2ede1;
+  --color-sunk-deep: #e9e2d1;
+
+  /*
+   * Warm yellow, from the reference CTA pill and its chart second-series.
+   * Never a text colour: dark navy text sits ON it, as the reference does.
+   */
+  --color-accent-100: #fdf3d3;
+  --color-accent-300: #f9dd8a;
+  --color-accent-400: #f5c445;
+  --color-accent-500: #eab020;
+  --color-accent-900: #6b4c07;
+
+  /*
+   * Success green, narrowed from the reference's primary to a semantic:
+   * available, paid, synced, confirmed. Azure is the actor; green is the
+   * verdict.
+   */
+  --color-success-50: #ecf8f2;
+  --color-success-100: #d3efe2;
+  --color-success-500: #17a06b;
+  --color-success-700: #0e7a50;
+  --color-success-900: #0a5238;
+}
+
+/*
+ * Chart series, in the reference's order of appearance: azure leads, yellow
+ * seconds, green/coral/plum fill out. Plain CSS variables rather than @theme
+ * colours because they are read by inline styles on bars and donut segments,
+ * not by utility classes.
+ */
+:root {
+  --chart-1: oklch(0.62 0.19 259); /* azure  — brand-500 */
+  --chart-2: #f5c445; /* yellow — accent-400 */
+  --chart-3: #17a06b; /* green  — success-500 */
+  --chart-4: #f1704b; /* coral */
+  --chart-5: #7c6bd0; /* plum */
 }
 
 /*
