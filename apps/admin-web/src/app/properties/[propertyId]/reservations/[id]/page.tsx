@@ -243,6 +243,7 @@ export default async function ReservationDetailPage({
             <ReservationActions
               propertyId={propertyId}
               reservation={reservation}
+              today={today}
               canCancel={capabilities.includes('reservation:cancel')}
               canCheckIn={capabilities.includes('reservation:checkin')}
               canCheckOut={capabilities.includes('reservation:checkout')}

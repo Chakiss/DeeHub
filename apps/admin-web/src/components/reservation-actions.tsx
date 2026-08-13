@@ -21,12 +21,15 @@ import {
 export function ReservationActions({
   propertyId,
   reservation,
+  today,
   canCancel,
   canCheckIn,
   canCheckOut,
 }: {
   propertyId: string;
   reservation: ReservationDetail;
+  /** The property's business date (ADR-0003), never the browser's. */
+  today: string;
   canCancel: boolean;
   canCheckIn: boolean;
   canCheckOut: boolean;
@@ -53,12 +56,17 @@ export function ReservationActions({
    * Only then is there anything to hand back, and only then is the question
    * worth asking — a guest departing on their booked date has no unused night,
    * so offering to "put tonight back on sale" would be an option that does
-   * nothing. The API decides for real; this only avoids asking pointlessly, so
-   * a day's drift between the browser's clock and the property's timezone
-   * costs an unnecessary question rather than a wrong outcome.
+   * nothing.
+   *
+   * `today` is the PROPERTY's business date, computed by the page. It used to
+   * be the browser clock's UTC date here, excused as "an unnecessary question
+   * rather than a wrong outcome" — but in Thailand that unnecessary question
+   * fired for every on-time departure before 7am, which is when hotel
+   * checkouts actually happen. Found by the e2e suite crossing midnight
+   * Asia/Bangkok while UTC was still yesterday (ADR-0003's exact warning).
+   * The API still decides for real.
    */
-  const todayLocal = new Date().toISOString().slice(0, 10);
-  const nightsStillHeld = reservation.stays.some((stay) => stay.checkOut > todayLocal);
+  const nightsStillHeld = reservation.stays.some((stay) => stay.checkOut > today);
 
   function run(action: () => Promise<{ ok: boolean; error?: { code: string; message: string } }>) {
     setError(null);
