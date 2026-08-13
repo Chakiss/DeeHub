@@ -557,9 +557,22 @@ resource "google_cloud_scheduler_job" "maintenance" {
   # guest email, hold expiry and the drift check. See var.maintenance_paused.
   paused = var.maintenance_paused
 
-  # A missed run is not worth retrying: the next tick does the same work.
+  /*
+   * One retry, not none.
+   *
+   * "A missed run is not worth retrying, the next tick does the same work" was
+   * true of the work and false of the ALERT: every transient failure paged the
+   * operator, the daily noise is what got this job paused on 2026-08-11, and
+   * pausing it stopped guest email for two days.
+   *
+   * A retry is safe here because it cannot hide the failure that matters.
+   * Inventory drift and a stuck outbox fail the retry too — they are states of
+   * the database, not of the connection — so a genuine problem still alerts. A
+   * connection that timed out once against a shared-core instance is exactly
+   * what a retry should absorb.
+   */
   retry_config {
-    retry_count = 0
+    retry_count = 1
   }
 
   http_target {
