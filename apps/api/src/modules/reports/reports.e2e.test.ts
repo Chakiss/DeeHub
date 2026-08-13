@@ -330,6 +330,18 @@ describeIfDb('Performance report', () => {
       .toISOString()
       .slice(0, 10)}`;
 
+    /**
+     * A baseline date to ASK for, relative like everything else here.
+     *
+     * This was once the literal '2026-07-25', which was a week ago on the day
+     * it was written and stayed a week ago for four days. Snapshots are filed
+     * relative to today, so as today moved the snapshot passed the fixed date:
+     * from 2026-08-05 the "older baseline" was newer than the day requested,
+     * the endpoint correctly answered null, and the suite went red — with the
+     * code unchanged and nothing at fault but the calendar.
+     */
+    const WEEK_AGO = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+
     beforeAll(async () => {
       const { CaptureOtbSnapshotUseCase } =
         await import('./application/capture-otb-snapshot.usecase');
@@ -425,9 +437,9 @@ describeIfDb('Performance report', () => {
       const actual = await snapshotAsOf(10);
 
       // Asked for a week ago; the newest snapshot at or before that is older.
-      const response = await pickup('2026-07-25').expect(200);
+      const response = await pickup(WEEK_AGO).expect(200);
       expect(response.body.asOfUsed).toBe(actual);
-      expect(response.body.asOfRequested).toBe('2026-07-25');
+      expect(response.body.asOfRequested).toBe(WEEK_AGO);
     });
 
     it('answers with nulls rather than a made-up zero when there is no history', async () => {
