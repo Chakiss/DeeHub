@@ -48,7 +48,7 @@ export function Wordmark({
         </span>
         {showTagline && (
           <span
-            className={`mt-1.5 text-xs ${tone === 'light' ? 'text-slate-300' : 'text-slate-500'}`}
+            className={`mt-1.5 text-xs ${tone === 'light' ? 'text-stone-300' : 'text-stone-500'}`}
           >
             One Hub. Every Booking.
           </span>

@@ -142,19 +142,19 @@ export function FolioPanel({
     // is on a long booking page.
     <section
       aria-labelledby="folio-heading"
-      className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+      className="space-y-3 rounded-2xl bg-white shadow-card p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="folio-heading" className="text-sm font-semibold text-slate-900">
+        <h2 id="folio-heading" className="text-sm font-semibold text-ink-900">
           {t('title')}
         </h2>
         <div className="text-right">
-          <p className="text-xs uppercase tracking-wide text-slate-500">
+          <p className="text-xs uppercase tracking-wide text-stone-500">
             {owed < 0 ? t('hotelOwes') : t('balance')}
           </p>
           <p
             className={`tabular text-2xl font-semibold ${
-              owed > 0 ? 'text-slate-900' : owed < 0 ? 'text-amber-700' : 'text-emerald-700'
+              owed > 0 ? 'text-ink-900' : owed < 0 ? 'text-amber-700' : 'text-emerald-700'
             }`}
           >
             {formatMoney(Math.abs(owed), currency)}
@@ -243,7 +243,7 @@ export function FolioPanel({
               setForm(form === 'CHARGE' ? null : 'CHARGE');
               setError(null);
             }}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-sunk/70"
           >
             {t('addCharge')}
           </button>
@@ -253,7 +253,7 @@ export function FolioPanel({
               setForm(form === 'PAYMENT' ? null : 'PAYMENT');
               setError(null);
             }}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+            className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
           >
             {t('takePayment')}
           </button>
@@ -261,7 +261,7 @@ export function FolioPanel({
       )}
 
       {canPost && form === 'CHARGE' && (
-        <div className="grid gap-3 rounded-lg border border-slate-300 bg-slate-50 p-3 sm:grid-cols-2">
+        <div className="grid gap-3 rounded-lg border border-stone-300 bg-sunk p-3 sm:grid-cols-2">
           <Field label={t('chargeKind')}>
             <select
               aria-label={t('chargeKind')}
@@ -293,7 +293,7 @@ export function FolioPanel({
               className={inputClass}
             />
           </Field>
-          <label className="flex items-end gap-2 pb-1 text-sm text-slate-700">
+          <label className="flex items-end gap-2 pb-1 text-sm text-ink-700">
             <input
               type="checkbox"
               checked={chargeTaxable}
@@ -306,7 +306,7 @@ export function FolioPanel({
               type="button"
               disabled={pending}
               onClick={submitCharge}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               {pending ? t('saving') : t('addCharge')}
             </button>
@@ -315,7 +315,7 @@ export function FolioPanel({
       )}
 
       {canPost && form === 'PAYMENT' && (
-        <div className="grid gap-3 rounded-lg border border-slate-300 bg-slate-50 p-3 sm:grid-cols-2">
+        <div className="grid gap-3 rounded-lg border border-stone-300 bg-sunk p-3 sm:grid-cols-2">
           <Field label={t('direction')}>
             <select
               aria-label={t('direction')}
@@ -363,7 +363,7 @@ export function FolioPanel({
               type="button"
               disabled={pending}
               onClick={submitPayment}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               {pending ? t('saving') : t('record')}
             </button>
@@ -377,8 +377,8 @@ export function FolioPanel({
 function Figure({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="tabular text-slate-800">{value}</dd>
+      <dt className="text-xs text-stone-500">{label}</dt>
+      <dd className="tabular text-ink-800">{value}</dd>
     </div>
   );
 }
@@ -386,8 +386,8 @@ function Figure({ label, value }: { label: string; value: string }) {
 function Lines({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{title}</p>
-      <ul className="divide-y divide-slate-100 border-y border-slate-100">{children}</ul>
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-stone-500">{title}</p>
+      <ul className="divide-y divide-stone-100 border-y border-stone-100">{children}</ul>
     </div>
   );
 }
@@ -409,20 +409,18 @@ function Line({
 }) {
   return (
     <li className="flex items-center gap-3 py-1.5 text-sm">
-      <span
-        className={`min-w-0 flex-1 ${voided ? 'text-slate-400 line-through' : 'text-slate-700'}`}
-      >
+      <span className={`min-w-0 flex-1 ${voided ? 'text-stone-400 line-through' : 'text-ink-700'}`}>
         {left}
-        {meta && <span className="block text-xs text-slate-400 no-underline">{meta}</span>}
+        {meta && <span className="block text-xs text-stone-400 no-underline">{meta}</span>}
       </span>
-      <span className={`tabular ${voided ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+      <span className={`tabular ${voided ? 'text-stone-400 line-through' : 'text-ink-800'}`}>
         {right}
       </span>
       {onVoid && (
         <button
           type="button"
           onClick={onVoid}
-          className="shrink-0 rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
+          className="shrink-0 rounded border border-stone-300 px-2 py-0.5 text-xs text-stone-600 hover:bg-sunk/70"
         >
           {voidLabel}
         </button>
@@ -434,11 +432,11 @@ function Line({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-slate-500">{label}</span>
+      <span className="mb-1 block text-xs text-stone-500">{label}</span>
       {children}
     </label>
   );
 }
 
 const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900';
+  'w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900';

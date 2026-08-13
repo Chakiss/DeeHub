@@ -6,7 +6,7 @@ const STATUS_TONE: Record<string, string> = {
   SENT: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   PENDING: 'bg-amber-50 text-amber-700 ring-amber-200',
   FAILED: 'bg-rose-50 text-rose-700 ring-rose-200',
-  SKIPPED: 'bg-slate-100 text-slate-600 ring-slate-200',
+  SKIPPED: 'bg-sunk text-stone-600 ring-stone-200',
 };
 
 /** The statuses worth a filter chip, in the order they matter. */
@@ -47,12 +47,12 @@ export default async function NotificationsPage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
-        <p className="text-sm text-slate-500">{t('subtitle')}</p>
+        <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
+        <p className="text-sm text-stone-500">{t('subtitle')}</p>
       </div>
 
       {page === null ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-600">
+        <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-sm text-stone-600">
           {t('empty')}
         </div>
       ) : (
@@ -71,11 +71,11 @@ export default async function NotificationsPage({
           </div>
 
           {page.items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-              <p className="text-sm font-medium text-slate-700">
+            <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+              <p className="text-sm font-medium text-ink-700">
                 {status ? t('emptyFiltered') : t('empty')}
               </p>
-              <p className="mt-1 text-sm text-slate-500">{t('emptyHint')}</p>
+              <p className="mt-1 text-sm text-stone-500">{t('emptyHint')}</p>
             </div>
           ) : (
             <>
@@ -97,7 +97,7 @@ export default async function NotificationsPage({
               {page.pageInfo.nextCursor && (
                 <Link
                   href={`?cursor=${page.pageInfo.nextCursor}${status ? `&status=${status}` : ''}`}
-                  className="inline-block rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                  className="inline-block rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70"
                 >
                   {t('loadMore')}
                 </Link>
@@ -130,8 +130,8 @@ function Chip({
       href={href}
       className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${
         active
-          ? 'bg-slate-900 text-white ring-slate-900'
-          : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'
+          ? 'bg-brand-600 text-white ring-brand-600'
+          : 'bg-white text-ink-700 ring-stone-300 hover:bg-sunk/70'
       }`}
     >
       {label} <span className="tabular opacity-70">{count}</span>
@@ -159,26 +159,26 @@ function Row({
   const when = entry.sentAt ?? entry.createdAt;
 
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-3">
+    <li className="rounded-2xl bg-white shadow-card p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${
-            STATUS_TONE[entry.status] ?? 'bg-slate-100 text-slate-600 ring-slate-200'
+            STATUS_TONE[entry.status] ?? 'bg-sunk text-stone-600 ring-stone-200'
           }`}
         >
           {statusLabel}
         </span>
-        <span className="text-sm font-medium text-slate-900">{kindLabel}</span>
-        <span className="text-xs text-slate-500">{entry.channel}</span>
-        <span className="text-sm text-slate-700">{entry.recipient || '—'}</span>
-        <span className="tabular ml-auto text-xs text-slate-500">
+        <span className="text-sm font-medium text-ink-900">{kindLabel}</span>
+        <span className="text-xs text-stone-500">{entry.channel}</span>
+        <span className="text-sm text-ink-700">{entry.recipient || '—'}</span>
+        <span className="tabular ml-auto text-xs text-stone-500">
           {new Date(when).toLocaleString()}
         </span>
       </div>
 
       {/* The reason a message went nowhere is the whole point of the row. */}
       {entry.skippedReason && (
-        <p className="mt-2 rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-600">
+        <p className="mt-2 rounded-md bg-sunk px-2 py-1 text-xs text-stone-600">
           {entry.skippedReason}
         </p>
       )}
@@ -194,12 +194,10 @@ function Row({
       )}
 
       <details className="mt-2">
-        <summary className="cursor-pointer text-xs text-slate-500">{showLabel}</summary>
-        {entry.subject && (
-          <p className="mt-1 text-sm font-medium text-slate-800">{entry.subject}</p>
-        )}
+        <summary className="cursor-pointer text-xs text-stone-500">{showLabel}</summary>
+        {entry.subject && <p className="mt-1 text-sm font-medium text-ink-800">{entry.subject}</p>}
         {/* Exactly the stored text. A message is evidence of what was said. */}
-        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-sans text-sm text-slate-700">
+        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-sans text-sm text-ink-700">
           {entry.body}
         </pre>
       </details>
@@ -207,7 +205,7 @@ function Row({
       {entry.reservationId && (
         <Link
           href={`/properties/${propertyId}/reservations/${entry.reservationId}`}
-          className="mt-2 inline-block text-xs text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
+          className="mt-2 inline-block text-xs text-stone-500 underline-offset-2 hover:text-ink-800 hover:underline"
         >
           {bookingLabel} {entry.context?.code ?? ''}
         </Link>

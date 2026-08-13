@@ -29,8 +29,8 @@ export default async function GuestsPage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
-        <p className="text-sm text-slate-500">{t('subtitle')}</p>
+        <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
+        <p className="text-sm text-stone-500">{t('subtitle')}</p>
       </div>
 
       {/* A plain GET form: search survives a reload and can be linked to. */}
@@ -40,7 +40,7 @@ export default async function GuestsPage({
           defaultValue={q ?? ''}
           placeholder={t('search')}
           aria-label={t('search')}
-          className="w-full max-w-sm rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          className="w-full max-w-sm rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
         <button
           type="submit"
@@ -51,9 +51,9 @@ export default async function GuestsPage({
       </form>
 
       {guests.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-          <p className="text-sm font-medium text-slate-700">{q ? t('noMatch') : t('empty')}</p>
-          {!q && <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t('emptyHint')}</p>}
+        <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+          <p className="text-sm font-medium text-ink-700">{q ? t('noMatch') : t('empty')}</p>
+          {!q && <p className="mx-auto mt-1 max-w-md text-sm text-stone-500">{t('emptyHint')}</p>}
         </div>
       ) : (
         <GuestList
@@ -66,8 +66,8 @@ export default async function GuestsPage({
         />
       )}
 
-      <p className="text-xs text-slate-400">
-        <Link href="?" className="underline hover:text-slate-600">
+      <p className="text-xs text-stone-400">
+        <Link href="?" className="underline hover:text-stone-600">
           {t('title')}
         </Link>{' '}
         · {t('duplicateHint')}

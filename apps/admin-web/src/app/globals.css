@@ -68,6 +68,9 @@
   --color-success-500: #17a06b;
   --color-success-700: #0e7a50;
   --color-success-900: #0a5238;
+
+  /* The reference's card shadow: so soft it reads as paper, not elevation. */
+  --shadow-card: 0 1px 4px rgb(10 20 32 / 0.04), 0 8px 24px rgb(10 20 32 / 0.06);
 }
 
 /*

@@ -95,17 +95,17 @@ export function RateClearDialog({
       role="dialog"
       aria-modal="true"
       aria-label={t('clearPricesFor', { name: ratePlan.name })}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/30 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink-950/40 p-4 sm:items-center"
     >
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-lg space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-lg space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-lg"
       >
         <div>
-          <h2 className="text-lg font-medium text-slate-900">
+          <h2 className="text-lg font-medium text-ink-900">
             {t('clearPricesFor', { name: ratePlan.name })}
           </h2>
-          <p className="mt-1 text-sm text-slate-500">{t('clearExplain')}</p>
+          <p className="mt-1 text-sm text-stone-500">{t('clearExplain')}</p>
         </div>
 
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-inset ring-amber-200">
@@ -114,7 +114,7 @@ export function RateClearDialog({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="clear-from" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="clear-from" className="mb-1 block text-sm font-medium text-ink-700">
               {t('from')}
             </label>
             <input
@@ -123,11 +123,11 @@ export function RateClearDialog({
               value={from}
               onChange={(event) => setFrom(event.target.value)}
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </div>
           <div>
-            <label htmlFor="clear-to" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="clear-to" className="mb-1 block text-sm font-medium text-ink-700">
               {t('to')}
             </label>
             <input
@@ -136,13 +136,13 @@ export function RateClearDialog({
               value={to}
               onChange={(event) => setTo(event.target.value)}
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </div>
         </div>
 
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-slate-700">{t('weekdays')}</legend>
+          <legend className="mb-1 text-sm font-medium text-ink-700">{t('weekdays')}</legend>
           <div className="flex flex-wrap gap-1">
             {WEEKDAYS.map((day) => (
               <button
@@ -153,14 +153,14 @@ export function RateClearDialog({
                 className={`rounded-md border px-2 py-1 text-xs font-medium ${
                   days.includes(day)
                     ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                    : 'border-stone-300 text-stone-600 hover:bg-sunk/70'
                 }`}
               >
                 {day}
               </button>
             ))}
           </div>
-          <p className="mt-1 text-xs text-slate-400">{t('weekdaysHint')}</p>
+          <p className="mt-1 text-xs text-stone-400">{t('weekdaysHint')}</p>
         </fieldset>
 
         {/*
@@ -168,9 +168,7 @@ export function RateClearDialog({
           so removing one occupancy has to be possible without touching the rest.
         */}
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-slate-700">
-            {t('clearOccupancies')}
-          </legend>
+          <legend className="mb-1 text-sm font-medium text-ink-700">{t('clearOccupancies')}</legend>
           <div className="flex flex-wrap gap-1">
             {occupancies.map((occupancy) => (
               <button
@@ -181,14 +179,14 @@ export function RateClearDialog({
                 className={`rounded-md border px-2 py-1 text-xs font-medium tabular-nums ${
                   chosenOccupancies.includes(occupancy)
                     ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                    : 'border-stone-300 text-stone-600 hover:bg-sunk/70'
                 }`}
               >
                 {occupancy === 1 ? t('guest') : t('guests', { count: occupancy })}
               </button>
             ))}
           </div>
-          <p className="mt-1 text-xs text-slate-400">{t('clearOccupanciesHint')}</p>
+          <p className="mt-1 text-xs text-stone-400">{t('clearOccupanciesHint')}</p>
         </fieldset>
 
         {error && (
@@ -200,13 +198,13 @@ export function RateClearDialog({
         {result && (
           <div
             role="status"
-            className="space-y-1 rounded-md bg-slate-50 px-3 py-2 text-sm ring-1 ring-inset ring-slate-200"
+            className="space-y-1 rounded-md bg-sunk px-3 py-2 text-sm ring-1 ring-inset ring-stone-200"
           >
-            <p className="text-slate-800">
+            <p className="text-ink-800">
               {result.removed === 0 ? t('clearNothing') : t('clearDone', { count: result.removed })}
             </p>
             {result.removed > 0 && (
-              <p className={result.unsellable > 0 ? 'text-amber-800' : 'text-slate-500'}>
+              <p className={result.unsellable > 0 ? 'text-amber-800' : 'text-stone-500'}>
                 {result.unsellable > 0
                   ? t('clearUnsellable', { count: result.unsellable })
                   : t('clearUnsellableNone')}
@@ -219,7 +217,7 @@ export function RateClearDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {result ? t('done') : t('cancel')}
           </button>

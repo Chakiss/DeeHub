@@ -36,8 +36,8 @@ export function LocaleSwitcher({ tone = 'light' }: { tone?: 'light' | 'dark' }) 
       aria-label="Language"
       className={
         tone === 'light'
-          ? 'rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white disabled:opacity-60 [&>option]:text-slate-900'
-          : 'rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 disabled:opacity-60'
+          ? 'rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white disabled:opacity-60 [&>option]:text-ink-900'
+          : 'rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-ink-700 disabled:opacity-60'
       }
     >
       {LOCALES.map((option: Locale) => (

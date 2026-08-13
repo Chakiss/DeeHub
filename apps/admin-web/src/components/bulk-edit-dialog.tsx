@@ -89,7 +89,7 @@ export function BulkEditDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -97,14 +97,14 @@ export function BulkEditDialog({
         onSubmit={onSubmit}
         className="w-full max-w-lg space-y-4 rounded-xl bg-white p-6 shadow-xl"
       >
-        <h2 className="text-lg font-medium text-slate-900">{t('editTitle')}</h2>
+        <h2 className="text-lg font-medium text-ink-900">{t('editTitle')}</h2>
 
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">{t('roomType')}</span>
+          <span className="mb-1 block text-sm font-medium text-ink-700">{t('roomType')}</span>
           <select
             value={roomTypeId}
             onChange={(event) => setRoomTypeId(event.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
           >
             {roomTypes.map((roomType) => (
               <option key={roomType.id} value={roomType.id}>
@@ -116,29 +116,29 @@ export function BulkEditDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">{t('from')}</span>
+            <span className="mb-1 block text-sm font-medium text-ink-700">{t('from')}</span>
             <input
               type="date"
               value={from}
               onChange={(event) => setFrom(event.target.value)}
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">{t('to')}</span>
+            <span className="mb-1 block text-sm font-medium text-ink-700">{t('to')}</span>
             <input
               type="date"
               value={to}
               onChange={(event) => setTo(event.target.value)}
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             />
           </label>
         </div>
 
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-slate-700">{t('weekdays')}</legend>
+          <legend className="mb-1 text-sm font-medium text-ink-700">{t('weekdays')}</legend>
           <div className="flex flex-wrap gap-1">
             {WEEKDAYS.map((day) => {
               const active = days.includes(day);
@@ -155,7 +155,7 @@ export function BulkEditDialog({
                   className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${
                     active
                       ? 'border-brand-600 bg-brand-600 text-white'
-                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                      : 'border-stone-300 bg-white text-stone-600 hover:bg-sunk/70'
                   }`}
                 >
                   {day}
@@ -167,33 +167,33 @@ export function BulkEditDialog({
 
         <div className="grid grid-cols-3 gap-3">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">{t('allotment')}</span>
+            <span className="mb-1 block text-sm font-medium text-ink-700">{t('allotment')}</span>
             <input
               type="number"
               min={0}
               value={allotment}
               onChange={(event) => setAllotment(event.target.value)}
               placeholder="—"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">{t('minStay')}</span>
+            <span className="mb-1 block text-sm font-medium text-ink-700">{t('minStay')}</span>
             <input
               type="number"
               min={1}
               value={minStay}
               onChange={(event) => setMinStay(event.target.value)}
               placeholder="—"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">{t('stopSell')}</span>
+            <span className="mb-1 block text-sm font-medium text-ink-700">{t('stopSell')}</span>
             <select
               value={stopSell}
               onChange={(event) => setStopSell(event.target.value as '' | 'true' | 'false')}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             >
               <option value="">—</option>
               <option value="true">On</option>
@@ -202,7 +202,7 @@ export function BulkEditDialog({
           </label>
         </div>
 
-        <p className="text-xs text-slate-400">{t('leaveUnchanged')}</p>
+        <p className="text-xs text-stone-400">{t('leaveUnchanged')}</p>
 
         {error && (
           <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -221,7 +221,7 @@ export function BulkEditDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('cancel')}
           </button>

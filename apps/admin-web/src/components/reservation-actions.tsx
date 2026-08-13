@@ -85,7 +85,7 @@ export function ReservationActions({
   if (!showCheckIn && !showCheckOut && !showCancel) {
     const anyPermission = canCancel || canCheckIn || canCheckOut;
     return (
-      <p className="text-sm text-slate-500">{anyPermission ? t('noActions') : t('readOnly')}</p>
+      <p className="text-sm text-stone-500">{anyPermission ? t('noActions') : t('readOnly')}</p>
     );
   }
 
@@ -97,7 +97,7 @@ export function ReservationActions({
             type="button"
             disabled={pending}
             onClick={() => run(() => checkInReservation(propertyId, id, version))}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {pending ? t('working') : t('checkIn')}
           </button>
@@ -115,7 +115,7 @@ export function ReservationActions({
               }
               run(() => checkOutReservation(propertyId, id, version));
             }}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {pending ? t('working') : t('checkOut')}
           </button>
@@ -193,7 +193,7 @@ export function ReservationActions({
               type="text"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              className="mt-1 w-full rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-sm text-slate-900"
+              className="mt-1 w-full rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
             />
           </label>
           <div className="flex gap-2">

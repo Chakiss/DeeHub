@@ -60,7 +60,7 @@ export default async function PropertyLayout({
           <div className="ml-auto flex items-center gap-3 text-sm">
             <Link
               href="/account"
-              className="hidden text-slate-300 transition hover:text-white sm:inline"
+              className="hidden text-stone-300 transition hover:text-white sm:inline"
             >
               {me.email}
             </Link>

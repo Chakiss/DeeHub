@@ -63,12 +63,12 @@ export function ForgotPasswordForm({
 
         {sent ? (
           <div className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25">
-            <h1 className="text-lg font-medium text-slate-900">{t('sentTitle')}</h1>
-            <p className="text-sm text-slate-600">{t('sentBody', { email })}</p>
-            <p className="text-xs text-slate-400">{t('sentHint')}</p>
+            <h1 className="text-lg font-medium text-ink-900">{t('sentTitle')}</h1>
+            <p className="text-sm text-stone-600">{t('sentBody', { email })}</p>
+            <p className="text-xs text-stone-400">{t('sentHint')}</p>
             <Link
               href="/login"
-              className="block w-full rounded-md border border-slate-300 px-3 py-2 text-center text-sm text-slate-700 transition hover:bg-slate-50"
+              className="block w-full rounded-md border border-stone-300 px-3 py-2 text-center text-sm text-ink-700 transition hover:bg-sunk/70"
             >
               {t('backToSignIn')}
             </Link>
@@ -78,11 +78,11 @@ export function ForgotPasswordForm({
             onSubmit={(event) => void submit(event)}
             className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25"
           >
-            <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
-            <p className="text-sm text-slate-600">{t('intro')}</p>
+            <h1 className="text-lg font-medium text-ink-900">{t('title')}</h1>
+            <p className="text-sm text-stone-600">{t('intro')}</p>
 
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
+              <span className="mb-1 block text-sm font-medium text-ink-700">
                 {t('organization')}
               </span>
               <input
@@ -91,12 +91,12 @@ export function ForgotPasswordForm({
                 autoComplete="organization"
                 required
                 placeholder="deehub-demo"
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">{t('email')}</span>
+              <span className="mb-1 block text-sm font-medium text-ink-700">{t('email')}</span>
               <input
                 type="email"
                 value={email}
@@ -104,7 +104,7 @@ export function ForgotPasswordForm({
                 autoComplete="username"
                 required
                 autoFocus
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </label>
 
@@ -118,7 +118,7 @@ export function ForgotPasswordForm({
 
             <Link
               href="/login"
-              className="block w-full rounded-md border border-slate-300 px-3 py-2 text-center text-sm text-slate-700 transition hover:bg-slate-50"
+              className="block w-full rounded-md border border-stone-300 px-3 py-2 text-center text-sm text-ink-700 transition hover:bg-sunk/70"
             >
               {t('backToSignIn')}
             </Link>

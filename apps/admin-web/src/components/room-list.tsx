@@ -53,8 +53,8 @@ export function RoomList({
 
   if (roomTypes.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-        <p className="text-sm font-medium text-slate-700">{t('needRoomType')}</p>
+      <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+        <p className="text-sm font-medium text-ink-700">{t('needRoomType')}</p>
         <Link
           href={`/properties/${propertyId}/room-types`}
           className="mt-4 inline-block rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
@@ -90,15 +90,15 @@ export function RoomList({
       )}
 
       {rooms.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-          <p className="text-sm font-medium text-slate-700">{t('empty')}</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t('emptyHint')}</p>
+        <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+          <p className="text-sm font-medium text-ink-700">{t('empty')}</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-stone-500">{t('emptyHint')}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+              <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
                 <th className="px-3 py-2 font-medium">{t('roomNumber')}</th>
                 <th className="px-3 py-2 font-medium">{t('floor')}</th>
                 <th className="px-3 py-2 font-medium">{t('roomType')}</th>
@@ -111,13 +111,13 @@ export function RoomList({
               {rooms.map((room) => (
                 <tr
                   key={room.id}
-                  className={`border-b border-slate-100 last:border-0 ${
-                    room.isActive ? '' : 'bg-slate-50/60 text-slate-400'
+                  className={`border-b border-stone-100 last:border-0 ${
+                    room.isActive ? '' : 'bg-sunk/60 text-stone-400'
                   }`}
                 >
-                  <td className="px-3 py-2 font-medium text-slate-800">{room.roomNumber}</td>
-                  <td className="px-3 py-2 text-slate-600">{room.floor ?? '—'}</td>
-                  <td className="px-3 py-2 text-slate-600">
+                  <td className="px-3 py-2 font-medium text-ink-800">{room.roomNumber}</td>
+                  <td className="px-3 py-2 text-stone-600">{room.floor ?? '—'}</td>
+                  <td className="px-3 py-2 text-stone-600">
                     {roomTypeById.get(room.roomTypeId)?.name ?? '—'}
                   </td>
                   <td className="px-3 py-2">
@@ -128,7 +128,7 @@ export function RoomList({
                         disabled={pending}
                         onChange={(event) => setStatus(room, event.target.value)}
                         className={`rounded-md border-0 px-2 py-1 text-xs font-medium ${
-                          STATUS_STYLE[room.housekeepingStatus] ?? 'bg-slate-100 text-slate-700'
+                          STATUS_STYLE[room.housekeepingStatus] ?? 'bg-sunk text-ink-700'
                         }`}
                       >
                         {STATUSES.map((status) => (
@@ -140,14 +140,14 @@ export function RoomList({
                     ) : (
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          STATUS_STYLE[room.housekeepingStatus] ?? 'bg-slate-100 text-slate-700'
+                          STATUS_STYLE[room.housekeepingStatus] ?? 'bg-sunk text-ink-700'
                         }`}
                       >
                         {housekeeping(room.housekeepingStatus)}
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-slate-600">
+                  <td className="px-3 py-2 text-stone-600">
                     {room.isActive ? t('inService') : t('outOfService')}
                   </td>
                   {canEdit && (
@@ -156,7 +156,7 @@ export function RoomList({
                         type="button"
                         disabled={pending}
                         onClick={() => toggleService(room)}
-                        className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        className="rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
                       >
                         {room.isActive ? t('takeOutOfService') : t('returnToService')}
                       </button>
@@ -169,7 +169,7 @@ export function RoomList({
         </div>
       )}
 
-      {canEdit && rooms.length > 0 && <p className="text-xs text-slate-400">{t('noDelete')}</p>}
+      {canEdit && rooms.length > 0 && <p className="text-xs text-stone-400">{t('noDelete')}</p>}
 
       {adding && (
         <AddRoomDialog
@@ -226,16 +226,16 @@ function AddRoomDialog({
       role="dialog"
       aria-modal="true"
       aria-label={t('add')}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4"
     >
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-md space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-lg"
       >
-        <h2 className="text-lg font-medium text-slate-900">{t('add')}</h2>
+        <h2 className="text-lg font-medium text-ink-900">{t('add')}</h2>
 
         <div>
-          <label htmlFor="room-type" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="room-type" className="mb-1 block text-sm font-medium text-ink-700">
             {t('roomType')}
           </label>
           <select
@@ -243,7 +243,7 @@ function AddRoomDialog({
             value={roomTypeId}
             onChange={(event) => setRoomTypeId(event.target.value)}
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           >
             {roomTypes.map((roomType) => (
               <option key={roomType.id} value={roomType.id}>
@@ -255,7 +255,7 @@ function AddRoomDialog({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="room-number" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="room-number" className="mb-1 block text-sm font-medium text-ink-700">
               {t('roomNumber')}
             </label>
             <input
@@ -264,12 +264,12 @@ function AddRoomDialog({
               onChange={(event) => setRoomNumber(event.target.value)}
               required
               maxLength={32}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               placeholder="101"
             />
           </div>
           <div>
-            <label htmlFor="room-floor" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="room-floor" className="mb-1 block text-sm font-medium text-ink-700">
               {t('floor')}
             </label>
             <input
@@ -277,7 +277,7 @@ function AddRoomDialog({
               value={floor}
               onChange={(event) => setFloor(event.target.value)}
               maxLength={32}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               placeholder="1"
             />
           </div>
@@ -293,7 +293,7 @@ function AddRoomDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('cancel')}
           </button>

@@ -21,7 +21,7 @@ export default async function AccountPage() {
           <Link href="/" aria-label="DeeHub">
             <Wordmark tone="light" />
           </Link>
-          <div className="ml-auto text-sm text-slate-300">{me.email}</div>
+          <div className="ml-auto text-sm text-stone-300">{me.email}</div>
         </div>
       </header>
 

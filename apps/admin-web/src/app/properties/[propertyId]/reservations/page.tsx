@@ -8,10 +8,10 @@ const STATUS_TONE: Record<string, string> = {
   CONFIRMED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   PENDING: 'bg-amber-50 text-amber-700 ring-amber-200',
   CHECKED_IN: 'bg-sky-50 text-sky-700 ring-sky-200',
-  CHECKED_OUT: 'bg-slate-100 text-slate-600 ring-slate-200',
+  CHECKED_OUT: 'bg-sunk text-stone-600 ring-stone-200',
   CANCELLED: 'bg-rose-50 text-rose-700 ring-rose-200',
   NO_SHOW: 'bg-rose-50 text-rose-700 ring-rose-200',
-  EXPIRED: 'bg-slate-100 text-slate-500 ring-slate-200',
+  EXPIRED: 'bg-sunk text-stone-500 ring-stone-200',
 };
 
 export default async function ReservationsPage({
@@ -38,13 +38,13 @@ export default async function ReservationsPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
-          <p className="text-sm text-slate-500">{t('subtitle')}</p>
+          <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
+          <p className="text-sm text-stone-500">{t('subtitle')}</p>
         </div>
         {me.capabilities.includes('reservation:create') && (
           <Link
             href={`/properties/${propertyId}/reservations/new`}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
           >
             {t('newBooking')}
           </Link>
@@ -58,10 +58,10 @@ export default async function ReservationsPage({
         defaultStatus={status ?? ''}
       />
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+            <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
               <Th>{t('code')}</Th>
               <Th>{t('guest')}</Th>
               <Th>{t('stay')}</Th>
@@ -75,47 +75,46 @@ export default async function ReservationsPage({
           <tbody>
             {list.items.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-10 text-center text-stone-500">
                   {t('empty')}
                 </td>
               </tr>
             )}
             {list.items.map((reservation) => (
-              <tr key={reservation.id} className="border-b border-slate-100 hover:bg-slate-50">
+              <tr key={reservation.id} className="border-b border-stone-100 hover:bg-sunk/70">
                 <td className="px-4 py-2.5">
                   <Link
                     href={`/properties/${propertyId}/reservations/${reservation.id}`}
-                    className="tabular font-medium text-slate-900 underline-offset-2 hover:underline"
+                    className="tabular font-medium text-ink-900 underline-offset-2 hover:underline"
                   >
                     {reservation.code}
                   </Link>
                 </td>
-                <td className="px-4 py-2.5 text-slate-700">{reservation.bookerName}</td>
-                <td className="tabular px-4 py-2.5 text-slate-600">
+                <td className="px-4 py-2.5 text-ink-700">{reservation.bookerName}</td>
+                <td className="tabular px-4 py-2.5 text-stone-600">
                   {reservation.checkIn && reservation.checkOut
                     ? `${reservation.checkIn} → ${reservation.checkOut}`
                     : '—'}
                 </td>
-                <td className="tabular px-4 py-2.5 text-right text-slate-600">
+                <td className="tabular px-4 py-2.5 text-right text-stone-600">
                   {reservation.rooms}
                 </td>
-                <td className="tabular px-4 py-2.5 text-right text-slate-600">
+                <td className="tabular px-4 py-2.5 text-right text-stone-600">
                   {reservation.nights}
                 </td>
                 <td className="px-4 py-2.5">
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                      STATUS_TONE[reservation.status] ??
-                      'bg-slate-100 text-slate-600 ring-slate-200'
+                      STATUS_TONE[reservation.status] ?? 'bg-sunk text-stone-600 ring-stone-200'
                     }`}
                   >
                     {reservation.status.replace('_', ' ').toLowerCase()}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-slate-400">
+                <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-stone-400">
                   {reservation.source}
                 </td>
-                <td className="tabular px-4 py-2.5 text-right font-medium text-slate-800">
+                <td className="tabular px-4 py-2.5 text-right font-medium text-ink-800">
                   {formatMoney(reservation.total.amount, reservation.total.currency)}
                 </td>
               </tr>
@@ -128,7 +127,7 @@ export default async function ReservationsPage({
         <div className="flex justify-center">
           <Link
             href={buildHref(propertyId, { q, status, cursor: list.pageInfo.nextCursor })}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('loadMore')}
           </Link>

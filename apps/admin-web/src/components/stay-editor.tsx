@@ -129,7 +129,7 @@ export function StayEditor({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-ink-700 hover:bg-sunk/70"
         >
           {t('editStay')}
         </button>
@@ -138,9 +138,9 @@ export function StayEditor({
   }
 
   return (
-    <div className="mt-3 space-y-3 rounded-lg border border-slate-300 bg-slate-50 p-3">
-      <p className="text-sm font-medium text-slate-900">{t('editStayTitle')}</p>
-      <p className="text-xs text-slate-500">{t('modifyHint')}</p>
+    <div className="mt-3 space-y-3 rounded-lg border border-stone-300 bg-sunk p-3">
+      <p className="text-sm font-medium text-ink-900">{t('editStayTitle')}</p>
+      <p className="text-xs text-stone-500">{t('modifyHint')}</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={t('checkIn')}>
@@ -240,7 +240,7 @@ export function StayEditor({
           type="button"
           disabled={pending || plans.length === 0}
           onClick={save}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {pending ? t('savingStay') : t('saveStay')}
         </button>
@@ -248,7 +248,7 @@ export function StayEditor({
           type="button"
           disabled={pending}
           onClick={reset}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-50"
         >
           {t('cancelEdit')}
         </button>
@@ -258,12 +258,12 @@ export function StayEditor({
 }
 
 const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900';
+  'w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-slate-500">{label}</span>
+      <span className="mb-1 block text-xs text-stone-500">{label}</span>
       {children}
     </label>
   );

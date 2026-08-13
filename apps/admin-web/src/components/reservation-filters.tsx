@@ -50,12 +50,12 @@ export function ReservationFilters({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={searchPlaceholder}
-        className="min-w-[280px] flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        className="min-w-[280px] flex-1 rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
       />
       <select
         defaultValue={defaultStatus}
         onChange={(event) => apply({ status: event.target.value })}
-        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink-700"
       >
         <option value="">{allStatusesLabel}</option>
         {STATUSES.map((status) => (

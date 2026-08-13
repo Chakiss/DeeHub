@@ -17,10 +17,10 @@ const STATUS_TONE: Record<string, string> = {
   CONFIRMED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   PENDING: 'bg-amber-50 text-amber-700 ring-amber-200',
   CHECKED_IN: 'bg-sky-50 text-sky-700 ring-sky-200',
-  CHECKED_OUT: 'bg-slate-100 text-slate-600 ring-slate-200',
+  CHECKED_OUT: 'bg-sunk text-stone-600 ring-stone-200',
   CANCELLED: 'bg-rose-50 text-rose-700 ring-rose-200',
   NO_SHOW: 'bg-rose-50 text-rose-700 ring-rose-200',
-  EXPIRED: 'bg-slate-100 text-slate-500 ring-slate-200',
+  EXPIRED: 'bg-sunk text-stone-500 ring-stone-200',
 };
 
 export default async function ReservationDetailPage({
@@ -70,22 +70,22 @@ export default async function ReservationDetailPage({
       <div>
         <Link
           href={`/properties/${propertyId}/reservations`}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-stone-500 hover:text-ink-800"
         >
           ← {t('backToList')}
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="tabular text-xl font-semibold tracking-tight text-slate-900">
+          <h1 className="tabular text-xl font-semibold tracking-tight text-ink-900">
             {reservation.code}
           </h1>
           <span
             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-              STATUS_TONE[reservation.status] ?? 'bg-slate-100 text-slate-600 ring-slate-200'
+              STATUS_TONE[reservation.status] ?? 'bg-sunk text-stone-600 ring-stone-200'
             }`}
           >
             {reservation.status.replace('_', ' ').toLowerCase()}
           </span>
-          <span className="text-xs uppercase tracking-wide text-slate-400">
+          <span className="text-xs uppercase tracking-wide text-stone-400">
             {reservation.source}
           </span>
         </div>
@@ -125,10 +125,10 @@ export default async function ReservationDetailPage({
           <Card title={t('roomsHeading')}>
             <ul className="space-y-4">
               {reservation.stays.map((stay) => (
-                <li key={stay.id} className="rounded-lg border border-slate-200 p-3">
+                <li key={stay.id} className="rounded-lg border border-stone-200 p-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-medium text-slate-900">{stay.roomTypeName}</span>
-                    <span className="tabular text-sm text-slate-600">
+                    <span className="font-medium text-ink-900">{stay.roomTypeName}</span>
+                    <span className="tabular text-sm text-stone-600">
                       {stay.checkIn} → {stay.checkOut}
                     </span>
                   </div>
@@ -153,15 +153,15 @@ export default async function ReservationDetailPage({
                     which is the one thing a booking record must never do.
                   */}
                   <details className="mt-3">
-                    <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-800">
+                    <summary className="cursor-pointer text-xs font-medium text-stone-500 hover:text-ink-800">
                       {t('nightlyRates')}
                     </summary>
                     <table className="mt-2 w-full text-sm">
                       <tbody>
                         {stay.nights.map((night) => (
-                          <tr key={night.date} className="border-b border-slate-100 last:border-0">
-                            <td className="tabular py-1 text-slate-600">{night.date}</td>
-                            <td className="tabular py-1 text-right text-slate-800">
+                          <tr key={night.date} className="border-b border-stone-100 last:border-0">
+                            <td className="tabular py-1 text-stone-600">{night.date}</td>
+                            <td className="tabular py-1 text-right text-ink-800">
                               {formatMoney(night.amount, reservation.currency)}
                             </td>
                           </tr>
@@ -170,7 +170,7 @@ export default async function ReservationDetailPage({
                     </table>
                   </details>
 
-                  <p className="tabular mt-2 text-right text-sm font-medium text-slate-800">
+                  <p className="tabular mt-2 text-right text-sm font-medium text-ink-800">
                     {formatMoney(stay.subtotal.amount, stay.subtotal.currency)}
                   </p>
 
@@ -223,7 +223,7 @@ export default async function ReservationDetailPage({
               <Amount label={t('subtotal')} money={reservation.subtotal} />
               <Amount label={t('tax')} money={reservation.tax} />
               <Amount label={t('serviceCharge')} money={reservation.serviceCharge} />
-              <div className="border-t border-slate-200 pt-1.5">
+              <div className="border-t border-stone-200 pt-1.5">
                 <Amount label={t('grandTotal')} money={reservation.total} strong />
               </div>
             </dl>
@@ -264,8 +264,8 @@ function formatInstant(iso: string): string {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
+    <section className="rounded-2xl bg-white shadow-card p-4">
+      <h2 className="mb-3 text-sm font-semibold text-ink-900">{title}</h2>
       {children}
     </section>
   );
@@ -274,8 +274,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="text-sm text-slate-800">{value ?? '—'}</dd>
+      <dt className="text-xs text-stone-500">{label}</dt>
+      <dd className="text-sm text-ink-800">{value ?? '—'}</dd>
     </div>
   );
 }
@@ -291,8 +291,8 @@ function Amount({
 }) {
   return (
     <div className="flex justify-between">
-      <dt className={strong ? 'font-medium text-slate-900' : 'text-slate-600'}>{label}</dt>
-      <dd className={`tabular ${strong ? 'font-semibold text-slate-900' : 'text-slate-800'}`}>
+      <dt className={strong ? 'font-medium text-ink-900' : 'text-stone-600'}>{label}</dt>
+      <dd className={`tabular ${strong ? 'font-semibold text-ink-900' : 'text-ink-800'}`}>
         {formatMoney(money.amount, money.currency)}
       </dd>
     </div>

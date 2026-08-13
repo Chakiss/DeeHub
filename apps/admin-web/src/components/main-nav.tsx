@@ -19,7 +19,7 @@ export function MainNav({ items }: { items: readonly NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Main" className="border-b border-slate-200 bg-white">
+    <nav aria-label="Main" className="border-b border-stone-200 bg-white">
       <div className="mx-auto flex max-w-[1600px] items-center gap-1 overflow-x-auto px-6">
         {items.map((item) => {
           /*
@@ -40,7 +40,7 @@ export function MainNav({ items }: { items: readonly NavItem[] }) {
               className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-sm transition ${
                 active
                   ? 'border-brand-600 font-medium text-brand-700'
-                  : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                  : 'border-transparent text-stone-600 hover:border-stone-300 hover:text-ink-900'
               }`}
             >
               {item.label}

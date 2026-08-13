@@ -115,7 +115,7 @@ export function StayDeparture({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-ink-700 hover:bg-sunk/70"
         >
           {t('changeDeparture')}
         </button>
@@ -124,13 +124,13 @@ export function StayDeparture({
   }
 
   return (
-    <div className="mt-3 space-y-3 rounded-lg border border-slate-300 bg-slate-50 p-3">
-      <p className="text-sm font-medium text-slate-900">{t('departureTitle')}</p>
-      <p className="text-xs text-slate-500">{t('departureHint')}</p>
+    <div className="mt-3 space-y-3 rounded-lg border border-stone-300 bg-sunk p-3">
+      <p className="text-sm font-medium text-ink-900">{t('departureTitle')}</p>
+      <p className="text-xs text-stone-500">{t('departureHint')}</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">{t('departureNewCheckOut')}</span>
+          <span className="mb-1 block text-xs text-stone-500">{t('departureNewCheckOut')}</span>
           <input
             type="date"
             value={checkOut}
@@ -142,7 +142,7 @@ export function StayDeparture({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">{t('modifyReason')}</span>
+          <span className="mb-1 block text-xs text-stone-500">{t('modifyReason')}</span>
           <input
             type="text"
             value={reason}
@@ -155,7 +155,7 @@ export function StayDeparture({
       {/* Named before it happens, because the two directions cost the hotel
           opposite things and the button says neither. */}
       {checkOut !== stay.checkOut && (
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-stone-600">
           {checkOut > stay.checkOut ? t('departureWillExtend') : t('departureWillShorten')}
         </p>
       )}
@@ -174,7 +174,7 @@ export function StayDeparture({
           type="button"
           disabled={pending}
           onClick={save}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {pending ? t('savingStay') : t('departureConfirm')}
         </button>
@@ -182,7 +182,7 @@ export function StayDeparture({
           type="button"
           disabled={pending}
           onClick={reset}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-50"
         >
           {t('cancelEdit')}
         </button>
@@ -192,4 +192,4 @@ export function StayDeparture({
 }
 
 const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900';
+  'w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900';

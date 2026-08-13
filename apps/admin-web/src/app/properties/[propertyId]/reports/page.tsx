@@ -58,8 +58,8 @@ export default async function ReportsPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
-          <p className="text-sm text-slate-500">{t('subtitle')}</p>
+          <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
+          <p className="text-sm text-stone-500">{t('subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <RangeLink days={7} active={window === 7} label={t('last7')} />
@@ -70,8 +70,8 @@ export default async function ReportsPage({
       <PerformanceReport propertyId={propertyId} performance={performance} />
 
       <div className="pt-2">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-900">{t('pickupTitle')}</h2>
-        <p className="mb-3 text-sm text-slate-500">{t('pickupSubtitle')}</p>
+        <h2 className="text-lg font-semibold tracking-tight text-ink-900">{t('pickupTitle')}</h2>
+        <p className="mb-3 text-sm text-stone-500">{t('pickupSubtitle')}</p>
         <PickupReport pickup={pickup} />
       </div>
     </div>
@@ -86,7 +86,7 @@ function RangeLink({ days, active, label }: { days: number; active: boolean; lab
       className={`rounded-md border px-3 py-1.5 text-sm transition ${
         active
           ? 'border-brand-600 bg-brand-50 font-medium text-brand-700'
-          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+          : 'border-stone-300 bg-white text-ink-700 hover:bg-sunk/70'
       }`}
     >
       {label}

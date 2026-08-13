@@ -41,7 +41,7 @@ export default async function TeamPage() {
           <Link href="/" aria-label="DeeHub">
             <Wordmark tone="light" />
           </Link>
-          <Link href="/account" className="ml-auto text-sm text-slate-300 hover:text-white">
+          <Link href="/account" className="ml-auto text-sm text-stone-300 hover:text-white">
             {me.email}
           </Link>
         </div>
@@ -49,17 +49,17 @@ export default async function TeamPage() {
 
       <main className="mx-auto max-w-[1600px] space-y-4 px-6 py-6">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
-          <p className="text-sm text-slate-500">{t('subtitle')}</p>
+          <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
+          <p className="text-sm text-stone-500">{t('subtitle')}</p>
         </div>
 
         {users === null ? (
           // A refusal is an answer, not a crash. Before this the page died with
           // an unhandled server error for anyone without organization-wide
           // rights, which reads as "the product is broken".
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-            <p className="text-sm font-medium text-slate-700">{t('noAccess')}</p>
-            <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t('noAccessHint')}</p>
+          <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+            <p className="text-sm font-medium text-ink-700">{t('noAccess')}</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-stone-500">{t('noAccessHint')}</p>
           </div>
         ) : (
           <TeamList
