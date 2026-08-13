@@ -6,6 +6,13 @@ repository, and the section at the end says plainly what does not exist yet —
 an application that oversells gets found out at certification, which is a worse
 place to be found out than a form.
 
+> **Filed. Agoda case ID 105606752** (reply received 2026-08-13). Agoda has
+> acknowledged that DeeHub is not currently a Connectivity Partner, confirmed
+> the enquiry is about the certification process, and forwarded it to the
+> relevant team. Nothing about the property's setup changed — the existing eZee
+> Technosys connection stays in place, which is what we asked for. The answer
+> that matters, the certification pack, has not arrived yet.
+
 **Applicant:** DeeHub — hotel platform (PMS + channel manager), Thailand
 **First property to connect:** The Let's Chill Resort Pattaya @ Huayyai,
 Agoda property ID **87305361**, 7 rooms across 2 room types
@@ -151,9 +158,10 @@ Thailand-first, and specific about it:
 
 - **Google Cloud Run** in `asia-southeast1`, Cloud SQL for PostgreSQL, Redis for
   the sync queue.
-- Automated deploys on merge: lint, typecheck, **718 automated tests**
-  (unit, integration against real PostgreSQL, and browser end-to-end) and
-  database migrations, all gating the release.
+- Automated deploys on merge: lint, typecheck, **718 automated tests** (unit,
+  integration against a real PostgreSQL, and HTTP end-to-end) followed by
+  **102 browser tests** driving the dashboard in Chromium, and database
+  migrations — all gating the release.
 - Error reporting and alerting on API errors, job failures and database
   capacity.
 - A scheduled maintenance pass reconciles inventory against reservations and

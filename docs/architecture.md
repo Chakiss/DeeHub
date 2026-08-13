@@ -235,7 +235,9 @@ interface ChannelConnector {
   readonly type: ChannelType;
   pushAri(ctx: ChannelContext, payload: AriPayload): Promise<PushResult>;
   fetchReservations(ctx: ChannelContext, since: Date): Promise<InboundReservation[]>;
-  parseWebhook(raw: unknown, signature?: string): InboundReservation[];
+  // The RAW body, not a parsed object: the signature must be verified over the
+  // exact bytes received, before anything trusts them enough to parse.
+  parseWebhook(ctx: ChannelContext, rawBody: string, signature?: string): InboundReservation[];
   testConnection(ctx: ChannelContext): Promise<HealthResult>;
 }
 ```
@@ -250,6 +252,11 @@ interface ChannelConnector {
   makes the framework testable end-to-end from day one, and stays forever as
   the integration-test harness — every future connector is validated against
   the same contract test suite the Mock OTA passes.
+- The port is expected to grow — acknowledgement, catalogue fetch, capability
+  declaration — and to grow uniformly: adapters never gain private operations
+  and the sync engine never branches on channel type
+  ([ADR-0007](adr/0007-connector-port-extension.md),
+  [ota-expansion-plan.md](ota-expansion-plan.md)).
 
 ---
 
