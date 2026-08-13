@@ -119,11 +119,32 @@ export async function PerformanceReport({
   );
 }
 
+/*
+ * The reference's stat tile: a sunken beige box whose NUMBER carries the
+ * colour (ref/dashboard.jpg). The tone is hashed from the label — the same
+ * tile is always the same colour, across renders, locales and range toggles,
+ * without a counter that would drift on re-render.
+ */
+const METRIC_TONES = [
+  'text-brand-600',
+  'text-success-700',
+  'text-accent-900',
+  'text-ink-900',
+  'text-brand-800',
+] as const;
+
+function metricTone(label: string): string {
+  let hash = 0;
+  for (const ch of label) hash = (hash * 31 + ch.codePointAt(0)!) >>> 0;
+  return METRIC_TONES[hash % METRIC_TONES.length] as string;
+}
+
 function Metric({ label, hint, value }: { label: string; hint?: string; value: string }) {
+  const tone = metricTone(label);
   return (
-    <div className="rounded-2xl bg-white shadow-card p-4">
+    <div className="rounded-xl bg-sunk p-4">
       <div className="text-xs font-medium uppercase tracking-wide text-stone-500">{label}</div>
-      <div className="tabular mt-1 text-2xl font-semibold text-ink-900">{value}</div>
+      <div className={`tabular mt-1 text-2xl font-semibold ${tone}`}>{value}</div>
       {hint && <div className="mt-1 text-xs text-stone-400">{hint}</div>}
     </div>
   );
