@@ -1,8 +1,17 @@
 # --- Custom domain -----------------------------------------------------------
 # Two subdomains, created only when var.custom_domain is set:
 #
-#   app.<domain>   the dashboard
-#   api.<domain>   the API
+#   dashboard.<domain>   the dashboard
+#   api.<domain>         the API
+#
+# It was `app.` first, and that name is abandoned rather than retired. Google
+# issued a certificate for api. within the hour and never issued one for app.,
+# while reporting CertificateProvisioned = true for both. On one edge address,
+# api. presented `CN=api.deehubhotel.com` and app. closed the connection with no
+# certificate at all — identical DNS, identical mappings, four hours apart.
+# Recreating the mapping did not shift it. A different name costs one CNAME; a
+# support case costs days, and the dashboard was unreachable on its own domain
+# the whole time.
 #
 # The apex is deliberately NOT mapped. It belongs to the guest-facing booking
 # site (roadmap Phase 3), which is not built; pointing it at the dashboard to
@@ -32,7 +41,7 @@
 
 resource "google_cloud_run_domain_mapping" "web" {
   count    = var.custom_domain == "" ? 0 : 1
-  name     = "app.${var.custom_domain}"
+  name     = "dashboard.${var.custom_domain}"
   location = var.region
 
   metadata {

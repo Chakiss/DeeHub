@@ -63,7 +63,7 @@ survives the meeting.
 | F6  | Trust section built from engineering guarantees, not from customer logos                                  |
 | F7  | Pricing: a stated position (even "pilot pricing, talk to us"), never silence                              |
 | F8  | Demo request form: name, hotel, rooms, phone, email — five fields, no more                                |
-| F9  | Sticky secondary CTA to `app.deehubhotel.com` for existing customers signing in                           |
+| F9  | Sticky secondary CTA to `dashboard.deehubhotel.com` for existing customers signing in                     |
 | F10 | Footer: company, contact, PDPA/privacy, English/Thai toggle                                               |
 
 **Explicitly out of scope for v1:** blog, self-serve signup, live chat, pricing
@@ -183,7 +183,7 @@ Domain plan it slots into:
 ```
 deehubhotel.com        marketing              ← this plan
 www                    301 → apex
-app                    dashboard              ✅ live
+dashboard              dashboard              ✅ live
 api                    API                    ✅ live
 book                   guest booking engine   ← later, path-based per tenant
 ```

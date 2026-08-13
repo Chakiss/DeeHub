@@ -108,11 +108,11 @@ egress through the VPC would need a Cloud NAT we do not otherwise want.
 
 `custom_domain` maps two subdomains and leaves the apex alone:
 
-| Name              | Serves                                        |
-| ----------------- | --------------------------------------------- |
-| `app.<domain>`    | the dashboard                                 |
-| `api.<domain>`    | the API                                       |
-| `<domain>` (apex) | nothing — reserved for the guest booking site |
+| Name                 | Serves                                        |
+| -------------------- | --------------------------------------------- |
+| `dashboard.<domain>` | the dashboard                                 |
+| `api.<domain>`       | the API                                       |
+| `<domain>` (apex)    | nothing — reserved for the guest booking site |
 
 The apex is unmapped on purpose. It is the address a guest will type, and the
 booking site that belongs there is not built (roadmap Phase 3). Parking the
@@ -138,7 +138,7 @@ terraform output custom_domain_dns_records
 
 # 4. Wait. Cloud Run issues the certificate itself and cannot start until the
 #    name resolves to it — minutes to a few hours, mostly DNS propagation.
-gcloud beta run domain-mappings describe --domain=app.deehubhotel.com \
+gcloud beta run domain-mappings describe --domain=dashboard.deehubhotel.com \
   --region=asia-southeast1 --project=deehub-hotel
 ```
 
@@ -146,12 +146,12 @@ gcloud beta run domain-mappings describe --domain=app.deehubhotel.com \
 the API accepts it, while the certificate is still pending. Step 4 is how you
 find out which one you have.
 
-**Only when `app.` actually serves**, point the application at it — these are
+**Only when `dashboard.` actually serves**, point the application at it — these are
 separate settings and moving them early breaks the working deployment:
 
 ```hcl
-admin_web_url = "https://app.deehubhotel.com"   # reset links
-cors_origins  = "https://app.deehubhotel.com"   # what the API will accept
+admin_web_url = "https://dashboard.deehubhotel.com"   # reset links
+cors_origins  = "https://dashboard.deehubhotel.com"   # what the API will accept
 ```
 
 **If DNS is behind a proxy** (Cloudflare's orange cloud), turn it off for these
