@@ -112,16 +112,18 @@ Phase 4 with it. Delivered:
    this until that day — the notification work had never been applied, so the
    API ran without an `EMAIL_API_KEY` at all.
 
-   What stops delivery now is that **nothing is running to send it**.
-   `maintenance_paused = true` since 2026-08-11, and with `enable_channel_sync`
-   off that job is the only process that drains the outbox. Unpausing is the
-   switch; the connect timeout behind the failure it was paused for should be
-   fixed first (deployment.md §9).
+   ~~What stops delivery now is that nothing is running to send it.~~
+   **Resolved 2026-08-13.** The maintenance job — the only process draining the
+   outbox while `enable_channel_sync` is off — was paused from 2026-08-11. The
+   connect timeout behind the failure and the missing scheduler retry are both
+   fixed and applied, and the job has been running green every ten minutes
+   since. A guest confirmation now actually leaves the building.
 
 3. **Confirm a booking instantly.** Messages go out with the maintenance job,
    every ten minutes, so a confirmation arrives within ten minutes rather than
-   seconds — once that job runs at all. The always-on worker sends within
-   seconds and costs the same ~$80/month as channel sync.
+   seconds. The always-on worker sends within seconds and costs the same
+   ~$80/month as channel sync. This is now the only thing between a booking and
+   an instant confirmation.
 
 ## Phase 3 — First Real OTA + Booking Engine (Months 4–6)
 
@@ -172,7 +174,13 @@ Mostly delivered early; what is left is listed as **remaining**.
 
 ## Phase 5 — Revenue + AI Assistant (Months 9–12+)
 
-- More connectors: Expedia, Trip.com, Airbnb.
+- More connectors: Expedia, Trip.com — planned in
+  [ota-expansion-plan.md](ota-expansion-plan.md), which also says why
+  **Airbnb is not scheduled**: its listing-based calendar does not fit the
+  count-based inventory of ADR-0002, and that is a design problem rather than a
+  payload translation. Booking.com is pulled forward to Phase 3: the
+  application should be filed alongside Agoda's, because the queues are
+  independent and waiting on one does not shorten the other.
 - Revenue management: demand-based rate suggestions, competitor awareness.
 - Analytics dashboards.
 - AI Assistant v1: natural-language queries over the platform ("occupancy
