@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 240" role="img" aria-hidden="true">
+  <!-- A quieter reprise of the hero scene: the strip above the footer and the
+       mid-page band (ref/web2's footer illustration). -->
+  <g fill="#cfe6f6">
+    <rect x="240" y="60" width="36" height="110"/>
+    <rect x="286" y="30" width="26" height="140"/>
+    <rect x="1290" y="56" width="34" height="114"/>
+    <rect x="1334" y="24" width="26" height="146"/>
+  </g>
+  <g fill="#ffffff" opacity="0.9">
+    <ellipse cx="520" cy="46" rx="46" ry="16"/>
+    <ellipse cx="560" cy="35" rx="30" ry="12"/>
+    <ellipse cx="1080" cy="40" rx="42" ry="15"/>
+  </g>
+  <path d="M0 150 Q 300 70 640 130 T 1600 128 V 240 H 0 Z" fill="#86c895"/>
+  <path d="M0 190 Q 400 120 860 172 T 1600 176 V 240 H 0 Z" fill="#5aae6f"/>
+  <g transform="translate(-40 -78) scale(0.62)">
+    <path d="M420 430 q 10 -90 -6 -150" stroke="#8a6239" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <g fill="#3f9d5e">
+      <path d="M414 276 q -70 -26 -110 6 q 62 4 96 26 Z"/>
+      <path d="M414 276 q 70 -30 112 0 q -64 6 -98 28 Z"/>
+      <path d="M414 276 q -14 -64 -58 -84 q 22 52 34 92 Z"/>
+      <path d="M414 276 q 20 -62 66 -78 q -26 50 -40 90 Z"/>
+    </g>
+  </g>
+  <g transform="translate(1150 -60) scale(0.58)">
+    <path d="M420 430 q 10 -90 -6 -150" stroke="#8a6239" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <g fill="#2f7f4b">
+      <path d="M414 276 q -70 -26 -110 6 q 62 4 96 26 Z"/>
+      <path d="M414 276 q 70 -30 112 0 q -64 6 -98 28 Z"/>
+      <path d="M414 276 q -14 -64 -58 -84 q 22 52 34 92 Z"/>
+      <path d="M414 276 q 20 -62 66 -78 q -26 50 -40 90 Z"/>
+    </g>
+  </g>
+  <g>
+    <ellipse cx="800" cy="206" rx="170" ry="36" fill="#ffffff"/>
+    <ellipse cx="800" cy="204" rx="150" ry="28" fill="#6ec4f0"/>
+    <ellipse cx="762" cy="199" rx="66" ry="12" fill="#9ad9f7"/>
+  </g>
+  <g fill="#4c9a60">
+    <ellipse cx="70" cy="228" rx="60" ry="24"/>
+    <ellipse cx="1530" cy="230" rx="64" ry="26"/>
+  </g>
+</svg>

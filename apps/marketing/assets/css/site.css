@@ -2,34 +2,62 @@
 
 /* ==========================================================================
    DeeHub marketing site
-   Direction C — light editorial. Warm ivory ground, ink type, one gold hairline.
-   Every colour is a token; nothing here is a raw hex outside :root.
+   Illustrated, warm, blob-and-pill — the ref/web1–5 language carried by the
+   logo's blue (docs/design-restyle-plan.md). Every colour is a token; nothing
+   below :root is a raw hex.
    ========================================================================== */
 
 :root {
-  --ground: #fbf8f2;
+  /* Warm surfaces, from the reference dashboard's canvas. */
+  --ground: #f7f4ec;
   --raised: #ffffff;
-  --sunk: #f4efe4;
-  --ink: #191510;
-  --ink-soft: #3c352b;
-  --muted: #6a6153;
-  --line: #e6ddcd;
-  --accent: #8a5209;
-  --hairline: #c9a15f;
-  --night: #100e0c;
-  --night-ink: #f6f1e8;
-  --night-muted: #a9a091;
+  --sunk: #f2ede1;
+  --line: #e8e1d2;
 
-  --serif: 'Noto Serif Thai', Georgia, 'Times New Roman', serif;
+  /* The hero sky, from ref/web1. */
+  --sky: #ddeefa;
+  --sky-deep: #c9e4f6;
+
+  /* The logo's blue, sampled from the sheet. */
+  --brand-deep: #0046b8;
+  --brand: #0072e0;
+  --brand-bright: #008ff2;
+  --brand-tint: #e7f3fc;
+
+  /* Ink is the logo's navy, not black. */
+  --ink: #0a1420;
+  --ink-soft: #26313e;
+  --muted: #5b6570;
+
+  /* The reference's yellow: CTA pills and highlights, never a text colour. */
+  --accent: #f5c445;
+  --accent-deep: #eab020;
+  --accent-tint: #fdf3d3;
+  --accent-ink: #6b4c07;
+
+  /* Supporting cast, in the reference's chart order. */
+  --success: #17a06b;
+  --success-tint: #e3f4ec;
+  --coral: #f1704b;
+  --coral-tint: #fdeae4;
+  --plum: #7c6bd0;
+  --plum-tint: #efecfa;
+
   --sans: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Thai needs room: upper vowels and tone marks stack above the x-height and
-     clip at the leading a Latin-first design would use. */
+     clip at the leading a Latin-first design would use. Load-bearing. */
   --lh-body: 1.8;
-  --lh-head: 1.45;
+  --lh-head: 1.5;
+
+  --r-card: 16px;
+  --r-tile: 12px;
+  --r-pill: 999px;
+
+  --shadow: 0 2px 10px rgba(10, 20, 32, 0.05), 0 12px 32px rgba(10, 20, 32, 0.06);
 
   --gap: clamp(20px, 4vw, 40px);
-  --section-y: clamp(72px, 11vw, 148px);
+  --section-y: clamp(64px, 10vw, 128px);
   --edge: clamp(20px, 5vw, 56px);
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -60,7 +88,7 @@ body {
 h1,
 h2,
 h3 {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-weight: 600;
   line-height: var(--lh-head);
   text-wrap: balance;
@@ -78,260 +106,323 @@ img {
 
 a {
   color: inherit;
+  text-decoration: none;
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  border-radius: 2px;
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .wrap {
-  width: 100%;
-  max-width: 1180px;
+  width: min(1180px, 100% - 2 * var(--edge));
   margin-inline: auto;
-  padding-inline: var(--edge);
 }
 
-.eyebrow {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.rule {
-  width: 44px;
-  height: 1px;
-  background: var(--hairline);
-  border: 0;
-  margin: 22px 0;
-}
-
-.lede {
-  color: var(--muted);
-  max-width: 62ch;
-  font-size: clamp(16px, 1.6vw, 18px);
-}
-
-/* ---------- buttons ---------- */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 28px;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  font-family: var(--sans);
-  font-size: 15px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    transform 260ms var(--ease),
-    background-color 260ms var(--ease),
-    color 260ms var(--ease),
-    border-color 260ms var(--ease);
-}
-
-.btn-primary {
-  background: var(--ink);
-  color: var(--ground);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  background: var(--accent);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--ink);
-  border-color: var(--line);
-}
-
-.btn-ghost:hover {
-  transform: translateY(-2px);
-  border-color: var(--ink);
-}
-
-/* ---------- nav ---------- */
+/* ------------------------------------------------------------------- nav */
 
 .nav {
   position: sticky;
   top: 0;
   z-index: 40;
   background: color-mix(in srgb, var(--ground) 88%, transparent);
-  border-bottom: 1px solid transparent;
-  transition: border-color 300ms var(--ease);
+  backdrop-filter: blur(10px);
+  transition: box-shadow 0.3s var(--ease);
 }
 
 .nav.is-stuck {
-  border-bottom-color: var(--line);
-  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 0 var(--line);
 }
 
 .nav-inner {
   display: flex;
   align-items: center;
   gap: 18px;
-  min-height: 76px;
+  padding-block: 14px;
 }
 
 .brand {
-  font-family: var(--serif);
-  font-size: 21px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 600;
-  text-decoration: none;
+  font-size: 20px;
   margin-right: auto;
 }
 
-.brand span {
-  color: var(--accent);
+.brand img {
+  width: 30px;
+  height: 30px;
+}
+
+.wordmark {
+  color: var(--ink);
+}
+
+.wordmark em {
+  font-style: normal;
+  color: var(--brand);
 }
 
 .nav-links {
   display: flex;
-  align-items: center;
-  gap: 26px;
+  gap: 22px;
   font-size: 15px;
-}
-
-.nav-links a {
-  text-decoration: none;
-  color: var(--muted);
-  transition: color 200ms var(--ease);
+  color: var(--ink-soft);
 }
 
 .nav-links a:hover {
-  color: var(--ink);
+  color: var(--brand);
 }
 
 .lang {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 14px;
   color: var(--muted);
-  text-decoration: none;
-  padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: 2px;
-  transition:
-    border-color 200ms var(--ease),
-    color 200ms var(--ease);
+  border-radius: var(--r-pill);
+  padding: 4px 12px;
+  background: var(--raised);
 }
 
-.lang:hover {
-  color: var(--ink);
-  border-color: var(--ink);
-}
-
-@media (max-width: 880px) {
-  .nav-links {
+@media (max-width: 720px) {
+  .nav-links,
+  .nav .btn-ghost {
     display: none;
   }
 }
 
-/* ---------- hero ---------- */
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-block;
+  border-radius: var(--r-pill);
+  padding: 12px 26px;
+  font-size: 16px;
+  font-weight: 600;
+  transition:
+    transform 0.25s var(--ease),
+    box-shadow 0.25s var(--ease),
+    background 0.25s var(--ease);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* The reference CTA: warm yellow pill, dark text. Yellow is never a text
+   colour — the contrast lives in the navy sitting on it. */
+.btn-primary {
+  background: var(--accent);
+  color: var(--ink);
+  box-shadow: 0 6px 18px rgba(234, 176, 32, 0.35);
+}
+
+.btn-primary:hover {
+  background: var(--accent-deep);
+}
+
+.btn-ghost {
+  border: 1.5px solid var(--line);
+  background: var(--raised);
+  color: var(--ink-soft);
+  padding-block: 10.5px;
+}
+
+.btn-ghost:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* ------------------------------------------------------------------ hero */
 
 .hero {
-  display: grid;
-  grid-template-columns: 1.02fr 0.98fr;
-  gap: clamp(28px, 5vw, 72px);
+  position: relative;
+  background: linear-gradient(var(--sky) 0%, var(--sky-deep) 78%, var(--ground) 100%);
+  overflow: hidden;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding-block: clamp(48px, 7vw, 96px) var(--section-y);
+  text-align: center;
+  padding-top: clamp(48px, 7vw, 88px);
+  /* The illustration owns the bottom; content must clear it. */
+  padding-bottom: clamp(240px, 30vw, 420px);
 }
 
-.hero-copy h1 {
-  font-size: clamp(31px, 4.6vw, 56px);
-  margin-bottom: 20px;
+.eyebrow {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--brand-deep);
+  letter-spacing: 0.02em;
 }
 
-.hero-copy .lede {
-  margin-bottom: 34px;
+/* Blob headline — the reference stacks rounded colour patches behind each
+   line. Each line is its own blob so the shape hugs the words. */
+.hero h1 {
+  font-size: clamp(30px, 5.2vw, 56px);
+  line-height: 1.35;
+  margin-block: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.blob {
+  display: inline-block;
+  padding: 0.12em 0.55em 0.2em;
+  border-radius: 0.6em;
+}
+
+.blob-yellow {
+  background: var(--accent);
+  color: var(--ink);
+  transform: rotate(-1.2deg);
+}
+
+.blob-blue {
+  background: var(--brand);
+  color: #fff;
+  transform: rotate(0.8deg);
+}
+
+.hero .lede {
+  max-width: 620px;
+  color: var(--ink-soft);
+  margin-bottom: 26px;
 }
 
 .hero-actions {
   display: flex;
+  gap: 14px;
   flex-wrap: wrap;
-  gap: 12px;
+  justify-content: center;
 }
 
-.hero-meta {
+.scroll-hint {
   margin-top: 30px;
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.scroll-hint::before {
+  content: '';
+  width: 22px;
+  height: 34px;
+  border: 2px solid var(--muted);
+  border-radius: 12px;
+  background: linear-gradient(var(--muted) 0 0) no-repeat center 7px / 3px 7px;
+}
+
+/* The scene sits along the hero's bottom edge, full-bleed. */
+.hero-scene {
+  position: absolute;
+  inset-inline: 0;
+  bottom: -2px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero-scene img {
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+  object-fit: cover;
+  object-position: center bottom;
+}
+
+/* ----------------------------------------------------------- stat strip */
+
+.stats {
+  padding-block: clamp(40px, 6vw, 72px) 0;
+}
+
+.stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--muted);
+  gap: var(--gap);
+  text-align: center;
 }
 
-@media (max-width: 560px) {
-  .hero-meta {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.hero-meta b {
+.stat b {
   display: block;
-  font-family: var(--serif);
-  font-size: 21px;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-size: clamp(34px, 4.6vw, 52px);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
-.hero-figure {
-  position: relative;
-  aspect-ratio: 4 / 5;
-  overflow: hidden;
-  background: var(--sunk);
+.stat:nth-child(1) b {
+  color: var(--success);
 }
 
-.hero-figure img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.stat:nth-child(2) b {
+  color: var(--brand);
 }
 
-@media (max-width: 880px) {
-  .hero {
+.stat:nth-child(3) b {
+  color: var(--coral);
+}
+
+.stat span {
+  color: var(--muted);
+  font-size: 15.5px;
+}
+
+@media (max-width: 720px) {
+  .stats-row {
     grid-template-columns: 1fr;
-  }
-  .hero-figure {
-    aspect-ratio: 4 / 3;
-    order: -1;
+    gap: 26px;
   }
 }
 
-/* ---------- generic section ---------- */
+/* -------------------------------------------------------------- sections */
 
 .section {
   padding-block: var(--section-y);
 }
 
-.section + .section {
-  border-top: 1px solid var(--line);
-}
-
 .section-head {
-  max-width: 68ch;
-  margin-bottom: clamp(36px, 5vw, 64px);
+  max-width: 720px;
+  margin-bottom: clamp(36px, 5vw, 56px);
 }
 
 .section-head h2 {
-  font-size: clamp(25px, 3.4vw, 40px);
-  margin-block: 14px 16px;
+  font-size: clamp(24px, 3.4vw, 38px);
+  margin-block: 12px 14px;
 }
 
-/* ---------- problem ---------- */
+/* Section titles carry a small brand tick, as the reference does. */
+.section-head .eyebrow {
+  position: relative;
+  padding-left: 14px;
+}
+
+.section-head .eyebrow::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.25em;
+  bottom: 0.25em;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+
+.section-head .lede,
+.lede {
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------- problem cards */
 
 .problem-grid {
   display: grid;
@@ -340,9 +431,45 @@ a {
 }
 
 .problem-card {
-  padding: 30px 28px;
+  border-radius: var(--r-card);
+  padding: 26px 24px;
+  box-shadow: var(--shadow);
   background: var(--raised);
-  border: 1px solid var(--line);
+  border-top: 6px solid;
+}
+
+.problem-card:nth-child(1) {
+  border-top-color: var(--coral);
+}
+
+.problem-card:nth-child(2) {
+  border-top-color: var(--accent);
+}
+
+.problem-card:nth-child(3) {
+  border-top-color: var(--plum);
+}
+
+.problem-card .spot {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-tile);
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  font-size: 26px;
+}
+
+.problem-card:nth-child(1) .spot {
+  background: var(--coral-tint);
+}
+
+.problem-card:nth-child(2) .spot {
+  background: var(--accent-tint);
+}
+
+.problem-card:nth-child(3) .spot {
+  background: var(--plum-tint);
 }
 
 .problem-card h3 {
@@ -351,7 +478,7 @@ a {
 }
 
 .problem-card p {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 15.5px;
 }
 
@@ -361,248 +488,320 @@ a {
   }
 }
 
-/* ---------- expanding image band ---------- */
+/* ------------------------------------------------------------------ band */
 
 .band {
-  padding-block: var(--section-y);
-  background: var(--sunk);
-  border-top: 1px solid var(--line);
-  overflow: hidden;
-}
-
-.band-figure {
   position: relative;
-  overflow: hidden;
-  aspect-ratio: 21 / 9;
-  background: var(--night);
-  /* JS widens this on scroll; the start value lives here so a no-JS visitor
-     still sees a sensible frame. */
-  width: min(1180px, 100% - var(--edge) * 2);
-  margin-inline: auto;
+  padding: 0;
 }
 
-.band-figure img {
+.band img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scale(1.12);
+  height: auto;
 }
 
 .band-caption {
-  margin-top: 22px;
   text-align: center;
   color: var(--muted);
   font-size: 15px;
+  padding-block: 18px 0;
 }
 
-@media (max-width: 880px) {
-  .band-figure {
-    aspect-ratio: 4 / 3;
-  }
-}
-
-/* ---------- capabilities ---------- */
+/* ----------------------------------------------------------- capabilities */
 
 .cap {
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: clamp(28px, 5vw, 80px);
-  align-items: start;
-  padding-block: clamp(40px, 6vw, 72px);
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+  padding-block: clamp(28px, 4vw, 44px);
 }
 
-.cap + .cap {
-  border-top: 1px solid var(--line);
-}
-
-.cap h3 {
-  font-size: clamp(21px, 2.4vw, 28px);
-  margin-bottom: 12px;
+.cap:nth-child(even) > div:first-child {
+  order: 2;
 }
 
 .cap-index {
-  font-family: var(--serif);
-  font-size: 14px;
-  color: var(--hairline);
-  font-variant-numeric: tabular-nums;
+  font-size: clamp(34px, 4vw, 46px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--brand);
+  margin-bottom: 10px;
+}
+
+.cap:nth-of-type(2) .cap-index {
+  color: var(--success);
+}
+
+.cap:nth-of-type(3) .cap-index {
+  color: var(--coral);
+}
+
+.cap:nth-of-type(4) .cap-index {
+  color: var(--plum);
+}
+
+.cap h3 {
+  font-size: clamp(20px, 2.6vw, 27px);
   margin-bottom: 8px;
 }
 
-.cap p {
-  color: var(--muted);
+.cap > div > p {
+  color: var(--ink-soft);
+  margin-bottom: 14px;
 }
 
 .cap ul {
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
   display: grid;
-  gap: 12px;
+  gap: 9px;
+  color: var(--ink-soft);
+  font-size: 15.5px;
 }
 
 .cap li {
-  padding-left: 22px;
   position: relative;
-  color: var(--ink-soft);
-  font-size: 15.5px;
+  padding-left: 26px;
 }
 
 .cap li::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0.72em;
-  width: 10px;
-  height: 1px;
-  background: var(--hairline);
+  top: 0.42em;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--success-tint)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.4 6.8 11 12 5.4' fill='none' stroke='%2317a06b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
 }
 
-.shot {
-  border: 1px solid var(--line);
-  background: var(--raised);
+/* The product shot: a laptop frame floating over colour blobs (ref/web3). */
+.shot-stage {
+  position: relative;
+  padding: clamp(22px, 3vw, 36px);
+}
+
+.shot-stage::before,
+.shot-stage::after {
+  content: '';
+  position: absolute;
+  border-radius: 22px;
+  z-index: 0;
+}
+
+.shot-stage::before {
+  width: 46%;
+  height: 44%;
+  left: 0;
+  top: 4%;
+  background: var(--accent);
+  transform: rotate(-4deg);
+}
+
+.shot-stage::after {
+  width: 38%;
+  height: 38%;
+  right: 0;
+  bottom: 2%;
+  background: var(--brand);
+  transform: rotate(3deg);
+}
+
+.cap:nth-of-type(2) .shot-stage::before {
+  background: var(--success);
+}
+
+.cap:nth-of-type(3) .shot-stage::before {
+  background: var(--coral);
+}
+
+.cap:nth-of-type(4) .shot-stage::after {
+  background: var(--plum);
+}
+
+.laptop {
+  position: relative;
+  z-index: 1;
+  background: var(--ink);
+  border-radius: 18px 18px 4px 4px;
+  padding: 10px 10px 0;
+  box-shadow: var(--shadow);
+}
+
+.laptop::after {
+  content: '';
+  display: block;
+  height: 14px;
+  margin-inline: -26px;
+  background: linear-gradient(#d7dbe2, #b9bfc9);
+  border-radius: 4px 4px 12px 12px;
+}
+
+.laptop .screen {
   aspect-ratio: 16 / 10;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  background: var(--raised);
   display: grid;
   place-content: center;
   text-align: center;
-  padding: 24px;
-  color: var(--muted);
-  font-size: 14px;
-  gap: 6px;
+  gap: 4px;
+  padding: 12px;
 }
 
-.shot b {
-  display: block;
-  font-family: var(--serif);
-  font-size: 16px;
-  color: var(--ink);
-  font-weight: 600;
+.laptop .screen b {
+  font-size: 15px;
+}
+
+.laptop .screen span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.laptop .screen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
 }
 
 @media (max-width: 880px) {
   .cap {
     grid-template-columns: 1fr;
   }
+
+  .cap:nth-child(even) > div:first-child {
+    order: 0;
+  }
 }
 
-/* ---------- trust (dark) ---------- */
+/* ----------------------------------------------------------------- trust */
 
 .trust {
-  background: var(--night);
-  color: var(--night-ink);
+  background: var(--brand-tint);
   padding-block: var(--section-y);
-}
-
-.trust .eyebrow {
-  color: var(--hairline);
-}
-
-.trust h2 {
-  font-size: clamp(25px, 3.4vw, 40px);
-  margin-block: 14px 16px;
-}
-
-.trust .lede {
-  color: var(--night-muted);
 }
 
 .trust-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1px;
-  background: color-mix(in srgb, var(--night-ink) 12%, transparent);
-  margin-top: clamp(36px, 5vw, 64px);
+  gap: var(--gap);
 }
 
 .trust-item {
-  background: var(--night);
-  padding: 32px 30px;
+  background: var(--raised);
+  border-radius: var(--r-card);
+  padding: 24px;
+  box-shadow: var(--shadow);
 }
 
 .trust-item h3 {
-  font-size: 19px;
-  margin-bottom: 10px;
+  font-size: 18px;
+  margin-bottom: 8px;
+  position: relative;
+  padding-left: 30px;
+}
+
+.trust-item h3::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.18em;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--success-tint)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.4 6.8 11 12 5.4' fill='none' stroke='%2317a06b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 13px no-repeat;
 }
 
 .trust-item p {
-  color: var(--night-muted);
+  color: var(--ink-soft);
   font-size: 15.5px;
 }
 
-@media (max-width: 880px) {
+@media (max-width: 720px) {
   .trust-grid {
     grid-template-columns: 1fr;
   }
 }
 
-/* ---------- pricing ---------- */
+/* --------------------------------------------------------------- pricing */
 
 .price-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   gap: var(--gap);
   align-items: start;
 }
 
 .price-card {
   background: var(--raised);
-  border: 1px solid var(--line);
-  padding: clamp(28px, 3.6vw, 44px);
+  border-radius: var(--r-card);
+  padding: 30px 28px;
+  box-shadow: var(--shadow);
+  border-top: 6px solid var(--accent);
 }
 
 .price-amount {
-  font-family: var(--serif);
-  font-weight: 600;
-  font-size: clamp(32px, 4.6vw, 48px);
-  font-variant-numeric: tabular-nums;
-  margin-block: 12px 4px;
+  font-size: clamp(30px, 3.6vw, 40px);
+  font-weight: 700;
+  color: var(--brand-deep);
+  line-height: 1.3;
+  margin-top: 6px;
 }
 
 .price-per {
   color: var(--muted);
   font-size: 15px;
-  margin-bottom: 26px;
+  margin-bottom: 16px;
 }
 
 .price-card ul {
-  margin: 0 0 30px;
-  padding: 0;
-  list-style: none;
   display: grid;
-  gap: 12px;
+  gap: 9px;
+  font-size: 15.5px;
+  color: var(--ink-soft);
+  margin-bottom: 22px;
 }
 
 .price-card li {
-  padding-left: 22px;
   position: relative;
-  font-size: 15.5px;
-  color: var(--ink-soft);
+  padding-left: 26px;
 }
 
 .price-card li::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0.72em;
-  width: 10px;
-  height: 1px;
-  background: var(--hairline);
+  top: 0.42em;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--success-tint)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.4 6.8 11 12 5.4' fill='none' stroke='%2317a06b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
 }
 
 .price-notes {
   display: grid;
-  gap: 26px;
+  gap: 16px;
+  align-content: center;
 }
 
 .price-note {
-  border-left: 2px solid var(--hairline);
-  padding-left: 22px;
-  color: var(--muted);
+  background: var(--sunk);
+  border-radius: var(--r-tile);
+  padding: 18px 20px;
   font-size: 15.5px;
+  color: var(--ink-soft);
 }
 
 .price-note b {
+  display: block;
   color: var(--ink);
-  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 @media (max-width: 880px) {
@@ -611,52 +810,70 @@ a {
   }
 }
 
-/* ---------- form ---------- */
+/* ------------------------------------------------------------------ demo */
 
 .cta-row {
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: clamp(32px, 5vw, 72px);
-  align-items: start;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+}
+
+.cta-row h2 {
+  font-size: clamp(25px, 3.4vw, 40px);
+  margin-block: 14px 16px;
 }
 
 .form {
+  background: var(--raised);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  padding: 26px;
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .field {
   display: grid;
-  gap: 7px;
-}
-
-.field label {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.field input,
-.field select {
-  min-height: 50px;
-  padding: 0 14px;
-  font-family: var(--sans);
-  font-size: 16px;
-  color: var(--ink);
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  transition: border-color 200ms var(--ease);
-}
-
-.field input:hover,
-.field select:hover {
-  border-color: var(--muted);
+  gap: 6px;
 }
 
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 14px;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.field input,
+.field select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-tile);
+  padding: 10px 14px;
+  transition: border-color 0.2s var(--ease);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+.field input[aria-invalid='true'] {
+  border-color: var(--coral);
+}
+
+.hp {
+  position: absolute;
+  left: -9999px;
 }
 
 .form-hint {
@@ -664,110 +881,72 @@ a {
   color: var(--muted);
 }
 
-.hp {
-  position: absolute;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
 @media (max-width: 880px) {
-  .cta-row,
+  .cta-row {
+    grid-template-columns: 1fr;
+  }
+
   .field-row {
     grid-template-columns: 1fr;
   }
 }
 
-/* ---------- footer ---------- */
+/* ---------------------------------------------------------------- footer */
 
 .footer {
-  border-top: 1px solid var(--line);
-  padding-block: 48px 64px;
-  color: var(--muted);
-  font-size: 14px;
+  margin-top: var(--section-y);
+}
+
+.footer-scene img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.footer-band {
+  background: var(--brand-tint);
+  padding-block: 34px;
 }
 
 .footer-inner {
   display: flex;
+  align-items: center;
+  gap: 22px;
   flex-wrap: wrap;
-  gap: 20px 40px;
-  align-items: baseline;
-}
-
-.footer a {
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.footer a:hover {
-  color: var(--ink);
+  font-size: 14.5px;
+  color: var(--ink-soft);
 }
 
 .footer-brand {
-  font-family: var(--serif);
-  font-size: 18px;
-  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 17px;
   margin-right: auto;
 }
 
-/* ---------- cursor (fine pointers only) ---------- */
-
-.cursor {
-  position: fixed;
-  top: 0;
-  left: 0;
+.footer-brand img {
   width: 26px;
   height: 26px;
-  margin: -13px 0 0 -13px;
-  border: 1px solid var(--accent);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 90;
-  opacity: 0;
-  transition: opacity 300ms var(--ease);
 }
 
-.cursor.is-on {
-  opacity: 0.55;
+.footer-inner a:hover {
+  color: var(--brand);
 }
 
-.cursor.is-over {
-  opacity: 1;
-}
+/* ---------------------------------------------------------------- motion */
 
-@media (hover: none), (pointer: coarse) {
-  .cursor {
-    display: none;
-  }
-}
-
-/* ---------- motion ----------
-   Elements start hidden ONLY once JS has confirmed it will animate them.
-   Without this class the page renders complete — no JS, no blank sections. */
-
+/* Hidden states exist ONLY under .js-motion, which script applies after
+   deciding it can animate — content can never be stranded invisible. */
 .js-motion [data-reveal] {
   opacity: 0;
-  transform: translateY(22px);
-}
-
-.js-motion [data-clip] {
-  clip-path: inset(0 0 100% 0);
+  transform: translateY(26px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-  .js-motion [data-reveal],
-  .js-motion [data-clip] {
+  .js-motion [data-reveal] {
     opacity: 1;
     transform: none;
-    clip-path: none;
   }
 }
