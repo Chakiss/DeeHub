@@ -251,6 +251,24 @@ describeIfDb('Checking out early and returning the room to sale', () => {
     return Number(rows[0]!.n);
   }
 
+  /** Which individual nights were flagged — what the reports actually read. */
+  async function flaggedNights(stayId: string): Promise<string[]> {
+    const { rows } = await pool.query<{ date: string }>(
+      `SELECT date::text FROM reservation_stay_nights
+        WHERE stay_id = $1 AND released_early ORDER BY date`,
+      [stayId],
+    );
+    return rows.map((row) => row.date);
+  }
+
+  async function performance(from: string, to: string) {
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/properties/${propertyId}/reports/performance?from=${from}&to=${to}`)
+      .set(auth())
+      .expect(200);
+    return response.body;
+  }
+
   it('returns tonight to sale when the guest leaves the day they arrived', async () => {
     const { reservationId, stayId } = await arrive(today, addDays(today, 1));
     expect(await booked(today)).toBe(1);
@@ -391,5 +409,26 @@ describeIfDb('Checking out early and returning the room to sale', () => {
 
     expect(await booked(today)).toBe(1);
     expect(await releasedOn(stayId)).toBe(0);
+  });
+
+  it('counts one room sold when the same night is paid for twice', async () => {
+    // The report is the reason `released_early` is per night rather than a
+    // count on the stay: a night sold to two guests must read as ONE room out
+    // of the one bungalow that exists, while both payments stay in revenue.
+    const { reservationId, stayId } = await arrive(today, addDays(today, 1));
+    await checkOut(reservationId, {
+      version: await currentVersion(reservationId),
+      releaseRemainingNights: true,
+    }).expect(200);
+    expect(await flaggedNights(stayId)).toEqual([today]);
+
+    await book(today, addDays(today, 1));
+
+    const report = await performance(today, addDays(today, 1));
+    const night = report.nights.find((row: { date: string }) => row.date === today);
+
+    expect(night.roomsSold).toBe(1);
+    expect(night.occupancy).toBeLessThanOrEqual(1);
+    expect(night.revenueMinor).toBe(RATE_MINOR * 2);
   });
 });

@@ -1,12 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import { EVENT_TYPES, businessDate, errors, nightsBetween, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import type { Executor } from '../../../database/executor';
 import { requireTenant } from '../../../common/tenant/tenant-context';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { OutboxService } from '../../../common/outbox/outbox.service';
-import { physicalRooms, reservationStays } from '../../../database/schema';
+import { physicalRooms, reservationStayNights, reservationStays } from '../../../database/schema';
 import { GetFolioQuery } from '../../folio/application/get-folio.query';
 import {
   INVENTORY_REPOSITORY,
@@ -265,6 +265,21 @@ export class CheckOutUseCase {
         });
       }
 
+      // Flagged per night, because the performance report groups by date and a
+      // count cannot tell it WHICH dates stopped being occupied. The rows stay:
+      // the money is real and the folio derives from them.
+      await tx
+        .update(reservationStayNights)
+        .set({ releasedEarly: true })
+        .where(
+          and(
+            eq(reservationStayNights.organizationId, organizationId),
+            eq(reservationStayNights.stayId, stay.id),
+            gte(reservationStayNights.date, from),
+          ),
+        );
+
+      // The same fact at stay level, for a screen that wants one number.
       await tx
         .update(reservationStays)
         .set({

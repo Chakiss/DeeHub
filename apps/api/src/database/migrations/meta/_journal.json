@@ -71,6 +71,13 @@
       "when": 1786593427944,
       "tag": "0009_loud_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786594160395,
+      "tag": "0010_sudden_fat_cobra",
+      "breakpoints": true
     }
   ]
 }

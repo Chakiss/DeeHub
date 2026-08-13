@@ -1,0 +1,1 @@
+ALTER TABLE "reservation_stay_nights" ADD COLUMN "released_early" boolean DEFAULT false NOT NULL;

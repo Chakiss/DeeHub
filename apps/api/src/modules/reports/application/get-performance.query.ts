@@ -88,7 +88,20 @@ export class GetPerformanceQuery {
       this.db
         .select({
           date: reservationStayNights.date,
-          roomsSold: sql<number>`count(*)::int`,
+          /*
+           * Nights the guest paid for but did not occupy are counted OUT of
+           * rooms sold and left IN revenue, and the split is the point.
+           *
+           * A guest leaves at six, the room goes back on sale, somebody else
+           * takes it at eight. One room was occupied; two nights were sold.
+           * Counting both as rooms sold reports 200% occupancy on a property
+           * with one bungalow. Dropping the first one's money instead would
+           * hide revenue the hotel genuinely earned — and make ADR read as if
+           * the room went for half what it did.
+           *
+           * See docs/early-checkout-plan.md.
+           */
+          roomsSold: sql<number>`count(*) filter (where not ${reservationStayNights.releasedEarly})::int`,
           revenueMinor: sql<number>`coalesce(sum(${reservationStayNights.amountMinor}), 0)::bigint`,
           currency: sql<string>`min(${reservationStayNights.currency})`,
         })
