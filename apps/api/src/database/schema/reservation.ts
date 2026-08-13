@@ -116,6 +116,17 @@ export const reservationStays = pgTable(
     }),
     guestName: text('guest_name'),
     subtotalMinor: bigint('subtotal_minor', { mode: 'number' }).notNull().default(0),
+    /**
+     * Nights handed back to sale because the guest left before using them, and
+     * was still charged for them (`docs/early-checkout-plan.md`).
+     *
+     * The dates above are what was booked and what was billed; they do not
+     * move. This is the count that stopped being occupied, so a report can
+     * subtract it — otherwise a night sold twice, once to the guest who left at
+     * six and once to whoever took the room at eight, reads as two rooms sold
+     * out of one that exists.
+     */
+    nightsReleasedEarly: smallint('nights_released_early').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

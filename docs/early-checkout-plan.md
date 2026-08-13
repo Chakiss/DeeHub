@@ -36,18 +36,16 @@ were deliberate.
 | `check-out.usecase.ts`    | **keeps** the nights   | untouched             | No — room stays unsellable      |
 | `shorten-stay.usecase.ts` | releases future nights | **removes** the money | No — the hotel is not refunding |
 
-`shorten-stay` also refuses to leave a stay with no nights at all:
+Both are built on one assumption, and it is the only thing wrong here:
 
-> _A stay must keep at least one night. Cancel the booking instead of shortening
-> it to nothing._
+**"Checked in" has meant "consumed tonight".** A guest who left at six did not
+consume tonight. The room is empty, the night is unsold, and the software is the
+only thing that disagrees.
 
-That guard is right about a **live** booking — a zero-night reservation holds no
-inventory, appears on no night, and nobody ever closes it. It is wrong about a
-**completed** one. A guest who arrived at noon and left at six is a fact that
-happened; the record of it is not a ghost.
-
-**This is the single assumption to overturn: "checked in" has meant "consumed
-tonight". It does not.**
+Nothing else in the reservation model needs to change — not the state machine,
+not the pricing, not the constraint that a stay covers at least one night. The
+booking stands exactly as taken. What has to become expressible is that its room
+went back on sale before the night it was holding.
 
 ---
 
@@ -57,12 +55,12 @@ tonight". It does not.**
 | --- | ----------------------------------------------------------------------------------------------------------- |
 | F1  | At check-out, the desk can choose to return the nights the guest will not occupy to sale                    |
 | F2  | Releasing is refused for nights already slept — only today's night and later                                |
-| F3  | The money for released nights stays with the hotel, as a **posted charge**, not as a phantom occupied night |
-| F4  | A completed stay may hold zero nights; a live booking still may not                                         |
+| F3  | The money for released nights stays with the hotel: the booking is untouched, so the folio is too           |
+| F4  | Occupancy counts a released night once — for whoever bought it second, never for both                       |
 | F5  | The vacated room becomes `DIRTY` and cannot be handed to the next guest until housekeeping clears it        |
 | F6  | The screen states plainly, before the click, that the room will be offered for sale again immediately       |
 | F7  | Audit records who released which nights, and what was charged for them                                      |
-| F8  | Reports separate day-use revenue from room-night revenue so ADR and RevPAR stay comparable                  |
+| F8  | Every report that counts room nights subtracts the released ones, so occupancy cannot exceed the rooms sold |
 
 **Out of scope:** hourly pricing, a discounted day-use rate plan, selling day-use
 through an OTA (no OTA sells it), and automatic re-assignment of the freed room.
@@ -71,31 +69,49 @@ through an OTA (no OTA sells it), and automatic re-assignment of the freed room.
 
 ## 4. Database Design
 
-No new table. Three changes:
+**Revised after reading the schema.** The first draft of this section proposed
+truncating the stay to zero nights and re-posting the money as a folio charge.
+That is not buildable as written, and the thing that stops it is worth keeping:
 
-1. `reservations.nights_released_early` — the count released this way, so a
-   completed zero-night stay is distinguishable from a data error.
-2. The zero-night guard moves from "any stay" to "any **open** stay". A
-   `CHECKED_OUT` reservation whose `check_out` equals its `check_in` becomes
-   legal, and only reachable through this operation.
-3. Folio charge kind `EARLY_DEPARTURE_NIGHT`, so the money that used to be a
-   derived room night becomes an explicit posted line.
+```sql
+check ('stays_date_order_ck', check_out > check_in)
+```
 
-Migration is additive: a nullable column and a new enum value. Nothing existing
-changes meaning.
+A zero-night stay is refused by the database, not merely by a use case. Relaxing
+that constraint to allow one operation would remove the guarantee for every
+other one — the whole booking path relies on a stay covering at least one night.
 
-### Why the money has to move from derived to posted
+So the design inverts. **The stay keeps its dates; only the inventory moves.**
 
-Room charges are derived from the booking's frozen night prices
-(`decisions-pending-review.md` §15) — the folio has no copy. So releasing a
-night removes its money automatically, which is right for `shorten-stay` and
-wrong here.
+One column, on `reservation_stays`:
 
-Keeping the night on the booking instead would keep the money, but then the
-night is sold twice in the occupancy report: once to the guest who left and once
-to whoever buys it at 20:00. **A property with two Triple Standards would show
-150% occupancy.** Posting the charge is the only arrangement where revenue and
-occupancy are both true.
+```
+nights_released_early  smallint  not null  default 0
+```
+
+Everything else follows from leaving the booking alone:
+
+| Concern        | What happens                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| The money      | Nothing to do. Room charges derive from the booking's frozen nights, and the booking is untouched, so the guest stays charged in full |
+| The room       | `inventory.release()` on the nights from today onward — the same call `shorten-stay` makes                                            |
+| Occupancy      | Reports count `nights − nights_released_early` for the stay                                                                           |
+| The constraint | Untouched, and still true                                                                                                             |
+
+**This is smaller, and it is also more honest.** The booking really was for one
+night, it really was paid in full, and the room really was handed back. Three
+facts, three fields, no compensating entry that has to be kept in step with
+anything.
+
+### What the numbers do afterwards
+
+Guest A pays ฿1,300 for tonight and leaves at 18:00. Guest B buys the same night
+at 20:00 for ฿1,300.
+
+- Rooms sold tonight: **1** — A's night is subtracted, B's counts
+- Room revenue tonight: **฿2,600** — both paid, both real
+- ADR tonight: **฿2,600**, which is not a glitch. The property genuinely earned
+  that from one room, and a hotelier looking at it should see exactly that.
 
 ---
 
@@ -106,7 +122,7 @@ POST /properties/{propertyId}/reservations/{id}/check-out
   { expectedVersion, releaseRemainingNights?: boolean }   default false
 
 200 { status: 'CHECKED_OUT', outstandingBalance, currency,
-      nightsReleased: number, earlyDepartureCharge: number }
+      nightsReleased: number, roomsToClean: string[] }
 409  version mismatch
 422  nights already slept cannot be released
 ```
@@ -124,7 +140,7 @@ Existing module, no new one:
 
 ```
 apps/api/src/modules/reservations/application/check-out.usecase.ts   extended
-apps/api/src/modules/folio/domain/charge-kind.ts                     new kind
+apps/api/src/database/schema/reservation.ts                          one column
 apps/admin-web/src/app/.../check-out-dialog.tsx                      the choice
 ```
 
@@ -132,14 +148,14 @@ apps/admin-web/src/app/.../check-out-dialog.tsx                      the choice
 
 ## 7. Implementation Plan
 
-| Step | Deliverable                                                                                 |
-| ---- | ------------------------------------------------------------------------------------------- |
-| 1    | Migration: column, enum value, and the guard moved to open stays only                       |
-| 2    | Use case: release nights from today, post the charge, mark the room dirty — one transaction |
-| 3    | Integration tests, including two desks releasing the same night concurrently                |
-| 4    | Check-out dialog: the choice, worded as a consequence rather than a checkbox                |
-| 5    | Reports: day-use revenue as its own line                                                    |
-| 6    | Channel push, so the freed night reaches the OTAs — behind `enable_channel_sync`            |
+| Step | Deliverable                                                                                             |
+| ---- | ------------------------------------------------------------------------------------------------------- |
+| 1    | Migration: one `nights_released_early` column on `reservation_stays`                                    |
+| 2    | Use case: release nights from today, mark the room dirty, publish the inventory event — one transaction |
+| 3    | Integration tests, including two desks releasing the same night concurrently                            |
+| 4    | Check-out dialog: the choice, worded as a consequence rather than a checkbox                            |
+| 5    | Reports: day-use revenue as its own line                                                                |
+| 6    | Channel push, so the freed night reaches the OTAs — behind `enable_channel_sync`                        |
 
 Steps 1–4 are the pilot's whole problem. Step 5 keeps their numbers honest.
 Step 6 only matters once a channel is connected.
@@ -151,8 +167,8 @@ Step 6 only matters once a channel is connected.
 | #   | Test                                                                                                                       |
 | --- | -------------------------------------------------------------------------------------------------------------------------- |
 | T1  | One-night stay, check out same day with release → allotment for tonight returns to its pre-booking count                   |
-| T2  | ...and the folio total is unchanged, with the money now on an `EARLY_DEPARTURE_NIGHT` line                                 |
-| T3  | ...and the reservation is `CHECKED_OUT` holding zero nights, which the API still returns intact                            |
+| T2  | ...and the folio total is unchanged: the guest is still charged for the night they left                                    |
+| T3  | ...and the stay keeps its dates, with `nights_released_early = 1` recording what happened                                  |
 | T4  | Three-night stay, leaves on night two → the two remaining nights are released, night one is not                            |
 | T5  | Release refused for a night in the past                                                                                    |
 | T6  | The freed night can immediately be booked by a second reservation, and the room is `DIRTY` until cleaned                   |

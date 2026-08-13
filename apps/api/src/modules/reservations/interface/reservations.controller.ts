@@ -130,6 +130,17 @@ const versionSchema = z.object({ version: z.number().int().min(0) }).strict();
 
 type VersionBody = z.infer<typeof versionSchema>;
 
+/**
+ * Check-out, plus the one decision the desk makes while standing there: does
+ * tonight go back on sale? Absent means no, which is what every existing
+ * caller already sends.
+ */
+const checkOutSchema = versionSchema
+  .extend({ releaseRemainingNights: z.boolean().optional() })
+  .strict();
+
+type CheckOutBody = z.infer<typeof checkOutSchema>;
+
 function presentMoney(value: Money): { amount: number; currency: string } {
   return { amount: value.amount, currency: value.currency };
 }
@@ -425,15 +436,25 @@ export class ReservationsController {
   @Post(':id/check-out')
   @HttpCode(200)
   @RequireCapability('reservation:checkout')
-  @ApiOperation({ summary: 'Check a booking out and hand its rooms to housekeeping' })
+  @ApiOperation({
+    summary: 'Check a booking out, optionally returning tonight to sale',
+    description:
+      'releaseRemainingNights hands back the nights from today onward. The booking keeps its ' +
+      'dates and the guest stays charged in full; only the room goes back on the market.',
+  })
   async checkOut(
     @Param('propertyId') propertyId: string,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(versionSchema)) body: VersionBody,
+    @Body(new ZodValidationPipe(checkOutSchema)) body: CheckOutBody,
     @Req() request: AuthenticatedRequest,
   ) {
     return this.checkOutReservation.execute(
-      { propertyId, reservationId: id, expectedVersion: body.version },
+      {
+        propertyId,
+        reservationId: id,
+        expectedVersion: body.version,
+        releaseRemainingNights: body.releaseRemainingNights ?? false,
+      },
       this.actor(request),
     );
   }

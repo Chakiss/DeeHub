@@ -1,0 +1,1 @@
+ALTER TABLE "reservation_stays" ADD COLUMN "nights_released_early" smallint DEFAULT 0 NOT NULL;
