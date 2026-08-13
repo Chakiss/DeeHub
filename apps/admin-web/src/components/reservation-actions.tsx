@@ -37,6 +37,7 @@ export function ReservationActions({
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [departing, setDeparting] = useState(false);
   const [reason, setReason] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -45,6 +46,19 @@ export function ReservationActions({
   const showCheckIn = canCheckIn && (status === 'CONFIRMED' || status === 'PENDING');
   const showCheckOut = canCheckOut && status === 'CHECKED_IN';
   const showCancel = canCancel && ['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(status);
+
+  /*
+   * Is anyone leaving before the night they booked?
+   *
+   * Only then is there anything to hand back, and only then is the question
+   * worth asking — a guest departing on their booked date has no unused night,
+   * so offering to "put tonight back on sale" would be an option that does
+   * nothing. The API decides for real; this only avoids asking pointlessly, so
+   * a day's drift between the browser's clock and the property's timezone
+   * costs an unnecessary question rather than a wrong outcome.
+   */
+  const todayLocal = new Date().toISOString().slice(0, 10);
+  const nightsStillHeld = reservation.stays.some((stay) => stay.checkOut > todayLocal);
 
   function run(action: () => Promise<{ ok: boolean; error?: { code: string; message: string } }>) {
     setError(null);
@@ -88,11 +102,19 @@ export function ReservationActions({
             {pending ? t('working') : t('checkIn')}
           </button>
         )}
-        {showCheckOut && (
+        {showCheckOut && !departing && (
           <button
             type="button"
             disabled={pending}
-            onClick={() => run(() => checkOutReservation(propertyId, id, version))}
+            onClick={() => {
+              // Leaving on the booked date is the ordinary case and stays one
+              // click. Leaving early is a decision, so it gets asked.
+              if (nightsStillHeld) {
+                setDeparting(true);
+                return;
+              }
+              run(() => checkOutReservation(propertyId, id, version));
+            }}
             className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
           >
             {pending ? t('working') : t('checkOut')}
@@ -109,6 +131,50 @@ export function ReservationActions({
           </button>
         )}
       </div>
+
+      {/*
+        Leaving early: two outcomes, both spelled out.
+
+        Deliberately not a checkbox next to one button. The difference between
+        these is whether a room the hotel is holding goes on sale in the next
+        few seconds, and a tickbox is something a busy person clicks past. Two
+        labelled buttons make the choice the click itself.
+      */}
+      {departing && (
+        <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50 p-4">
+          <div>
+            <p className="text-sm font-medium text-sky-900">{t('earlyTitle')}</p>
+            <p className="mt-1 text-sm text-sky-800">{t('earlyExplain')}</p>
+            <p className="mt-2 text-sm font-medium text-sky-900">{t('earlyWarning')}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => checkOutReservation(propertyId, id, version, true))}
+              className="rounded-md bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50"
+            >
+              {pending ? t('working') : t('earlyRelease')}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => checkOutReservation(propertyId, id, version, false))}
+              className="rounded-md border border-sky-300 bg-white px-3 py-1.5 text-sm font-medium text-sky-900 hover:bg-white/60 disabled:opacity-50"
+            >
+              {pending ? t('working') : t('earlyKeep')}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setDeparting(false)}
+              className="rounded-md px-3 py-1.5 text-sm text-sky-800 hover:bg-white/60 disabled:opacity-50"
+            >
+              {t('earlyDismiss')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/*
         An inline panel rather than window.confirm: cancelling releases

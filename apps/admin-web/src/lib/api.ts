@@ -837,11 +837,21 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ version }) },
     ),
 
-  checkOut: (propertyId: string, reservationId: string, version: number) =>
-    request<{ id: string; status: string; roomsToClean: string[] }>(
-      `/properties/${propertyId}/reservations/${reservationId}/check-out`,
-      { method: 'POST', body: JSON.stringify({ version }) },
-    ),
+  checkOut: (
+    propertyId: string,
+    reservationId: string,
+    version: number,
+    releaseRemainingNights = false,
+  ) =>
+    request<{
+      id: string;
+      status: string;
+      roomsToClean: string[];
+      nightsReleased: string[];
+    }>(`/properties/${propertyId}/reservations/${reservationId}/check-out`, {
+      method: 'POST',
+      body: JSON.stringify({ version, releaseRemainingNights }),
+    }),
 
   guests: (propertyId: string, q?: string) =>
     request<{ items: Guest[] }>(

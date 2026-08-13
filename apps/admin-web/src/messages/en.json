@@ -210,7 +210,13 @@
     "departureUnchanged": "That is already the departure date.",
     "departureWillExtend": "This adds nights to the end of the stay and holds inventory for them.",
     "departureWillShorten": "This releases the dropped nights back for sale and takes them off the bill. No fee is added — post one to the guest account if your terms call for it.",
-    "shortenDone": "Departure moved earlier. {nights} night(s) released and {amount} taken off the bill. Post an early-departure fee to the guest account if your terms call for one."
+    "shortenDone": "Departure moved earlier. {nights} night(s) released and {amount} taken off the bill. Post an early-departure fee to the guest account if your terms call for one.",
+    "earlyTitle": "Leaving before the booked date",
+    "earlyExplain": "The booking and the bill do not change — the guest stays charged in full. The only choice is whether the nights they are not using go back on sale.",
+    "earlyWarning": "Putting them back offers the room on every channel within seconds. Take the key back first.",
+    "earlyRelease": "Check out and put the room back on sale",
+    "earlyKeep": "Check out and hold the room",
+    "earlyDismiss": "Not yet"
   },
   "folio": {
     "title": "Guest account",

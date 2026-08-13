@@ -79,14 +79,22 @@ export async function checkInReservation(
   }
 }
 
-/** Check out, which also hands the rooms to housekeeping as DIRTY. */
+/**
+ * Check out, which also hands the rooms to housekeeping as DIRTY.
+ *
+ * `releaseRemainingNights` puts tonight back on sale for a guest who left
+ * before using it. The booking is untouched and the guest stays charged; only
+ * the room returns to the market. Defaulted off here as well as in the API, so
+ * the ordinary departure cannot become the unusual one by accident.
+ */
 export async function checkOutReservation(
   propertyId: string,
   reservationId: string,
   version: number,
+  releaseRemainingNights = false,
 ): Promise<ReservationActionResult> {
   try {
-    await api.checkOut(propertyId, reservationId, version);
+    await api.checkOut(propertyId, reservationId, version, releaseRemainingNights);
     revalidate(propertyId, reservationId);
     return { ok: true };
   } catch (error) {
