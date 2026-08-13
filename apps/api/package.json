@@ -18,7 +18,8 @@
     "dev:worker": "tsx watch src/worker.ts",
     "db:seed-channel": "tsx src/database/seed-channel.ts",
     "maintenance": "node dist/maintenance.js",
-    "db:create-org": "tsx src/database/create-organization.ts"
+    "db:create-org": "tsx src/database/create-organization.ts",
+    "db:setup-property": "tsx src/database/setup-property.ts"
   },
   "dependencies": {
     "@deehub/shared": "workspace:*",

@@ -1,0 +1,34 @@
+{
+  "organizationSlug": "lets-chill",
+  "propertyCode": "MAIN",
+  "horizonDays": 365,
+  "tax": {
+    "vatPercent": 0,
+    "serviceChargePercent": 0,
+    "ratesIncludeTax": true
+  },
+  "roomTypes": [
+    {
+      "code": "TRP",
+      "name": "Triple Standard",
+      "rooms": 2,
+      "maxAdults": 3,
+      "maxChildren": 0,
+      "rate": 1400,
+      "externalIds": {
+        "agoda": "1365245282"
+      }
+    },
+    {
+      "code": "BUN",
+      "name": "Standard Bungalow",
+      "rooms": 5,
+      "maxAdults": 2,
+      "maxChildren": 0,
+      "rate": 1300,
+      "externalIds": {
+        "agoda": "1365245283"
+      }
+    }
+  ]
+}
