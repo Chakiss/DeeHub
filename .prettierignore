@@ -7,3 +7,6 @@ apps/api/src/database/migrations
 test-results
 playwright-report
 next-env.d.ts
+
+# Third-party libraries, vendored so the marketing site has no CDN dependency.
+apps/marketing/assets/vendor/

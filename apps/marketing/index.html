@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeeHub — ระบบจัดการโรงแรมและ Channel Manager สำหรับที่พักในไทย</title>
+    <meta
+      name="description"
+      content="รวมการจอง ห้องว่าง ราคา และช่องทางขายไว้ที่เดียว ห้องเดียวกันไม่ถูกขายซ้ำสองที่ เริ่มต้น 1,000 บาทต่อเดือน"
+    />
+    <link rel="canonical" href="https://deehubhotel.com/" />
+    <link rel="alternate" hreflang="th" href="https://deehubhotel.com/" />
+    <link rel="alternate" hreflang="en" href="https://deehubhotel.com/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://deehubhotel.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="th_TH" />
+    <meta property="og:title" content="DeeHub — ห้องว่างตรงกันทุกช่องทาง ทุกวินาที" />
+    <meta
+      property="og:description"
+      content="ระบบจัดการโรงแรมและ Channel Manager สำหรับที่พัก 10–30 ห้องในประเทศไทย"
+    />
+    <meta property="og:url" content="https://deehubhotel.com/" />
+
+    <!-- The two faces the first screen needs. Everything else loads normally. -->
+    <link
+      rel="preload"
+      href="assets/fonts/NotoSerifThai-600-thai.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="assets/fonts/IBMPlexSansThai-400-thai.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="assets/css/site.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "DeeHub",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "inLanguage": ["th", "en"],
+        "url": "https://deehubhotel.com/",
+        "offers": {
+          "@type": "AggregateOffer",
+          "priceCurrency": "THB",
+          "lowPrice": "1000",
+          "highPrice": "2000",
+          "offerCount": "1"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="cursor" aria-hidden="true"></div>
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="/">Dee<span>Hub</span></a>
+        <nav class="nav-links" aria-label="เมนูหลัก">
+          <a href="#problem">ปัญหาที่แก้</a>
+          <a href="#system">ระบบ</a>
+          <a href="#price">ราคา</a>
+        </nav>
+        <a class="lang" href="en/" hreflang="en">EN</a>
+        <a class="btn btn-ghost" href="https://app.deehubhotel.com">เข้าสู่ระบบ</a>
+        <a class="btn btn-primary" href="#demo">ขอเดโม</a>
+      </div>
+    </header>
+
+    <main>
+      <!-- ---------------- hero ---------------- -->
+      <section class="wrap hero">
+        <div class="hero-copy">
+          <p class="eyebrow" data-reveal>ระบบจัดการโรงแรม · Channel Manager</p>
+          <h1 data-reveal>ห้องว่างตรงกันทุกช่องทาง ทุกวินาที</h1>
+          <p class="lede" data-reveal>
+            DeeHub รวมการจอง ห้องว่าง ราคา และช่องทางขายไว้ที่เดียว ห้องเดียวกันจะไม่ถูกขายซ้ำสองที่
+            เพราะระบบกันไว้ตั้งแต่ระดับฐานข้อมูล ไม่ใช่แค่เขียนไว้ในโบรชัวร์
+          </p>
+          <div class="hero-actions" data-reveal>
+            <a class="btn btn-primary" href="#demo">ขอเดโม</a>
+            <a class="btn btn-ghost" href="#system">ดูว่าระบบทำอะไรได้บ้าง</a>
+          </div>
+          <div class="hero-meta" data-reveal>
+            <div><b>0</b>การขายซ้ำที่ระบบยอมให้เกิด</div>
+            <div><b>10–30</b>ห้อง — ขนาดที่ออกแบบเพื่อ</div>
+            <div><b>฿1,000</b>ต่อเดือน เริ่มต้น</div>
+          </div>
+        </div>
+        <figure class="hero-figure" data-clip data-parallax="0.12">
+          <img
+            src="assets/img/pavilion-lg.jpg"
+            srcset="assets/img/pavilion-sm.jpg 800w, assets/img/pavilion-lg.jpg 1600w"
+            sizes="(max-width: 880px) 100vw, 46vw"
+            width="1600"
+            height="2000"
+            alt="ล็อบบี้โรงแรมไม้สักโปร่ง แสงธรรมชาติส่องผ่านเสาไม้"
+            fetchpriority="high"
+          />
+        </figure>
+      </section>
+
+      <!-- ---------------- problem ---------------- -->
+      <section class="section" id="problem">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>ปัญหาที่เจอทุกวัน</p>
+            <h2 data-reveal>สามอย่างที่กินเวลาและกินเงินโดยไม่มีใครนับ</h2>
+            <p class="lede" data-reveal>
+              ที่พักขนาด 10–30 ห้องส่วนใหญ่ยังบริหารห้องว่างด้วย Excel กระดาษ และความจำของคนคนเดียว
+              มันทำงานได้ จนถึงวันที่มันไม่ได้
+            </p>
+          </div>
+          <div class="problem-grid">
+            <article class="problem-card" data-reveal>
+              <h3>ขายซ้ำเพราะอัปเดตไม่ทัน</h3>
+              <p>
+                แขกจองผ่าน OTA ตอนตีสอง กว่าจะมีคนไปลดจำนวนห้องในอีกสามช่องทางก็เช้าแล้ว
+                ห้องสุดท้ายถูกขายไปสองครั้ง และคนที่ต้องบอกแขกคือพนักงานหน้าเคาน์เตอร์
+              </p>
+            </article>
+            <article class="problem-card" data-reveal>
+              <h3>แก้ราคาทีละช่องทาง</h3>
+              <p>
+                ปรับราคาช่วงสงกรานต์ทีต้องเข้าไปแก้ทุกที่ ทุกวัน ทุกประเภทห้อง
+                พอลืมที่ใดที่หนึ่งก็ขายห้องราคาโลว์ซีซันในวันที่เต็มทั้งเมือง
+              </p>
+            </article>
+            <article class="problem-card" data-reveal>
+              <h3>ไม่รู้ตัวเลขจนกว่าจะสิ้นเดือน</h3>
+              <p>
+                อัตราเข้าพักเท่าไหร่ ราคาเฉลี่ยที่ขายได้จริงเท่าไหร่ เดือนหน้าจองมาแล้วกี่คืน
+                ถ้าต้องเปิดสเปรดชีตมานั่งบวกถึงจะตอบได้ แปลว่าตอบไม่ทันตอนที่ต้องตัดสินใจ
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------- expanding band ---------------- -->
+      <section class="band" aria-hidden="true">
+        <figure class="band-figure" data-expand>
+          <img
+            src="assets/img/resort-lg.jpg"
+            srcset="assets/img/resort-sm.jpg 800w, assets/img/resort-lg.jpg 1600w"
+            sizes="100vw"
+            width="1600"
+            height="686"
+            alt=""
+            loading="lazy"
+            data-parallax="0.08"
+          />
+        </figure>
+        <p class="band-caption">
+          สร้างมาเพื่อที่พักในประเทศไทย — วันเข้าพักนับตามเวลาโรงแรม ไม่ใช่เวลา UTC
+        </p>
+      </section>
+
+      <!-- ---------------- capabilities ---------------- -->
+      <section class="section" id="system">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>ระบบทำอะไรได้บ้าง</p>
+            <h2 data-reveal>สี่ส่วน ที่ทำงานอยู่บนข้อมูลชุดเดียวกัน</h2>
+            <p class="lede" data-reveal>
+              ไม่ใช่สี่โปรแกรมที่ส่งไฟล์หากัน — ห้องว่างที่หน้าเคาน์เตอร์เห็น คือห้องว่างที่ OTA
+              เห็น และคือห้องว่างที่หน้าจองของโรงแรมเห็น ในวินาทีเดียวกัน
+            </p>
+          </div>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">01</p>
+              <h3>หน้าบ้าน</h3>
+              <p>ทุกอย่างที่พนักงานหน้าเคาน์เตอร์ต้องใช้ในกะเดียว</p>
+              <ul>
+                <li>ผังการเข้าพัก เห็นทั้งเดือนในหน้าจอเดียว</li>
+                <li>เช็กอิน เช็กเอาต์ จัดห้อง สถานะแม่บ้าน</li>
+                <li>บิลของแขกแต่ละราย ค่าห้อง ค่าใช้จ่ายเพิ่ม การชำระเงิน และยอดคงเหลือ</li>
+                <li>รับจองหน้าเคาน์เตอร์ แก้ไขวันเข้าพัก ขยายหรือย่นวันออกได้</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+              <span>ผังการเข้าพัก · รอถ่ายจากระบบที่ใช้งานจริง</span>
+            </div>
+          </article>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">02</p>
+              <h3>Channel Manager</h3>
+              <p>ช่องทางขายทุกช่องเห็นตัวเลขเดียวกัน โดยไม่มีใครต้องพิมพ์ซ้ำ</p>
+              <ul>
+                <li>ส่งห้องว่าง ราคา และเงื่อนไขการเข้าพักออกไปทุกช่องทางอัตโนมัติ</li>
+                <li>การจองจาก OTA เข้ามาอยู่ในระบบเอง พร้อมแจ้งเตือนหน้าเคาน์เตอร์</li>
+                <li>จับคู่ประเภทห้องและแพ็กเกจราคาได้จากหน้าจอ ไม่ต้องให้ช่างทำให้</li>
+                <li>ทดสอบการเชื่อมต่อได้ตลอดเวลา และสั่งส่งข้อมูลใหม่ทั้งหมดเมื่อสงสัย</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+              <span>หน้าจัดการช่องทางขาย · รอถ่ายจากระบบที่ใช้งานจริง</span>
+            </div>
+          </article>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">03</p>
+              <h3>หน้าจองของโรงแรมเอง</h3>
+              <p>ให้แขกจองตรงกับคุณ โดยไม่ต้องจ่ายค่าคอมมิชชั่นให้ใคร</p>
+              <ul>
+                <li>ค้นหาห้องว่าง เลือกแพ็กเกจ และจองได้จบในหน้าเดียว</li>
+                <li>ราคามาจากแพ็กเกจของโรงแรมเสมอ ไม่มีทางถูกแก้จากฝั่งผู้จอง</li>
+                <li>รับมัดจำผ่านบัตรและพร้อมเพย์ เข้าบิลของแขกอัตโนมัติ</li>
+                <li>ห้องถูกกันไว้ระหว่างที่แขกกรอกข้อมูล และคืนสู่การขายเองถ้าไม่จบ</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+              <span>หน้าจองสำหรับแขก · อยู่ระหว่างพัฒนา</span>
+            </div>
+          </article>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">04</p>
+              <h3>ตัวเลขที่ตอบได้ทันที</h3>
+              <p>คำถามที่เจ้าของโรงแรมถามบ่อยที่สุด ควรตอบได้ในสามวินาที ไม่ใช่สามวัน</p>
+              <ul>
+                <li>อัตราการเข้าพัก ราคาเฉลี่ยที่ขายได้จริง และรายได้ต่อห้องที่มี</li>
+                <li>เดือนหน้าจองเข้ามาแล้วเท่าไหร่ เทียบกับสัปดาห์ที่แล้ว</li>
+                <li>ประวัติการเข้าพักของแขกแต่ละคน รวมโปรไฟล์ซ้ำให้เป็นคนเดียวได้</li>
+                <li>บันทึกว่าใครแก้อะไรเมื่อไหร่ ย้อนดูได้ทุกบรรทัด</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+              <span>รายงานผลประกอบการ · รอถ่ายจากระบบที่ใช้งานจริง</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ---------------- trust ---------------- -->
+      <section class="trust">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>ทำไมถึงเชื่อได้</p>
+            <h2 data-reveal>เราไม่มีรายชื่อลูกค้าให้อวด เพราะเราเพิ่งเริ่ม</h2>
+            <p class="lede" data-reveal>
+              DeeHub กำลังรับโรงแรมพาร์ทเนอร์กลุ่มแรก สิ่งที่เอามาให้ดูแทนคำรับรองจากคนอื่น
+              คือวิธีที่ระบบถูกสร้าง ซึ่งตรวจสอบได้ตอนทดลองใช้จริง
+            </p>
+          </div>
+          <div class="trust-grid">
+            <article class="trust-item" data-reveal>
+              <h3>ขายซ้ำไม่ได้ เพราะฐานข้อมูลไม่ยอม</h3>
+              <p>
+                การกันห้องซ้ำถูกบังคับที่ชั้นฐานข้อมูล ไม่ใช่ที่โค้ดฝั่งหน้าจอ
+                ต่อให้มีคนกดจองพร้อมกันสองคนในเสี้ยววินาทีเดียวกัน มีได้แค่คนเดียวที่ผ่าน
+              </p>
+            </article>
+            <article class="trust-item" data-reveal>
+              <h3>ราคาถูกล็อกตั้งแต่วินาทีที่จอง</h3>
+              <p>
+                ราคาที่แขกเห็นตอนจองจะถูกเก็บติดไปกับการจองนั้น
+                ปรับราคาวันไหนก็ไม่กระทบคนที่จองไปแล้ว และบิลจะไม่มีวันไม่ตรงกับที่ตกลงกันไว้
+              </p>
+            </article>
+            <article class="trust-item" data-reveal>
+              <h3>ทุกการเปลี่ยนแปลงรู้ว่าใครทำ</h3>
+              <p>
+                แก้ราคา ยกเลิกการจอง เปลี่ยนสิทธิ์พนักงาน — ทุกอย่างถูกบันทึกพร้อมชื่อคนทำและเวลา
+                และอ่านย้อนหลังได้จากหน้าจอ ไม่ต้องขอให้ใครไปเปิดฐานข้อมูลให้
+              </p>
+            </article>
+            <article class="trust-item" data-reveal>
+              <h3>ไทยตั้งแต่วันแรก</h3>
+              <p>
+                ภาษาไทยทั้งระบบ เงินบาท และวันเข้าพักนับตามเวลาโรงแรม —
+                รายละเอียดสุดท้ายนี้คือจุดที่ระบบต่างประเทศพลาดบ่อยที่สุด
+                และทำให้ยอดคืนที่ขายได้เพี้ยนทั้งเดือน
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------- pricing ---------------- -->
+      <section class="section" id="price">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>ราคา</p>
+            <h2 data-reveal>บอกราคาไว้ตรงนี้ จะได้ไม่ต้องโทรมาถาม</h2>
+          </div>
+          <div class="price-row">
+            <div class="price-card" data-reveal>
+              <p class="eyebrow">แพ็กเกจนำร่อง</p>
+              <p class="price-amount">฿1,000 – ฿2,000</p>
+              <p class="price-per">ต่อโรงแรม ต่อเดือน · ตามจำนวนห้อง</p>
+              <ul>
+                <li>ใช้ได้ทุกส่วนของระบบ ไม่จำกัดจำนวนผู้ใช้</li>
+                <li>เชื่อมช่องทางขายได้ไม่จำกัดจำนวน</li>
+                <li>หน้าจองของโรงแรมเอง ไม่หักค่าคอมมิชชั่น</li>
+                <li>ทีมงานตั้งค่าระบบให้ในครั้งแรก</li>
+              </ul>
+              <a class="btn btn-primary" href="#demo">คุยกันก่อนตัดสินใจ</a>
+            </div>
+            <div class="price-notes">
+              <p class="price-note" data-reveal>
+                <b>ไม่มีค่าแรกเข้า ไม่มีสัญญาผูกมัด</b>
+                เดือนไหนไม่ใช้ก็หยุดได้ ข้อมูลของโรงแรมยังเป็นของโรงแรม
+                และขอให้ส่งออกทั้งหมดได้ตลอดเวลา
+              </p>
+              <p class="price-note" data-reveal>
+                <b>ค่าธรรมเนียมรับชำระเงินไม่รวมอยู่ในนี้</b>
+                ถ้าเปิดรับมัดจำผ่านบัตรหรือพร้อมเพย์ ผู้ให้บริการชำระเงินจะคิดค่าธรรมเนียมตามรายการ
+                ซึ่งจ่ายตรงกับเขา ไม่ผ่านเรา
+              </p>
+              <p class="price-note" data-reveal>
+                <b>ตอนนี้รับพาร์ทเนอร์กลุ่มแรกสามแห่ง</b>
+                กลุ่มนี้จะได้ราคานี้ตรึงไว้สองปี แลกกับการช่วยบอกเราว่าอะไรใช้ได้จริงและอะไรไม่ใช่
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------- demo ---------------- -->
+      <section class="section" id="demo">
+        <div class="wrap cta-row">
+          <div>
+            <p class="eyebrow" data-reveal>ขอเดโม</p>
+            <h2 data-reveal style="font-size: clamp(25px, 3.4vw, 40px); margin-block: 14px 16px">
+              ครึ่งชั่วโมง บนหน้าจอ กับข้อมูลโรงแรมของคุณ
+            </h2>
+            <p class="lede" data-reveal>
+              ไม่ใช่การนำเสนอสไลด์ — เราจะเปิดระบบจริง ใส่ประเภทห้องและราคาของคุณลงไป
+              แล้วให้คุณลองกดเอง ถ้าไม่ใช่ทางของคุณ จะได้รู้ในสามสิบนาที ไม่ใช่สามเดือน
+            </p>
+          </div>
+          <form class="form" data-reveal novalidate>
+            <div class="field">
+              <label for="f-name">ชื่อผู้ติดต่อ</label>
+              <input id="f-name" name="name" type="text" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="f-hotel">ชื่อที่พัก</label>
+              <input id="f-hotel" name="hotel" type="text" autocomplete="organization" required />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-rooms">จำนวนห้อง</label>
+                <select id="f-rooms" name="rooms">
+                  <option>ต่ำกว่า 10</option>
+                  <option selected>10–30</option>
+                  <option>31–60</option>
+                  <option>มากกว่า 60</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f-phone">เบอร์โทร</label>
+                <input id="f-phone" name="phone" type="tel" autocomplete="tel" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="f-email">อีเมล</label>
+              <input id="f-email" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="hp" aria-hidden="true">
+              <label for="f-website">เว็บไซต์</label>
+              <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+            <button class="btn btn-primary" type="submit">ส่งคำขอ</button>
+            <p class="form-hint" role="status">
+              เราจะติดต่อกลับภายในวันทำการถัดไป ข้อมูลนี้ใช้เพื่อนัดเดโมเท่านั้น
+            </p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <span class="footer-brand">DeeHub</span>
+        <a href="https://app.deehubhotel.com">เข้าสู่ระบบ</a>
+        <a href="mailto:hello@deehubhotel.com">hello@deehubhotel.com</a>
+        <a href="en/" hreflang="en">English</a>
+        <span>© 2026 DeeHub</span>
+      </div>
+    </footer>
+
+    <script src="assets/vendor/gsap.min.js" defer></script>
+    <script src="assets/vendor/ScrollTrigger.min.js" defer></script>
+    <script src="assets/vendor/lenis.min.js" defer></script>
+    <script src="assets/js/site.js" defer></script>
+  </body>
+</html>

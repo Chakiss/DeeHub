@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeeHub — Hotel management and channel manager for Thai properties</title>
+    <meta
+      name="description"
+      content="Bookings, availability, rates and sales channels in one place. The same room is never sold twice. From ฿1,000 a month."
+    />
+    <link rel="canonical" href="https://deehubhotel.com/en/" />
+    <link rel="alternate" hreflang="th" href="https://deehubhotel.com/" />
+    <link rel="alternate" hreflang="en" href="https://deehubhotel.com/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://deehubhotel.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:title" content="DeeHub — one availability, every channel, every second" />
+    <meta
+      property="og:description"
+      content="Hotel management and channel manager built for 10–30 room properties in Thailand."
+    />
+    <meta property="og:url" content="https://deehubhotel.com/en/" />
+
+    <link
+      rel="preload"
+      href="../assets/fonts/NotoSerifThai-600-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="../assets/fonts/IBMPlexSansThai-400-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+  </head>
+
+  <body>
+    <div class="cursor" aria-hidden="true"></div>
+
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="/en/">Dee<span>Hub</span></a>
+        <nav class="nav-links" aria-label="Main">
+          <a href="#problem">The problem</a>
+          <a href="#system">The system</a>
+          <a href="#price">Pricing</a>
+        </nav>
+        <a class="lang" href="../" hreflang="th">ไทย</a>
+        <a class="btn btn-ghost" href="https://app.deehubhotel.com">Sign in</a>
+        <a class="btn btn-primary" href="#demo">Book a demo</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="wrap hero">
+        <div class="hero-copy">
+          <p class="eyebrow" data-reveal>Hotel management · Channel manager</p>
+          <h1 data-reveal>One availability. Every channel. Every second.</h1>
+          <p class="lede" data-reveal>
+            DeeHub holds bookings, availability, rates and sales channels in one place, so the same
+            room is never sold twice. That guarantee is enforced by the database itself — not
+            promised in a brochure.
+          </p>
+          <div class="hero-actions" data-reveal>
+            <a class="btn btn-primary" href="#demo">Book a demo</a>
+            <a class="btn btn-ghost" href="#system">See what it does</a>
+          </div>
+          <div class="hero-meta" data-reveal>
+            <div><b>0</b>double-sales the system will accept</div>
+            <div><b>10–30</b>rooms — the size it is built for</div>
+            <div><b>฿1,000</b>per month to start</div>
+          </div>
+        </div>
+        <figure class="hero-figure" data-clip data-parallax="0.12">
+          <img
+            src="../assets/img/pavilion-lg.jpg"
+            srcset="../assets/img/pavilion-sm.jpg 800w, ../assets/img/pavilion-lg.jpg 1600w"
+            sizes="(max-width: 880px) 100vw, 46vw"
+            width="1600"
+            height="2000"
+            alt="An open teak hotel lobby with natural light between timber columns"
+            fetchpriority="high"
+          />
+        </figure>
+      </section>
+
+      <section class="section" id="problem">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>What goes wrong daily</p>
+            <h2 data-reveal>Three costs nobody puts a number on</h2>
+            <p class="lede" data-reveal>
+              Most 10–30 room properties still run availability on a spreadsheet, a paper diary and
+              one person's memory. It works, right up until the day it doesn't.
+            </p>
+          </div>
+          <div class="problem-grid">
+            <article class="problem-card" data-reveal>
+              <h3>Sold twice, updated too late</h3>
+              <p>
+                A guest books through an OTA at 2am. By the time somebody lowers the count on the
+                other three channels it is morning, the last room has been sold twice, and the
+                person who has to tell the guest is standing at the front desk.
+              </p>
+            </article>
+            <article class="problem-card" data-reveal>
+              <h3>Rates edited one channel at a time</h3>
+              <p>
+                Changing Songkran pricing means editing every channel, every date, every room type.
+                Miss one and you sell a peak night at low-season rates to a fully booked city.
+              </p>
+            </article>
+            <article class="problem-card" data-reveal>
+              <h3>Numbers that arrive at month end</h3>
+              <p>
+                Occupancy, the rate you actually achieved, how many nights are already on the books
+                for next month. If answering needs a spreadsheet, the answer arrives after the
+                decision it was needed for.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" aria-hidden="true">
+        <figure class="band-figure" data-expand>
+          <img
+            src="../assets/img/resort-lg.jpg"
+            srcset="../assets/img/resort-sm.jpg 800w, ../assets/img/resort-lg.jpg 1600w"
+            sizes="100vw"
+            width="1600"
+            height="686"
+            alt=""
+            loading="lazy"
+            data-parallax="0.08"
+          />
+        </figure>
+        <p class="band-caption">
+          Built for properties in Thailand — a hotel night is a calendar date in the property's own
+          timezone, never a UTC timestamp
+        </p>
+      </section>
+
+      <section class="section" id="system">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>What it does</p>
+            <h2 data-reveal>Four parts, one set of data underneath</h2>
+            <p class="lede" data-reveal>
+              Not four programs exchanging files. The availability your front desk sees is the
+              availability the OTA sees, and the availability your own booking page sees, in the
+              same second.
+            </p>
+          </div>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">01</p>
+              <h3>Front desk</h3>
+              <p>Everything one person needs to get through a shift.</p>
+              <ul>
+                <li>A stay view that shows the whole month on one screen</li>
+                <li>Check-in, check-out, room assignment, housekeeping status</li>
+                <li>A folio per booking: room nights, extras, payments, balance</li>
+                <li>Take a booking at the desk; extend or shorten a stay in progress</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>A real screenshot belongs here</b>
+              <span>Stay view · to be captured from the live system</span>
+            </div>
+          </article>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">02</p>
+              <h3>Channel manager</h3>
+              <p>Every channel sees the same numbers, without anyone retyping them.</p>
+              <ul>
+                <li>Availability, rates and stay restrictions pushed out automatically</li>
+                <li>OTA bookings arrive in the system and alert the desk</li>
+                <li>Map room types and rate plans from a screen, not from SQL</li>
+                <li>Test the connection any time; force a full re-send when in doubt</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>A real screenshot belongs here</b>
+              <span>Channel administration · to be captured from the live system</span>
+            </div>
+          </article>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">03</p>
+              <h3>Your own booking page</h3>
+              <p>Direct bookings, with no commission to anybody.</p>
+              <ul>
+                <li>Search, choose a rate plan and book in a single page</li>
+                <li>Prices always come from your rate plans, never from the request</li>
+                <li>Card and PromptPay deposits, landing straight on the guest's folio</li>
+                <li>The room is held while the guest types, and returns to sale if they stop</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>A real screenshot belongs here</b>
+              <span>Guest booking page · in development</span>
+            </div>
+          </article>
+
+          <article class="cap">
+            <div data-reveal>
+              <p class="cap-index">04</p>
+              <h3>Numbers, immediately</h3>
+              <p>
+                The questions an owner asks most often should take three seconds, not three days.
+              </p>
+              <ul>
+                <li>Occupancy, the rate actually achieved, revenue per available room</li>
+                <li>What next month has picked up since last week</li>
+                <li>Guest history, with duplicate profiles merged into one person</li>
+                <li>Who changed what, when — readable line by line</li>
+              </ul>
+            </div>
+            <div class="shot" data-reveal>
+              <b>A real screenshot belongs here</b>
+              <span>Performance report · to be captured from the live system</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="trust">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>Why trust this</p>
+            <h2 data-reveal>We have no client list to show you, because we are new</h2>
+            <p class="lede" data-reveal>
+              DeeHub is taking its first partner properties. In place of somebody else's
+              testimonial, here is how the system is built — all of it verifiable during a trial.
+            </p>
+          </div>
+          <div class="trust-grid">
+            <article class="trust-item" data-reveal>
+              <h3>Double-selling is refused by the database</h3>
+              <p>
+                The guarantee lives in a database constraint, not in screen-level code. Two people
+                booking the last room in the same instant produces one booking and one refusal.
+              </p>
+            </article>
+            <article class="trust-item" data-reveal>
+              <h3>The price is frozen at the moment of booking</h3>
+              <p>
+                What the guest saw is stored with their booking. Changing your rates later never
+                reaches back into a booking already taken, and a folio cannot disagree with what was
+                agreed.
+              </p>
+            </article>
+            <article class="trust-item" data-reveal>
+              <h3>Every change has a name on it</h3>
+              <p>
+                Rate edits, cancellations, permission changes — each recorded with who did it and
+                when, readable from the dashboard without asking anyone to open a database.
+              </p>
+            </article>
+            <article class="trust-item" data-reveal>
+              <h3>Thai from day one</h3>
+              <p>
+                Thai throughout, Thai baht, and hotel nights counted in the property's own timezone
+                — the last detail is where foreign systems most often slip, and it distorts a whole
+                month of room-night figures when they do.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="price">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow" data-reveal>Pricing</p>
+            <h2 data-reveal>Stated here, so you don't have to call and ask</h2>
+          </div>
+          <div class="price-row">
+            <div class="price-card" data-reveal>
+              <p class="eyebrow">Pilot plan</p>
+              <p class="price-amount">฿1,000 – ฿2,000</p>
+              <p class="price-per">per property, per month · by room count</p>
+              <ul>
+                <li>The whole system, unlimited users</li>
+                <li>Unlimited sales channels</li>
+                <li>Your own booking page, no commission</li>
+                <li>We set the property up with you the first time</li>
+              </ul>
+              <a class="btn btn-primary" href="#demo">Talk to us first</a>
+            </div>
+            <div class="price-notes">
+              <p class="price-note" data-reveal>
+                <b>No joining fee, no lock-in.</b> Stop any month. Your data stays yours and can be
+                exported in full whenever you ask.
+              </p>
+              <p class="price-note" data-reveal>
+                <b>Payment processing is not included.</b> If you take card or PromptPay deposits,
+                the payment provider charges its own fee per transaction, paid to them rather than
+                to us.
+              </p>
+              <p class="price-note" data-reveal>
+                <b>Three first partner properties.</b> They keep this price fixed for two years, in
+                exchange for telling us what actually works and what doesn't.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="demo">
+        <div class="wrap cta-row">
+          <div>
+            <p class="eyebrow" data-reveal>Book a demo</p>
+            <h2 data-reveal style="font-size: clamp(25px, 3.4vw, 40px); margin-block: 14px 16px">
+              Half an hour, on screen, with your property's own data
+            </h2>
+            <p class="lede" data-reveal>
+              Not a slide deck. We open the real system, put your room types and rates into it, and
+              hand you the controls. If it isn't for you, you'll know in thirty minutes rather than
+              three months.
+            </p>
+          </div>
+          <form class="form" data-reveal novalidate>
+            <div class="field">
+              <label for="f-name">Your name</label>
+              <input id="f-name" name="name" type="text" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="f-hotel">Property name</label>
+              <input id="f-hotel" name="hotel" type="text" autocomplete="organization" required />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="f-rooms">Rooms</label>
+                <select id="f-rooms" name="rooms">
+                  <option>Under 10</option>
+                  <option selected>10–30</option>
+                  <option>31–60</option>
+                  <option>Over 60</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f-phone">Phone</label>
+                <input id="f-phone" name="phone" type="tel" autocomplete="tel" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="f-email">Email</label>
+              <input id="f-email" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="hp" aria-hidden="true">
+              <label for="f-website">Website</label>
+              <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+            <button class="btn btn-primary" type="submit">Send request</button>
+            <p class="form-hint" role="status">
+              We reply within one working day. These details are used to arrange the demo, nothing
+              else.
+            </p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <span class="footer-brand">DeeHub</span>
+        <a href="https://app.deehubhotel.com">Sign in</a>
+        <a href="mailto:hello@deehubhotel.com">hello@deehubhotel.com</a>
+        <a href="../" hreflang="th">ไทย</a>
+        <span>© 2026 DeeHub</span>
+      </div>
+    </footer>
+
+    <script src="../assets/vendor/gsap.min.js" defer></script>
+    <script src="../assets/vendor/ScrollTrigger.min.js" defer></script>
+    <script src="../assets/vendor/lenis.min.js" defer></script>
+    <script src="../assets/js/site.js" defer></script>
+  </body>
+</html>
