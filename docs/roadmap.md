@@ -88,6 +88,11 @@ Phase 4 with it. Delivered:
   alerting and error reporting, operator-driven password reset, team
   administration with a one-time credential, and a password change that
   revokes every other session.
+- **A domain of its own** (2026-08-12/13): `deehubhotel.com`, with
+  `app.` mapped to the dashboard and `api.` to the API, and the apex left free
+  for the guest booking site that does not exist yet. The same domain is the
+  verified sender for guest email. DNS is at Cloudflare, DNS-only — a proxied
+  record never gets a Cloud Run certificate.
 
 **What a pilot property still cannot do**, in the order it will hurt:
 
@@ -100,16 +105,22 @@ Phase 4 with it. Delivered:
    schemas, a test account). Event-driven sync still needs
    `enable_channel_sync`: Redis and an always-on worker, roughly $80/month on
    top of the current ~$22.
-2. **Deliver a confirmation to a guest.** Mail goes out for real — proved end
-   to end through the production path — but the Resend account has no verified
-   domain, so `onboarding@resend.dev` is the only working sender and it
-   delivers only to the account owner. Guest confirmations fail with the
-   provider's reason on the row until a domain is verified. Nothing in the code
-   changes when it is.
-3. **Confirm a booking instantly.** Messages are sent by the maintenance job,
-   now every ten minutes, so a confirmation arrives within ten minutes rather
-   than seconds. The always-on worker sends within seconds but costs the same
-   ~$80/month as channel sync.
+2. **Deliver a confirmation to a guest** — and the reason changed on
+   2026-08-13. The sender is now ready: `deehubhotel.com` was registered on the
+   12th and verified at Resend on the 13th (DKIM, SPF, and the feedback MX on
+   `send`), so `bookings@deehubhotel.com` reaches anybody. Prod also had none of
+   this until that day — the notification work had never been applied, so the
+   API ran without an `EMAIL_API_KEY` at all.
+
+   What stops delivery now is that **nothing is running to send it**.
+   `maintenance_paused = true` since 2026-08-11, and with `enable_channel_sync`
+   off that job is the only process that drains the outbox. Unpausing is the
+   switch; the connect timeout behind the failure it was paused for should be
+   fixed first (deployment.md §9).
+3. **Confirm a booking instantly.** Messages go out with the maintenance job,
+   every ten minutes, so a confirmation arrives within ten minutes rather than
+   seconds — once that job runs at all. The always-on worker sends within
+   seconds and costs the same ~$80/month as channel sync.
 
 ## Phase 3 — First Real OTA + Booking Engine (Months 4–6)
 

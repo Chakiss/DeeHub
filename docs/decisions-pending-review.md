@@ -6,23 +6,21 @@ could not finish and worked around. Each one is reversible.
 
 ---
 
-## 1. Alerts go to chakrit69@gmail.com — and the channel is NOT yet verified
+## 1. Alerts go to chakrit69@gmail.com — ~~and the channel is NOT yet verified~~
 
-**You must click a link before any alert is delivered.** Google emailed a
-confirmation to that address when the notification channel was created; until
-it is clicked the channel exists and delivers nothing. An unverified channel is
-silent, not queued, so the alerts below are currently decorative.
+**Resolved, and proved the hard way.** This said you had to click a
+confirmation link before any alert was delivered, and that until you did the
+alerts were decorative. They were not: the daily "Maintenance job failed (prod)"
+email that arrived through August — the one that led to pausing the job on
+2026-08-11 — came through this exact channel. The link was clicked; the channel
+works.
 
-Check it:
+Left here rather than deleted because the lesson outlived the entry: an
+"unverified" state written down at setup time is a snapshot, not a fact, and
+this file is read months later by someone deciding what is safe to trust.
 
-```bash
-gcloud beta monitoring channels list --project=deehub-hotel --format=json \
-  | grep -i verification
-```
-
-I used your own address because it is the only one I had. If alerts should go
-to an operations alias instead, change `alert_email` in
-`infrastructure/terraform/terraform.tfvars` and re-apply.
+If alerts should go to an operations alias instead of a personal inbox, change
+`alert_email` in `infrastructure/terraform/terraform.tfvars` and re-apply.
 
 ## 2. Three alert policies, deliberately not more
 
@@ -443,5 +441,61 @@ the transaction rolls back and the payment row goes with it, but the money is
 still taken at Omise. The error names the provider reference and says to
 reconcile it by hand. That window is milliseconds wide and I chose to make it
 loud rather than to hold a database transaction open across a call to a bank.
+
+## 18. Production was two weeks behind this repository, and nothing said so
+
+Found on 2026-08-12 by reading a `terraform plan` that should have been empty:
+**6 to add, 3 to change**. The notification work had been merged and never
+applied. In production that meant the secrets `email-api-key` and
+`line-channel-token` did not exist, the API ran with no `EMAIL_API_KEY` mounted
+at all, and the maintenance schedule was still hourly rather than the ten
+minutes the repo has claimed since notifications landed.
+
+So the "mail goes out for real, proved end to end" in the roadmap was true of
+the code and false of production. Nothing lied; nobody applied.
+
+**This is structural, not a mistake to be more careful about.** CI deploys
+application images on every push to `main`; Terraform is applied by hand from a
+laptop. Infrastructure therefore lags by however long it has been since someone
+remembered, and the gap is invisible until somebody runs a plan. Two ways out,
+both yours to pick:
+
+- **A plan check in CI** on pull requests — no credentials to apply, just a
+  read-only plan that fails when it is not empty. Catches the lag the day it
+  starts. Needs a service account with viewer access and state read.
+- **Apply from CI** on merge to `main` — removes the drift entirely and hands
+  a workflow the ability to change production. For a one-person team the plan
+  check is the better trade; for a growing one, the second.
+
+Until then, run `terraform plan` before believing any deployment claim in these
+docs, including this file.
+
+## 19. The apex domain is deliberately left empty
+
+`deehubhotel.com` was registered 2026-08-12 and mapped as `app.` (dashboard)
+and `api.` (API). The apex itself points at nothing.
+
+It is the address a guest types, and the booking site that belongs there is not
+built (Phase 3). Parking the dashboard on it would be the easy thing today and
+a migration later, after staff have bookmarked it and it has been printed on
+something. An address that answers nothing is honest; an address that answers
+the wrong thing is a promise to move it.
+
+Same reasoning gave the sender `bookings@deehubhotel.com` rather than a
+`send.` subdomain: this domain will not carry staff mailboxes, so there is no
+sending reputation to keep separate yet.
+
+## 20. I can read your Terraform but not apply it
+
+`.claude/settings.json` (committed) lets me run `init`, `validate`, `fmt`,
+`plan`, `show`, `output` and `state list` — everything that inspects and
+nothing that changes. `terraform destroy` is denied outright. `terraform apply`
+lives in `.claude/settings.local.json`, which is gitignored, so it is granted
+per machine by the person sitting at it rather than inherited by cloning.
+
+The split is the point: reading infrastructure should be frictionless, and
+changing it should be a decision someone made on purpose. Cloning this repo
+gives you an assistant that can tell you what production looks like, not one
+that can rearrange it.
 
 _(Updated as the session continues.)_
