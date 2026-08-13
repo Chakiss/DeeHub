@@ -175,6 +175,12 @@ describeIfDb('sync engine end to end', () => {
         WHERE id = $1`,
       [channelId, goodCredentials],
     );
+    // Restore the neutral markup for the same reason as the credentials above:
+    // the markup test sets ×1.8, and every later test would inherit it.
+    await pool.query(
+      'UPDATE channel_rate_plan_mappings SET rate_multiplier_bp = 10000 WHERE channel_id = $1',
+      [channelId],
+    );
     await ariQueue.obliterate({ force: true }).catch(() => undefined);
     await redis.del(ariDirtyKey(channelId, roomTypeId));
     ota.reset();
@@ -231,6 +237,45 @@ describeIfDb('sync engine end to end', () => {
         { rateId: EXTERNAL_RATE, occupancy: 2, price: '2500.00', currency: 'THB' },
       ]),
     );
+  });
+
+  it('pushes the channel markup, and marks up nothing else', async () => {
+    // ×1.8 — the factor the pilot property already runs on all four of its
+    // channels, to absorb OTA discounting and commission
+    // (docs/channel-markup-plan.md).
+    await pool.query(
+      'UPDATE channel_rate_plan_mappings SET rate_multiplier_bp = 18000 WHERE channel_id = $1',
+      [channelId],
+    );
+
+    await runWithTenant(tenant(), () =>
+      pushAri.execute({
+        channelId,
+        roomTypeId,
+        dates: DATES.map((d) => toIsoDate(d)) as IsoDate[],
+      }),
+    );
+
+    const stored = ota.getAri(HOTEL_CODE, EXTERNAL_ROOM);
+    expect(stored[0]?.rates).toEqual(
+      expect.arrayContaining([
+        // 2,000 × 1.8 and 2,500 × 1.8, exactly — no float residue.
+        { rateId: EXTERNAL_RATE, occupancy: 1, price: '3600.00', currency: 'THB' },
+        { rateId: EXTERNAL_RATE, occupancy: 2, price: '4500.00', currency: 'THB' },
+      ]),
+    );
+    // Availability is a count of rooms, not a price. Multiplying it would sell
+    // rooms the hotel does not have.
+    expect(stored[0]?.avail).toBe(ALLOTMENT);
+
+    // The property's own rates are untouched: a guest booking direct still pays
+    // 2,000, which is the entire point of the feature.
+    const own = await pool.query<{ amount_minor: number | string }>(
+      `SELECT amount_minor FROM rate_days
+        WHERE rate_plan_id = $1 AND date = $2 AND occupancy = 1`,
+      [ratePlanId, DATES[0]],
+    );
+    expect(Number(own.rows[0]?.amount_minor)).toBe(200000);
   });
 
   it('reduces what the OTA can sell after a booking — the milestone behaviour', async () => {

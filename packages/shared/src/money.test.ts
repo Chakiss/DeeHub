@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   add,
+  allocate,
   applyBasisPoints,
   compare,
   equals,
@@ -113,6 +114,64 @@ describe('major/minor conversion', () => {
   it('absorbs float error from user input', () => {
     // 0.1 + 0.2 = 0.30000000000000004 in IEEE 754
     expect(fromMajorUnits(0.1 + 0.2, 'THB').amount).toBe(30);
+  });
+});
+
+describe('allocate()', () => {
+  const amounts = (parts: readonly { amount: number }[]) => parts.map((part) => part.amount);
+  const total = (parts: readonly { amount: number }[]) =>
+    parts.reduce((acc, part) => acc + part.amount, 0);
+
+  it('splits proportionally to the weights', () => {
+    // A three-night stay sold for ฿5,400 whose own rates were 1,000/1,000/700.
+    const parts = allocate(money(540000, 'THB'), [100000, 100000, 70000]);
+    expect(amounts(parts)).toEqual([200000, 200000, 140000]);
+  });
+
+  it('preserves the total exactly when it does not divide evenly', () => {
+    // 100.00 across three nights is 33.333… each; somebody must take the extra.
+    const parts = allocate(money(10000, 'THB'), [1, 1, 1]);
+    expect(total(parts)).toBe(10000);
+    expect(amounts(parts)).toEqual([3334, 3333, 3333]);
+  });
+
+  it('never loses a satang, whatever the weights', () => {
+    const parts = allocate(money(999983, 'THB'), [17, 3, 5, 11, 2]);
+    expect(total(parts)).toBe(999983);
+  });
+
+  it('splits evenly when every weight is zero', () => {
+    // A stay of free nights still has a total to divide.
+    const parts = allocate(money(1000, 'THB'), [0, 0, 0, 0]);
+    expect(amounts(parts)).toEqual([250, 250, 250, 250]);
+  });
+
+  it('mirrors a charge when reversing it', () => {
+    const charge = allocate(money(10000, 'THB'), [1, 1, 1]);
+    const refund = allocate(money(-10000, 'THB'), [1, 1, 1]);
+    expect(amounts(refund)).toEqual(amounts(charge).map((amount) => -amount));
+    expect(total(refund)).toBe(-10000);
+  });
+
+  it('handles a single part', () => {
+    expect(amounts(allocate(money(12345, 'THB'), [7]))).toEqual([12345]);
+  });
+
+  it('allocates zero without inventing money', () => {
+    expect(amounts(allocate(zero('THB'), [1, 2, 3]))).toEqual([0, 0, 0]);
+  });
+
+  it('keeps the currency', () => {
+    expect(allocate(money(300, 'JPY'), [1, 1])[0]?.currency).toBe('JPY');
+  });
+
+  it('refuses zero parts', () => {
+    expect(() => allocate(money(100, 'THB'), [])).toThrow(MoneyError);
+  });
+
+  it('refuses a negative or non-finite weight', () => {
+    expect(() => allocate(money(100, 'THB'), [1, -1])).toThrow(MoneyError);
+    expect(() => allocate(money(100, 'THB'), [1, Number.NaN])).toThrow(MoneyError);
   });
 });
 

@@ -600,6 +600,11 @@ export interface ChannelMapping {
   externalName: string | null;
 }
 
+export interface ChannelRatePlanMapping extends ChannelMapping {
+  /** Markup applied before this plan's price is pushed, in basis points. */
+  rateMultiplierBp: number;
+}
+
 export interface SyncJobSummary {
   id: string;
   kind: string;
@@ -643,7 +648,7 @@ export interface ForceSyncResult {
 
 export interface ChannelDetail extends ChannelSummary {
   roomTypeMappings: ChannelMapping[];
-  ratePlanMappings: ChannelMapping[];
+  ratePlanMappings: ChannelRatePlanMapping[];
   availableRoomTypes: { id: string; code: string; name: string }[];
   availableRatePlans: { id: string; roomTypeId: string; code: string; name: string }[];
   recentJobs: SyncJobSummary[];
@@ -669,6 +674,14 @@ export interface MappingInput {
   localId: string;
   externalId: string;
   externalName?: string | null;
+}
+
+export interface RatePlanMappingInput extends MappingInput {
+  /**
+   * Markup for this plan on this channel, in basis points: 10000 sends the
+   * direct price unchanged, 18000 sends it at ×1.8.
+   */
+  rateMultiplierBp?: number;
 }
 
 export interface NotificationEntry {
@@ -893,7 +906,7 @@ export const api = {
   replaceChannelMappings: (
     propertyId: string,
     channelId: string,
-    input: { roomTypes: MappingInput[]; ratePlans: MappingInput[] },
+    input: { roomTypes: MappingInput[]; ratePlans: RatePlanMappingInput[] },
   ) =>
     request<ChannelDetail>(`/properties/${propertyId}/channels/${channelId}/mappings`, {
       method: 'PUT',

@@ -110,6 +110,7 @@ export class DrizzleChannelRepository implements ChannelRepository {
       .select({
         ratePlanId: channelRatePlanMappings.ratePlanId,
         externalRateId: channelRatePlanMappings.externalRateId,
+        rateMultiplierBp: channelRatePlanMappings.rateMultiplierBp,
       })
       .from(channelRatePlanMappings)
       .innerJoin(ratePlans, eq(ratePlans.id, channelRatePlanMappings.ratePlanId))

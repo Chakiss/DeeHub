@@ -3,6 +3,7 @@ import {
   check,
   date,
   index,
+  integer,
   jsonb,
   pgTable,
   smallint,
@@ -93,12 +94,27 @@ export const channelRatePlanMappings = pgTable(
       .references(() => ratePlans.id, { onDelete: 'restrict' }),
     externalRateId: text('external_rate_id').notNull(),
     externalRateName: text('external_rate_name'),
+    /**
+     * Markup applied to this plan's price before it is pushed to this channel,
+     * in basis points: 10000 = ×1.0 (unchanged), 18000 = ×1.8.
+     *
+     * Basis points rather than a decimal factor for the same reason tax and
+     * service charge are (`properties.tax_rate_bp`): the arithmetic stays in
+     * integers, and money never passes through a float.
+     *
+     * See docs/channel-markup-plan.md.
+     */
+    rateMultiplierBp: integer('rate_multiplier_bp').notNull().default(10000),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('crpm_channel_rateplan_uq').on(t.channelId, t.ratePlanId),
     uniqueIndex('crpm_channel_external_uq').on(t.channelId, t.externalRateId),
+    // Upper bound as much as lower: a factor typed with an extra zero would
+    // push a ฿1,800 room to an OTA at ฿18,000 and nothing downstream would
+    // question it.
+    check('crpm_multiplier_ck', sql`${t.rateMultiplierBp} BETWEEN 1 AND 100000`),
   ],
 );
 

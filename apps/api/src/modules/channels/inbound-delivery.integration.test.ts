@@ -335,6 +335,95 @@ describeIfDb('inbound reservation delivery', () => {
       const outcome = await receiveAndDeliver({ rateId: null });
       expect(outcome.status).toBe('PROCESSED');
     });
+
+    /**
+     * The property's own rate is ฿2,500 a night. Once a channel markup exists
+     * the OTA sells the same night at ฿4,500, and pricing the booking from our
+     * own rate rows would record ฿5,000 for a stay the guest paid ฿9,000 for
+     * (docs/channel-markup-plan.md §5).
+     */
+    describe('what the channel charged', () => {
+      async function stayNights(): Promise<number[]> {
+        const rows = await pool.query<{ amount_minor: number | string }>(
+          `SELECT n.amount_minor
+             FROM reservation_stay_nights n
+             JOIN reservations r ON r.id = n.reservation_id
+            WHERE r.organization_id = $1
+            ORDER BY n.date`,
+          [orgId],
+        );
+        return rows.rows.map((row) => Number(row.amount_minor));
+      }
+
+      async function subtotal(): Promise<number> {
+        const rows = await pool.query<{ subtotal_minor: number | string }>(
+          'SELECT subtotal_minor FROM reservations WHERE organization_id = $1',
+          [orgId],
+        );
+        return Number(rows.rows[0]?.subtotal_minor);
+      }
+
+      /**
+       * Scoped to the reservation, not to the action: `reset()` clears
+       * reservations but not the audit trail, so an unscoped query reads the
+       * first delivery this FILE ever made rather than this test's.
+       */
+      async function pricedFromAudit(reservationId: string): Promise<string | undefined> {
+        const rows = await pool.query<{ after: { pricedFrom?: string } }>(
+          `SELECT after FROM audit_logs
+            WHERE organization_id = $1
+              AND action = 'channel.reservation_delivered'
+              AND entity_id = $2`,
+          [orgId, reservationId],
+        );
+        return rows.rows[0]?.after.pricedFrom;
+      }
+
+      function reservationIdOf(outcome: Awaited<ReturnType<typeof receiveAndDeliver>>): string {
+        if (outcome.status !== 'PROCESSED') throw new Error(`Not delivered: ${outcome.status}`);
+        return outcome.reservationId;
+      }
+
+      it('prices the booking at the channel total, not at our own rates', async () => {
+        const outcome = await receiveAndDeliver({ totalPrice: '9000.00' });
+
+        expect(outcome.status).toBe('PROCESSED');
+        expect(await subtotal()).toBe(900000);
+        // Spread across the two nights, which our rates weight equally.
+        expect(await stayNights()).toEqual([450000, 450000]);
+      });
+
+      it('spreads a total that does not divide evenly without losing a satang', async () => {
+        await receiveAndDeliver({ totalPrice: '9000.01' });
+
+        const nights = await stayNights();
+        expect(nights.reduce((acc, night) => acc + night, 0)).toBe(900001);
+        expect(await subtotal()).toBe(900001);
+      });
+
+      it('records in the audit trail which price the booking took', async () => {
+        const outcome = await receiveAndDeliver({ totalPrice: '9000.00' });
+        expect(await pricedFromAudit(reservationIdOf(outcome))).toBe('CHANNEL');
+      });
+
+      it('falls back to our own rates for a foreign currency rather than converting', async () => {
+        // There are no exchange rates in this system (ADR-0003). A USD total
+        // written into a THB folio would be worse than a stale price.
+        const outcome = await receiveAndDeliver({ totalPrice: '9000.00', currency: 'USD' });
+
+        expect(outcome.status).toBe('PROCESSED');
+        expect(await subtotal()).toBe(500000);
+        // The fallback is recorded, not silent: this is a number to go and check.
+        expect(await pricedFromAudit(reservationIdOf(outcome))).toBe('PROPERTY_RATES');
+      });
+
+      it('falls back when the channel sends no usable total at all', async () => {
+        const outcome = await receiveAndDeliver({ totalPrice: '0.00' });
+
+        expect(outcome.status).toBe('PROCESSED');
+        expect(await subtotal()).toBe(500000);
+      });
+    });
   });
 
   describe('never drop a booking', () => {

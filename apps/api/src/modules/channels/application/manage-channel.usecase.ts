@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
-import { errors } from '@deehub/shared';
+import { and, eq, inArray } from 'drizzle-orm';
+import { addDays, errors, EVENT_TYPES, toIsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import type { Executor } from '../../../database/executor';
 import { newId } from '../../../common/ids';
 import { requireTenant } from '../../../common/tenant/tenant-context';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
+import { OutboxService, type OutboxEventInput } from '../../../common/outbox/outbox.service';
 import { CREDENTIAL_CIPHER, type CredentialCipher } from '../../../common/crypto/credential-cipher';
 import {
   channelRatePlanMappings,
@@ -41,12 +42,24 @@ export interface MappingInput {
   readonly externalName?: string | null;
 }
 
+export interface RatePlanMappingInput extends MappingInput {
+  /**
+   * Markup for this plan on this channel, in basis points. Defaults to
+   * `DEFAULT_RATE_MULTIPLIER_BP` (×1.0), which pushes the property's own price
+   * unchanged (docs/channel-markup-plan.md).
+   */
+  readonly rateMultiplierBp?: number;
+}
+
 export interface ReplaceMappingsInput {
   readonly propertyId: string;
   readonly channelId: string;
   readonly roomTypes: readonly MappingInput[];
-  readonly ratePlans: readonly MappingInput[];
+  readonly ratePlans: readonly RatePlanMappingInput[];
 }
+
+/** ×1.0 — the price the property charges directly, pushed unchanged. */
+export const DEFAULT_RATE_MULTIPLIER_BP = 10_000;
 
 /**
  * Channel administration (roadmap Phase 3).
@@ -71,6 +84,7 @@ export class ManageChannelUseCase {
     @Inject(CREDENTIAL_CIPHER) private readonly cipher: CredentialCipher,
     private readonly connectors: ConnectorRegistry,
     private readonly audit: AuditService,
+    private readonly outbox: OutboxService,
   ) {}
 
   async create(input: CreateChannelInput, actor: AuditActor): Promise<{ id: string }> {
@@ -223,9 +237,22 @@ export class ManageChannelUseCase {
             ratePlanId: mapping.localId,
             externalRateId: mapping.externalId,
             externalRateName: mapping.externalName ?? null,
+            rateMultiplierBp: mapping.rateMultiplierBp ?? DEFAULT_RATE_MULTIPLIER_BP,
           })),
         );
       }
+
+      // Markups are money. Counts alone would leave "who put Agoda at ×1.8, and
+      // when" answerable only by reading a row that has since been replaced.
+      const markups = input.ratePlans
+        .filter(
+          (mapping) =>
+            (mapping.rateMultiplierBp ?? DEFAULT_RATE_MULTIPLIER_BP) !== DEFAULT_RATE_MULTIPLIER_BP,
+        )
+        .map((mapping) => ({
+          ratePlanId: mapping.localId,
+          rateMultiplierBp: mapping.rateMultiplierBp,
+        }));
 
       await this.audit.record(tx, {
         organizationId: tenant.organizationId,
@@ -237,9 +264,58 @@ export class ManageChannelUseCase {
         after: {
           roomTypes: input.roomTypes.length,
           ratePlans: input.ratePlans.length,
+          ...(markups.length > 0 ? { markups } : {}),
         },
       });
+
+      // A changed markup changes every price this channel holds, and nothing
+      // else would notice: the rates themselves did not move. Without this the
+      // OTA keeps selling at the old factor until the next unrelated edit.
+      await this.outbox.recordMany(tx, await this.repushEvents(tx, input));
     });
+  }
+
+  /**
+   * One RATE_CHANGED event per affected room type, spanning the channel's own
+   * sync horizon.
+   *
+   * The relay already turns these into ARI pushes keyed by room type, so this
+   * reuses the path a rate edit takes rather than inventing a second one.
+   */
+  private async repushEvents(
+    tx: Executor,
+    input: ReplaceMappingsInput,
+  ): Promise<OutboxEventInput[]> {
+    const tenant = requireTenant();
+    const planIds = input.ratePlans.map((mapping) => mapping.localId);
+    if (planIds.length === 0) return [];
+
+    const plans = await tx
+      .select({ id: ratePlans.id, roomTypeId: ratePlans.roomTypeId })
+      .from(ratePlans)
+      .where(and(eq(ratePlans.propertyId, input.propertyId), inArray(ratePlans.id, planIds)));
+
+    const horizonRows = await tx
+      .select({ syncHorizonDays: channels.syncHorizonDays })
+      .from(channels)
+      .where(eq(channels.id, input.channelId))
+      .limit(1);
+
+    // Today in UTC rather than the property's timezone, matching the forced
+    // sync: the horizon is a window of future nights and being a day out at its
+    // far edge changes nothing. Tonight is included — it can still be sold.
+    const from = toIsoDate(new Date().toISOString().slice(0, 10));
+    const to = addDays(from, horizonRows[0]?.syncHorizonDays ?? 365);
+
+    const byRoomType = new Map(plans.map((plan) => [plan.roomTypeId, plan.id]));
+    return [...byRoomType.entries()].map(([roomTypeId, ratePlanId]) => ({
+      type: EVENT_TYPES.RATE_CHANGED,
+      organizationId: tenant.organizationId,
+      propertyId: input.propertyId,
+      aggregateType: 'rate',
+      aggregateId: ratePlanId,
+      payload: { propertyId: input.propertyId, ratePlanId, roomTypeId, from, to },
+    }));
   }
 
   private async load(

@@ -25,9 +25,10 @@ import {
   PlanStayService,
   type InsufficientInventoryPolicy,
   type OverbookingIncident,
+  type PricingSource,
 } from './plan-stay.service';
 
-export type { InsufficientInventoryPolicy, OverbookingIncident };
+export type { InsufficientInventoryPolicy, OverbookingIncident, PricingSource };
 
 export interface CreateStayInput {
   readonly roomTypeId: string;
@@ -37,6 +38,16 @@ export interface CreateStayInput {
   readonly adults: number;
   readonly children?: number;
   readonly guestName?: string;
+  /**
+   * The price a CHANNEL sold this stay at. Only the channel delivery path may
+   * set it; every public and staff-facing schema is strict, so an amount in a
+   * request body is rejected rather than ignored.
+   *
+   * Without it, an OTA booking is priced from our own rate rows — which stopped
+   * being the price the guest paid the moment channel markups existed
+   * (docs/channel-markup-plan.md §5).
+   */
+  readonly channelTotal?: Money;
 }
 
 export interface CreateReservationInput {
@@ -67,6 +78,12 @@ export interface CreateReservationResult {
   readonly stays: readonly StayRecord[];
   /** Non-empty only when a channel booking was absorbed beyond availability. */
   readonly overbookings: readonly OverbookingIncident[];
+  /**
+   * CHANNEL when the channel's own price was used. PROPERTY_RATES when a
+   * channel total was offered and could not be — the caller has to be able to
+   * tell those apart, because the second one is a number to go and check.
+   */
+  readonly pricedFrom: PricingSource;
 }
 
 const DEFAULT_HOLD_TTL_SECONDS = 900;
@@ -152,12 +169,21 @@ export class CreateReservationUseCase {
       const overbookings: OverbookingIncident[] = [];
       const touchedRoomTypes = new Map<string, { from: IsoDate; to: IsoDate }>();
       const policy = input.onInsufficientInventory ?? 'REJECT';
+      // CHANNEL only if every stay that was offered a channel price took it.
+      // One stay quietly falling back to our own rates is the case worth
+      // seeing, so it decides the answer for the reservation.
+      let pricedFrom: PricingSource = input.stays.some((stay) => stay.channelTotal)
+        ? 'CHANNEL'
+        : 'PROPERTY_RATES';
 
       for (const stayInput of input.stays) {
         const stay = await this.planStay.plan(tx, property, stayInput, policy);
         stays.push(stay.record);
         nightPrices.push(...stay.nightPrices);
         overbookings.push(...stay.overbookings);
+        if (stayInput.channelTotal && stay.pricedFrom === 'PROPERTY_RATES') {
+          pricedFrom = 'PROPERTY_RATES';
+        }
 
         const existing = touchedRoomTypes.get(stay.record.roomTypeId);
         touchedRoomTypes.set(stay.record.roomTypeId, {
@@ -292,6 +318,7 @@ export class CreateReservationUseCase {
         total: breakdown.total,
         stays,
         overbookings,
+        pricedFrom,
       };
     });
   }

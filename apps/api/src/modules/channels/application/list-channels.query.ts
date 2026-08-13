@@ -37,6 +37,15 @@ export interface ChannelMapping {
   readonly externalName: string | null;
 }
 
+export interface ChannelRatePlanMapping extends ChannelMapping {
+  /**
+   * Markup applied before this plan's price is pushed, in basis points
+   * (10000 = ×1.0). Returned so the screen can show what an OTA is actually
+   * quoted — a markup nobody can see is a markup nobody can check.
+   */
+  readonly rateMultiplierBp: number;
+}
+
 export interface SyncJobSummary {
   readonly id: string;
   readonly kind: string;
@@ -60,7 +69,7 @@ export interface InboundBookingSummary {
 
 export interface ChannelDetail extends ChannelSummary {
   readonly roomTypeMappings: readonly ChannelMapping[];
-  readonly ratePlanMappings: readonly ChannelMapping[];
+  readonly ratePlanMappings: readonly ChannelRatePlanMapping[];
   /** Everything sellable, so the UI can show what is NOT yet mapped. */
   readonly availableRoomTypes: readonly { id: string; code: string; name: string }[];
   readonly availableRatePlans: readonly {
@@ -157,6 +166,7 @@ export class ListChannelsQuery {
             localCode: ratePlans.code,
             externalId: channelRatePlanMappings.externalRateId,
             externalName: channelRatePlanMappings.externalRateName,
+            rateMultiplierBp: channelRatePlanMappings.rateMultiplierBp,
           })
           .from(channelRatePlanMappings)
           .innerJoin(ratePlans, eq(ratePlans.id, channelRatePlanMappings.ratePlanId))

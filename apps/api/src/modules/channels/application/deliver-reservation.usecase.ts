@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
-import { errors, toIsoDate, type IsoDate } from '@deehub/shared';
+import { errors, money, toIsoDate, type IsoDate, type Money } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import {
   channelRatePlanMappings,
@@ -10,7 +10,10 @@ import {
 } from '../../../database/schema';
 import { runWithTenant } from '../../../common/tenant/tenant-context';
 import { AuditService } from '../../../common/audit/audit.service';
-import { CreateReservationUseCase } from '../../reservations/application/create-reservation.usecase';
+import {
+  CreateReservationUseCase,
+  type PricingSource,
+} from '../../reservations/application/create-reservation.usecase';
 import { CHANNEL_REPOSITORY, type ChannelRepository } from '../domain/channel.repository';
 import type { InboundReservation } from '../domain/channel-connector';
 
@@ -108,6 +111,9 @@ export class DeliverReservationUseCase {
                 channelId: channel.id,
                 externalReservationId: inbound.externalReservationId,
                 overbooked: result.overbooked,
+                // Which price this booking is worth: the channel's, or ours
+                // because the channel's could not be used.
+                pricedFrom: result.pricedFrom,
               },
             });
           });
@@ -140,7 +146,7 @@ export class DeliverReservationUseCase {
   private async map(
     channel: { id: string; organizationId: string; propertyId: string },
     booking: InboundReservation,
-  ): Promise<{ reservationId: string; overbooked: boolean }> {
+  ): Promise<{ reservationId: string; overbooked: boolean; pricedFrom: PricingSource }> {
     const roomTypeRows = await this.db
       .select({ roomTypeId: channelRoomTypeMappings.roomTypeId })
       .from(channelRoomTypeMappings)
@@ -158,6 +164,7 @@ export class DeliverReservationUseCase {
     }
 
     const ratePlanId = await this.resolveRatePlan(channel.id, roomTypeId, booking.externalRateId);
+    const channelTotal = this.channelTotal(booking);
 
     const result = await this.createReservation.execute(
       {
@@ -179,6 +186,10 @@ export class DeliverReservationUseCase {
             adults: Math.max(1, booking.adults),
             children: Math.max(0, booking.children),
             guestName: booking.guestName,
+            // What the OTA actually charged, which is our rate times that
+            // channel's markup and therefore NOT what our own rate rows say
+            // (docs/channel-markup-plan.md §5).
+            ...(channelTotal ? { channelTotal } : {}),
           },
         ],
         // The channel already sold it (domain-model.md §3.8).
@@ -187,7 +198,37 @@ export class DeliverReservationUseCase {
       { ...SYSTEM_ACTOR, label: `channel:${channel.id}` },
     );
 
-    return { reservationId: result.id, overbooked: result.overbookings.length > 0 };
+    if (channelTotal && result.pricedFrom === 'PROPERTY_RATES') {
+      // Loud, because the booking is now recorded at a price the guest did not
+      // pay. It stays recoverable — the raw payload keeps the real figure — but
+      // only if somebody knows to look.
+      this.logger.warn(
+        `Channel total ${String(channelTotal.amount)} ${channelTotal.currency} could not be ` +
+          `applied to ${booking.externalReservationId}; the booking is priced from the ` +
+          `property's own rates and its value may be wrong`,
+      );
+    }
+
+    return {
+      reservationId: result.id,
+      overbooked: result.overbookings.length > 0,
+      pricedFrom: result.pricedFrom,
+    };
+  }
+
+  /**
+   * The channel's own price for this booking, if it sent a usable one.
+   *
+   * A malformed amount or currency is dropped rather than allowed to throw:
+   * the guest holds a confirmation, and failing a whole delivery over a price
+   * field would leave a real person with no room recorded. `money()` would
+   * reject a non-integer, so the guard happens here where the fallback is
+   * deliberate.
+   */
+  private channelTotal(booking: InboundReservation): Money | undefined {
+    if (!Number.isSafeInteger(booking.totalMinor) || booking.totalMinor <= 0) return undefined;
+    if (!/^[A-Za-z]{3}$/.test(booking.currency)) return undefined;
+    return money(booking.totalMinor, booking.currency);
   }
 
   /**

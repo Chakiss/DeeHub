@@ -1,0 +1,2 @@
+ALTER TABLE "channel_rate_plan_mappings" ADD COLUMN "rate_multiplier_bp" integer DEFAULT 10000 NOT NULL;--> statement-breakpoint
+ALTER TABLE "channel_rate_plan_mappings" ADD CONSTRAINT "crpm_multiplier_ck" CHECK ("channel_rate_plan_mappings"."rate_multiplier_bp" BETWEEN 1 AND 100000);

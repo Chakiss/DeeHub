@@ -1,5 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { errors, money, nightsBetween, sum, type IsoDate, type Money } from '@deehub/shared';
+import {
+  allocate,
+  errors,
+  money,
+  nightsBetween,
+  sum,
+  type IsoDate,
+  type Money,
+} from '@deehub/shared';
 import type { Executor } from '../../../database/executor';
 import { newId } from '../../../common/ids';
 import {
@@ -31,7 +39,25 @@ export interface PlanStayInput {
   readonly guestName?: string | null;
   /** Reuse an existing stay id when modifying, so the row is replaced in place. */
   readonly stayId?: string;
+  /**
+   * What a CHANNEL says this stay is worth, when a channel sold it.
+   *
+   * Only the channel delivery path may set this. An OTA is quoted the
+   * property's rate times that channel's markup
+   * (docs/channel-markup-plan.md), so what the guest paid is not what our own
+   * rate rows say — pricing an OTA booking from our rates would record ฿1,000
+   * for a room Agoda sold at ฿1,800 and quietly understate every revenue
+   * figure that touches it.
+   *
+   * It is a total for the whole stay, because that is what OTAs send. It is
+   * spread across the nights in proportion to the prices those nights would
+   * otherwise have had, so a weekend night keeps its larger share.
+   */
+  readonly channelTotal?: Money;
 }
+
+/** Where a stay's frozen night prices came from. */
+export type PricingSource = 'PROPERTY_RATES' | 'CHANNEL';
 
 /**
  * What to do when the requested nights are not sellable.
@@ -55,6 +81,12 @@ export interface PlannedStay {
   readonly record: StayRecord;
   readonly nightPrices: readonly Money[];
   readonly overbookings: readonly OverbookingIncident[];
+  /**
+   * PROPERTY_RATES even when a channel total was offered but unusable — a
+   * silent fallback to our own prices is a wrong number nobody can find later,
+   * so the caller records which one it got.
+   */
+  readonly pricedFrom: PricingSource;
 }
 
 /** Nights being appended to a stay that is already under way. */
@@ -202,8 +234,8 @@ export class PlanStayService {
       throw errors.rateMissing(ratePlan.id, input.adults, missing);
     }
 
-    const nightPrices: Money[] = [];
-    const nightRecords = nights.map((night) => {
+    const ownPrices: Money[] = [];
+    for (const night of nights) {
       const price = priced.get(night) ?? money(0, property.currency);
       if (price.currency !== property.currency) {
         throw errors.conflict('Rate currency does not match the property currency', {
@@ -212,7 +244,12 @@ export class PlanStayService {
           actual: price.currency,
         });
       }
-      nightPrices.push(price);
+      ownPrices.push(price);
+    }
+
+    const { nightPrices, pricedFrom } = this.applyChannelTotal(property, ownPrices, input);
+    const nightRecords = nights.map((night, index) => {
+      const price = nightPrices[index] ?? money(0, property.currency);
       return { date: night, amountMinor: price.amount, currency: price.currency };
     });
 
@@ -233,7 +270,45 @@ export class PlanStayService {
       },
       nightPrices,
       overbookings,
+      pricedFrom,
     };
+  }
+
+  /**
+   * Replace our own night prices with the channel's total, spread across them.
+   *
+   * Refuses rather than converts on a currency mismatch, and refuses a
+   * nonsensical total, in both cases falling back to our own rates and SAYING
+   * SO through `pricedFrom`. Refusing the booking outright would be worse: the
+   * guest already holds a confirmation from the OTA, and a delivery that fails
+   * on a price is a real person with no room recorded.
+   */
+  private applyChannelTotal(
+    property: PropertySettings,
+    ownPrices: readonly Money[],
+    input: PlanStayInput,
+  ): { nightPrices: readonly Money[]; pricedFrom: PricingSource } {
+    const channelTotal = input.channelTotal;
+    if (!channelTotal) return { nightPrices: ownPrices, pricedFrom: 'PROPERTY_RATES' };
+
+    // No implicit conversion, ever (ADR-0003): there are no exchange rates in
+    // this system, and a USD total written into a THB folio is worse than a
+    // price that is merely stale.
+    if (channelTotal.currency !== property.currency) {
+      return { nightPrices: ownPrices, pricedFrom: 'PROPERTY_RATES' };
+    }
+    if (channelTotal.amount <= 0) {
+      return { nightPrices: ownPrices, pricedFrom: 'PROPERTY_RATES' };
+    }
+
+    // Weighted by what each night would have cost, so the shape of the stay
+    // survives; allocate() guarantees the parts still sum to the channel's
+    // total exactly, with no satang invented or lost.
+    const nightPrices = allocate(
+      channelTotal,
+      ownPrices.map((price) => price.amount),
+    );
+    return { nightPrices, pricedFrom: 'CHANNEL' };
   }
 
   /**

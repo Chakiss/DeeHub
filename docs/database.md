@@ -617,6 +617,12 @@ CREATE TABLE channel_rate_plan_mappings (
   rate_plan_id       uuid NOT NULL REFERENCES rate_plans(id) ON DELETE RESTRICT,
   external_rate_id   text NOT NULL,
   external_rate_name text,
+  -- Markup applied before this plan's price is pushed to this channel, in
+  -- basis points: 10000 = x1.0, 18000 = x1.8. Basis points for the same reason
+  -- as properties.tax_rate_bp — the arithmetic stays in integers and money
+  -- never passes through a float. See docs/channel-markup-plan.md.
+  rate_multiplier_bp integer NOT NULL DEFAULT 10000
+                     CHECK (rate_multiplier_bp BETWEEN 1 AND 100000),
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now()
 );

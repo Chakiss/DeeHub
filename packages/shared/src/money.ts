@@ -128,6 +128,58 @@ export function applyBasisPoints(value: Money, basisPoints: number): Money {
   return money(roundHalfUp((value.amount * basisPoints) / 10_000), value.currency);
 }
 
+/**
+ * Split a total across weights so the parts sum EXACTLY to the total.
+ *
+ * An OTA delivers one price for a whole stay; this system stores a price per
+ * night. Dividing and rounding each night independently loses or invents
+ * satang, and a folio whose nights do not add up to its total is a folio
+ * nobody trusts.
+ *
+ * Largest-remainder: every part takes its whole units, then the leftover minor
+ * units go to the parts with the biggest fractional claim. The float division
+ * below only decides the ORDER of that distribution — the sum is computed from
+ * integers and is exact whatever the division does.
+ *
+ * Weights are usually the nightly rates the stay would have had, so a weekend
+ * night keeps its larger share of the total.
+ */
+export function allocate(total: Money, weights: readonly number[]): readonly Money[] {
+  if (weights.length === 0) {
+    throw new MoneyError('Cannot allocate a total across zero parts');
+  }
+  if (weights.some((weight) => !Number.isFinite(weight) || weight < 0)) {
+    throw new MoneyError('Allocation weights must be finite and non-negative');
+  }
+
+  const totalWeight = weights.reduce((acc, weight) => acc + weight, 0);
+  // Every part weighing zero (a stay of free nights) still has to divide the
+  // total, so fall back to an even split rather than dividing by zero.
+  const effective = totalWeight === 0 ? weights.map(() => 1) : weights;
+  const effectiveTotal = totalWeight === 0 ? weights.length : totalWeight;
+
+  // Work on the magnitude so a refund splits as the mirror of the charge it
+  // reverses, rather than rounding the other way.
+  const sign = total.amount < 0 ? -1 : 1;
+  const magnitude = Math.abs(total.amount);
+
+  const exact = effective.map((weight) => (magnitude * weight) / effectiveTotal);
+  const amounts = exact.map((value) => Math.floor(value));
+  let remainder = magnitude - amounts.reduce((acc, value) => acc + value, 0);
+
+  const byFraction = exact
+    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+
+  for (const { index } of byFraction) {
+    if (remainder <= 0) break;
+    amounts[index] = (amounts[index] ?? 0) + 1;
+    remainder -= 1;
+  }
+
+  return amounts.map((amount) => money(sign * amount, total.currency));
+}
+
 export function minorUnitExponent(currency: string): number {
   return MINOR_UNIT_EXPONENT[currency.toUpperCase()] ?? 2;
 }

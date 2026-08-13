@@ -46,10 +46,23 @@ const mappingSchema = z
   })
   .strict();
 
+/**
+ * A rate-plan mapping carries the channel markup as well as the identifier.
+ *
+ * `rateMultiplierBp` is basis points: 10000 pushes the property's own price
+ * unchanged, 18000 pushes it at ×1.8. The bounds match the database check
+ * constraint, so a bad value is refused twice and stored never.
+ */
+const ratePlanMappingSchema = mappingSchema
+  .extend({
+    rateMultiplierBp: z.number().int().min(1).max(100_000).optional(),
+  })
+  .strict();
+
 const replaceMappingsSchema = z
   .object({
     roomTypes: z.array(mappingSchema).max(200),
-    ratePlans: z.array(mappingSchema).max(500),
+    ratePlans: z.array(ratePlanMappingSchema).max(500),
   })
   .strict();
 

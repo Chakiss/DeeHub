@@ -14,6 +14,14 @@ export interface ChannelRecord {
 export interface RatePlanMapping {
   readonly ratePlanId: string;
   readonly externalRateId: string;
+  /**
+   * Markup for this plan on this channel, in basis points (10000 = ×1.0).
+   *
+   * Applied where the ARI payload is assembled and nowhere else, so an OTA is
+   * quoted more than the direct price without any of it reaching the booking
+   * path (docs/channel-markup-plan.md).
+   */
+  readonly rateMultiplierBp: number;
 }
 
 export interface SyncJobRecord {

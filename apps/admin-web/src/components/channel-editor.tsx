@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
-import type { ChannelDetail, MappingInput } from '@/lib/api';
+import type { ChannelDetail, MappingInput, RatePlanMappingInput } from '@/lib/api';
 import {
   replaceMappings,
   syncChannel,
@@ -14,6 +14,13 @@ import {
 interface Draft {
   externalId: string;
   externalName: string;
+  /**
+   * The OTA price factor as typed — "1.8", not basis points.
+   *
+   * Kept as a string so a half-typed "1." does not become 1 under the user's
+   * fingers. Converted once, on save.
+   */
+  markup: string;
 }
 
 /**
@@ -121,7 +128,12 @@ export function ChannelEditor({
 
   function saveMappings() {
     run(() =>
-      replaceMappings(propertyId, channel.id, toInputs(roomTypeDrafts), toInputs(ratePlanDrafts)),
+      replaceMappings(
+        propertyId,
+        channel.id,
+        toInputs(roomTypeDrafts),
+        toRatePlanInputs(ratePlanDrafts),
+      ),
     );
   }
 
@@ -245,6 +257,7 @@ export function ChannelEditor({
       </Card>
 
       <Card title={t('ratePlanMappingsHeading')}>
+        <p className="mb-3 text-xs text-slate-500">{t('markupHint')}</p>
         <MappingTable
           rows={channel.availableRatePlans.map((plan) => ({
             id: plan.id,
@@ -256,6 +269,7 @@ export function ChannelEditor({
           idLabel={t('externalId')}
           nameLabel={t('externalName')}
           emptyLabel={t('notMapped')}
+          markupLabel={t('markup')}
         />
         {canEdit && (
           <button
@@ -362,6 +376,7 @@ function MappingTable({
   idLabel,
   nameLabel,
   emptyLabel,
+  markupLabel,
 }: {
   rows: { id: string; label: string }[];
   drafts: Record<string, Draft>;
@@ -370,11 +385,13 @@ function MappingTable({
   idLabel: string;
   nameLabel: string;
   emptyLabel: string;
+  /** Present only for rate plans: room types have no price to mark up. */
+  markupLabel?: string;
 }) {
   function set(id: string, patch: Partial<Draft>) {
     onChange({
       ...drafts,
-      [id]: { externalId: '', externalName: '', ...drafts[id], ...patch },
+      [id]: { externalId: '', externalName: '', markup: '1', ...drafts[id], ...patch },
     });
   }
 
@@ -384,7 +401,10 @@ function MappingTable({
         const draft = drafts[row.id];
         const mapped = Boolean(draft?.externalId);
         return (
-          <li key={row.id} className="grid items-center gap-2 sm:grid-cols-3">
+          <li
+            key={row.id}
+            className={`grid items-center gap-2 ${markupLabel ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}
+          >
             <span className={`text-sm ${mapped ? 'text-slate-700' : 'text-amber-700'}`}>
               {row.label}
               {!mapped && <span className="ml-2 text-xs">({emptyLabel})</span>}
@@ -405,6 +425,20 @@ function MappingTable({
               onChange={(event) => set(row.id, { externalName: event.target.value })}
               className={inputClass}
             />
+            {markupLabel && (
+              <input
+                type="number"
+                min={0.01}
+                max={10}
+                step={0.01}
+                placeholder={markupLabel}
+                aria-label={`${markupLabel} — ${row.label}`}
+                disabled={disabled}
+                value={draft?.markup ?? '1'}
+                onChange={(event) => set(row.id, { markup: event.target.value })}
+                className={inputClass}
+              />
+            )}
           </li>
         );
       })}
@@ -414,7 +448,12 @@ function MappingTable({
 
 function draftsFrom(
   locals: readonly { id: string }[],
-  mappings: readonly { localId: string; externalId: string; externalName: string | null }[],
+  mappings: readonly {
+    localId: string;
+    externalId: string;
+    externalName: string | null;
+    rateMultiplierBp?: number;
+  }[],
 ): Record<string, Draft> {
   const byLocal = new Map(mappings.map((mapping) => [mapping.localId, mapping]));
   const drafts: Record<string, Draft> = {};
@@ -423,9 +462,31 @@ function draftsFrom(
     drafts[local.id] = {
       externalId: existing?.externalId ?? '',
       externalName: existing?.externalName ?? '',
+      markup: formatMarkup(existing?.rateMultiplierBp ?? NEUTRAL_MARKUP_BP),
     };
   }
   return drafts;
+}
+
+/** ×1.0 — the direct price, pushed unchanged. */
+const NEUTRAL_MARKUP_BP = 10_000;
+
+function formatMarkup(basisPoints: number): string {
+  return String(basisPoints / NEUTRAL_MARKUP_BP);
+}
+
+/**
+ * "1.8" → 18000 basis points.
+ *
+ * Anything unreadable becomes the neutral factor rather than an error: the
+ * worst outcome here is quietly pushing a price nobody chose, and ×1.0 is the
+ * one factor that is never a surprise. The API and the database both bound the
+ * value again.
+ */
+function toMarkupBp(value: string): number {
+  const parsed = Number(value.trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return NEUTRAL_MARKUP_BP;
+  return Math.min(100_000, Math.max(1, Math.round(parsed * NEUTRAL_MARKUP_BP)));
 }
 
 /** A blank external id means "not mapped", and is dropped rather than sent. */
@@ -437,6 +498,19 @@ function toInputs(drafts: Record<string, Draft>): MappingInput[] {
       externalId: draft.externalId.trim(),
       ...(draft.externalName.trim() ? { externalName: draft.externalName.trim() } : {}),
     }));
+}
+
+/**
+ * Rate-plan mappings carry the markup; room-type mappings must not.
+ *
+ * The API schema is strict, so sending `rateMultiplierBp` on a room type would
+ * be rejected outright rather than ignored.
+ */
+function toRatePlanInputs(drafts: Record<string, Draft>): RatePlanMappingInput[] {
+  return toInputs(drafts).map((input) => ({
+    ...input,
+    rateMultiplierBp: toMarkupBp(drafts[input.localId]?.markup ?? ''),
+  }));
 }
 
 const inputClass =

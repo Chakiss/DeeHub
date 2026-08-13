@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { errors, type IsoDate } from '@deehub/shared';
+import { applyBasisPoints, errors, money, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { runWithTenant } from '../../../common/tenant/tenant-context';
 import {
@@ -101,9 +101,7 @@ export class PushAriUseCase {
       channel.id,
       roomTypeId,
     );
-    const externalRateByPlan = new Map(
-      ratePlanMappings.map((mapping) => [mapping.ratePlanId, mapping.externalRateId]),
-    );
+    const mappingByPlan = new Map(ratePlanMappings.map((mapping) => [mapping.ratePlanId, mapping]));
 
     const inventory = await this.inventory.findRange(
       this.db,
@@ -115,19 +113,28 @@ export class PushAriUseCase {
     const inventoryByDate = new Map(inventory.map((day) => [day.date, day]));
 
     const rateRows =
-      externalRateByPlan.size > 0
-        ? await this.rates.findRatesForPlans(this.db, [...externalRateByPlan.keys()], dates)
+      mappingByPlan.size > 0
+        ? await this.rates.findRatesForPlans(this.db, [...mappingByPlan.keys()], dates)
         : [];
 
     const ratesByDate = new Map<string, AriRate[]>();
     for (const row of rateRows) {
-      const externalRateId = externalRateByPlan.get(row.ratePlanId);
-      if (!externalRateId) continue;
+      const mapping = mappingByPlan.get(row.ratePlanId);
+      if (!mapping) continue;
       const list = ratesByDate.get(row.date) ?? [];
       list.push({
-        externalRateId,
+        externalRateId: mapping.externalRateId,
         occupancy: row.occupancy,
-        amountMinor: row.amountMinor,
+        // The channel markup, applied HERE and nowhere else: this is the only
+        // point in the system where a price becomes a price-for-a-channel.
+        // Doing it inside a connector would give every OTA its own rounding
+        // (docs/channel-markup-plan.md §4). The row is already the resolved
+        // price, so a derived rate plan's offset is applied before the markup
+        // rather than being multiplied by it.
+        amountMinor: applyBasisPoints(
+          money(row.amountMinor, row.currency),
+          mapping.rateMultiplierBp,
+        ).amount,
         currency: row.currency,
       });
       ratesByDate.set(row.date, list);
