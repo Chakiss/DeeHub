@@ -43,7 +43,7 @@
    * white) for cards, `sunk` for stat tiles and table header bands that sit
    * below the card surface.
    */
-  --color-ground: #f7f4ec;
+  --color-ground: #ffffff;
   --color-raised: #ffffff;
   --color-sunk: #f2ede1;
   --color-sunk-deep: #e9e2d1;

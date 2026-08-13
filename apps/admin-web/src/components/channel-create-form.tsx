@@ -61,7 +61,7 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="w-full max-w-md space-y-3 rounded-2xl bg-white shadow-card p-4">
+    <div className="w-full max-w-md space-y-3 rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
       <p className="text-sm font-semibold text-ink-900">{t('createTitle')}</p>
 
       <label className="block">

@@ -95,7 +95,7 @@ export function RoomList({
           <p className="mx-auto mt-1 max-w-md text-sm text-stone-500">{t('emptyHint')}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+        <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
@@ -230,7 +230,7 @@ function AddRoomDialog({
     >
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-lg"
+        className="w-full max-w-md space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg"
       >
         <h2 className="text-lg font-medium text-ink-900">{t('add')}</h2>
 

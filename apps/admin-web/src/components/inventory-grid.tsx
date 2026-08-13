@@ -67,7 +67,7 @@ export function InventoryGrid({
 
       {/* Horizontal scrolling stays INSIDE the grid: the page body must never
           scroll sideways, or the header and nav drift off screen. */}
-      <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>

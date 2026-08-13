@@ -18,7 +18,7 @@ export function SignOutButton({ label }: { label: string }) {
           router.refresh();
         });
       }}
-      className="rounded-md border border-white/25 px-3 py-1.5 text-stone-200 transition hover:bg-white/10 hover:text-white disabled:opacity-60"
+      className="rounded-md border border-white/25 px-3 py-1.5 text-stone-200 transition hover:bg-white/10 hover:text-white disabled:opacity-60 whitespace-nowrap"
     >
       {label}
     </button>

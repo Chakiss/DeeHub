@@ -66,7 +66,7 @@ export async function PerformanceReport({
         <Metric label={t('offered')} value={String(totals.allotment)} />
       </div>
 
-      <section className="overflow-x-auto rounded-2xl bg-white shadow-card">
+      <section className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <h2 className="border-b border-stone-200 px-4 py-2 text-sm font-medium text-ink-800">
           {t('byNight')}
         </h2>

@@ -64,7 +64,7 @@ export function ChangePasswordForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="max-w-sm space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-sm"
+      className="max-w-sm space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-sm"
     >
       <div>
         <h1 className="text-lg font-medium text-ink-900">{t('title')}</h1>

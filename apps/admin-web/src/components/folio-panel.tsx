@@ -142,7 +142,7 @@ export function FolioPanel({
     // is on a long booking page.
     <section
       aria-labelledby="folio-heading"
-      className="space-y-3 rounded-2xl bg-white shadow-card p-4"
+      className="space-y-3 rounded-2xl border border-stone-200/70 bg-white shadow-card p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="folio-heading" className="text-sm font-semibold text-ink-900">

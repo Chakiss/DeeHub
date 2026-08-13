@@ -154,7 +154,7 @@ export default async function ChannelDetailPage({
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl bg-white shadow-card p-4">
+    <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
       <h2 className="mb-3 text-sm font-semibold text-ink-900">{title}</h2>
       {children}
     </section>

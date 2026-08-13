@@ -89,7 +89,7 @@ export function TeamList({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
@@ -254,7 +254,7 @@ function InviteDialog({
           }
           onCreated(result.user);
         }}
-        className="w-full max-w-md space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-lg"
+        className="w-full max-w-md space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg"
       >
         <h2 className="text-lg font-medium text-ink-900">{t('invite')}</h2>
 
@@ -356,7 +356,7 @@ function CredentialDialog({
       aria-label={credential.title}
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4"
     >
-      <div className="w-full max-w-md space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-lg">
+      <div className="w-full max-w-md space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg">
         <h2 className="text-lg font-medium text-ink-900">{credential.title}</h2>
         <p className="text-sm text-stone-600">{credential.intro}</p>
 

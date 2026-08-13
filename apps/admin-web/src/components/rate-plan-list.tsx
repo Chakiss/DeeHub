@@ -99,7 +99,7 @@ export function RatePlanList({
           <p className="mx-auto mt-1 max-w-md text-sm text-stone-500">{t('emptyHint')}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+        <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">

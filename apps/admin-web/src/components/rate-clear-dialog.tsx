@@ -99,7 +99,7 @@ export function RateClearDialog({
     >
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-lg space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-lg"
+        className="w-full max-w-lg space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg"
       >
         <div>
           <h2 className="text-lg font-medium text-ink-900">

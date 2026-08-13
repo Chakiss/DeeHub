@@ -77,7 +77,7 @@ export function MainNav({ items }: { items: readonly NavItem[] }) {
                 className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm transition ${
                   active
                     ? 'bg-brand-600 font-medium text-white'
-                    : 'bg-white text-stone-600 shadow-card hover:text-ink-900'
+                    : 'border border-stone-200/70 bg-white text-stone-600 shadow-card hover:text-ink-900'
                 }`}
               >
                 {item.label}

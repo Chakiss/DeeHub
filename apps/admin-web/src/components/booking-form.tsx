@@ -185,7 +185,7 @@ export function BookingForm({
 
   if (roomTypes.length === 0) {
     return (
-      <div className="rounded-2xl bg-white shadow-card p-8 text-center">
+      <div className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-8 text-center">
         <p className="font-medium text-ink-900">{t('noRoomTypes')}</p>
         <p className="mt-1 text-sm text-stone-500">{t('noRoomTypesHint')}</p>
         <a
@@ -493,7 +493,7 @@ function countNights(from: string, to: string): number {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl bg-white shadow-card p-4">
+    <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
       <h2 className="mb-3 text-sm font-semibold text-ink-900">{title}</h2>
       {children}
     </section>

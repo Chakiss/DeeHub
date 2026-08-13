@@ -58,7 +58,7 @@ export default async function ReservationsPage({
         defaultStatus={status ?? ''}
       />
 
-      <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">

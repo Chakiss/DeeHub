@@ -66,7 +66,7 @@ export async function PickupReport({ pickup }: { pickup: Pickup }) {
         />
       </div>
 
-      <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
@@ -129,7 +129,7 @@ function Tile({
   tone: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white shadow-card p-4">
+    <div className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
       <p className={`tabular mt-1 text-2xl font-semibold ${tone}`}>{value}</p>
       <p className="mt-1 text-xs text-stone-400">{hint}</p>

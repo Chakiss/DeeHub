@@ -109,7 +109,7 @@ export function StayViewGrid({
       )}
 
       {/* The front desk's worklist: booked, in the window, nowhere to sleep. */}
-      <section className="rounded-2xl bg-white shadow-card p-4">
+      <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
         <h2 className="text-sm font-medium text-ink-800">
           {t('unassigned')}
           {view.unassigned.length > 0 && (
@@ -151,7 +151,7 @@ export function StayViewGrid({
       </section>
 
       {/* Scrolling stays inside the grid: the page body must never move. */}
-      <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -366,7 +366,7 @@ function AssignDialog({
           }
           onClose();
         }}
-        className="w-full max-w-md space-y-4 rounded-2xl bg-white shadow-card p-6 shadow-lg"
+        className="w-full max-w-md space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg"
       >
         <h2 className="text-lg font-medium text-ink-900">
           {t('assignTo', { guest: stay.guestName ?? stay.reservationCode })}

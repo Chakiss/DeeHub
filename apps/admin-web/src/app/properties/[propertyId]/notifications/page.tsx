@@ -159,7 +159,7 @@ function Row({
   const when = entry.sentAt ?? entry.createdAt;
 
   return (
-    <li className="rounded-2xl bg-white shadow-card p-3">
+    <li className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${

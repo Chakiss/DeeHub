@@ -84,7 +84,7 @@ export function GuestList({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
@@ -162,7 +162,7 @@ export function GuestList({
                         {candidates.map((candidate) => (
                           <li
                             key={candidate.id}
-                            className="flex flex-wrap items-center gap-3 rounded-xl bg-white shadow-card px-3 py-2"
+                            className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200/70 bg-white shadow-card px-3 py-2"
                           >
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-medium text-ink-800">
