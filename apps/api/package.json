@@ -19,7 +19,8 @@
     "db:seed-channel": "tsx src/database/seed-channel.ts",
     "maintenance": "node dist/maintenance.js",
     "db:create-org": "tsx src/database/create-organization.ts",
-    "db:setup-property": "tsx src/database/setup-property.ts"
+    "db:setup-property": "tsx src/database/setup-property.ts",
+    "db:set-user-email": "tsx src/database/set-user-email.ts"
   },
   "dependencies": {
     "@deehub/shared": "workspace:*",

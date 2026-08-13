@@ -85,10 +85,28 @@ function parseArgs(argv: string[]): Options {
     throw new Error(`Invalid slug "${slug}": use lowercase letters, digits and hyphens`);
   }
 
+  /*
+   * The owner's address, checked rather than trusted.
+   *
+   * This ran in production with "<อีเมลเจ้าของโรงแรม>" — the placeholder from
+   * the instructions — still in the command, and made an account nobody could
+   * ever sign in to: the login form is type="email" and refuses to submit one.
+   * There is no screen that repairs a user you cannot sign in as, so the cost
+   * of accepting anything here was a separate script (db:set-user-email) and a
+   * production organization in a state that needed it.
+   */
+  const owner = flags.get('owner')!.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner)) {
+    throw new Error(
+      `Invalid owner email "${owner}". This is the address the hotel signs in with — ` +
+        'a placeholder here creates an account that cannot be used.',
+    );
+  }
+
   return {
     name: flags.get('name')!,
     slug,
-    owner: flags.get('owner')!,
+    owner,
     property: flags.get('property')!,
     timezone: flags.get('timezone') ?? 'Asia/Bangkok',
     currency: (flags.get('currency') ?? 'THB').toUpperCase(),
