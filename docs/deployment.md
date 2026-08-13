@@ -76,12 +76,12 @@ working housekeeping for a quiet inbox.
 On `enable_channel_sync = false` this job is the only housekeeping process, so
 while it is paused:
 
-| Stops                        | Consequence                                       |
-| ---------------------------- | ------------------------------------------------- |
-| Outbox relay + notifications | Confirmations are composed and never sent          |
-| Hold expiry                  | Lapsed holds keep nights off sale indefinitely     |
-| OTB snapshot capture         | Permanent gap in the pickup report's history       |
-| Inventory reconciliation     | Booking-path drift goes undetected                 |
+| Stops                        | Consequence                                             |
+| ---------------------------- | ------------------------------------------------------- |
+| Outbox relay + notifications | Confirmations are composed and never sent               |
+| Hold expiry                  | Lapsed holds keep nights off sale indefinitely          |
+| OTB snapshot capture         | Permanent gap in the pickup report's history            |
+| Inventory reconciliation     | Booking-path drift goes undetected                      |
 | Reset-token purge            | Expired rows accumulate; expiry is still checked at use |
 
 Unpausing catches up on the outbox and holds on the next pass. **The missed OTB
@@ -108,11 +108,11 @@ egress through the VPC would need a Cloud NAT we do not otherwise want.
 
 `custom_domain` maps two subdomains and leaves the apex alone:
 
-| Name             | Serves                                              |
-| ---------------- | --------------------------------------------------- |
-| `app.<domain>`   | the dashboard                                       |
-| `api.<domain>`   | the API                                             |
-| `<domain>` (apex) | nothing — reserved for the guest booking site       |
+| Name              | Serves                                        |
+| ----------------- | --------------------------------------------- |
+| `app.<domain>`    | the dashboard                                 |
+| `api.<domain>`    | the API                                       |
+| `<domain>` (apex) | nothing — reserved for the guest booking site |
 
 The apex is unmapped on purpose. It is the address a guest will type, and the
 booking site that belongs there is not built (roadmap Phase 3). Parking the
@@ -577,7 +577,7 @@ cover Singapore.
 5. **Maintenance is paused in production**, `maintenance_paused = true` since
    2026-08-11 (§1), to stop the alert email. The underlying failure is known
    and unfixed: roughly one run in three dies on `Connection terminated due to
-   connection timeout`, the pool's 5s `connectionTimeoutMillis`
+connection timeout`, the pool's 5s `connectionTimeoutMillis`
    (`apps/api/src/database/database.module.ts`) against a shared-core
    `db-f1-micro` with no SLA. The other two in three succeed. Fix is a longer
    connect timeout plus `max_retries = 1` on the job — a transient connect

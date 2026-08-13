@@ -117,6 +117,7 @@ Phase 4 with it. Delivered:
    off that job is the only process that drains the outbox. Unpausing is the
    switch; the connect timeout behind the failure it was paused for should be
    fixed first (deployment.md §9).
+
 3. **Confirm a booking instantly.** Messages go out with the maintenance job,
    every ten minutes, so a confirmation arrives within ten minutes rather than
    seconds — once that job runs at all. The always-on worker sends within
