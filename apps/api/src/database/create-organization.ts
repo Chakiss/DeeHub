@@ -17,6 +17,7 @@ import { Pool } from 'pg';
 import { v7 as uuidv7 } from 'uuid';
 import { ScryptPasswordHasher } from '../modules/auth/domain/password-hasher';
 import { generateTemporaryPassword } from '../common/security/temporary-password';
+import { normaliseEmailAddress } from '../common/validation/email-address';
 import * as schema from './schema';
 
 interface Options {
@@ -95,13 +96,7 @@ function parseArgs(argv: string[]): Options {
    * of accepting anything here was a separate script (db:set-user-email) and a
    * production organization in a state that needed it.
    */
-  const owner = flags.get('owner')!.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner)) {
-    throw new Error(
-      `Invalid owner email "${owner}". This is the address the hotel signs in with — ` +
-        'a placeholder here creates an account that cannot be used.',
-    );
-  }
+  const owner = normaliseEmailAddress(flags.get('owner')!, 'owner email');
 
   return {
     name: flags.get('name')!,

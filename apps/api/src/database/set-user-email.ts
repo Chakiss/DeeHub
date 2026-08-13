@@ -26,10 +26,8 @@ import '../config/load-dotenv';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq } from 'drizzle-orm';
 import { Pool } from 'pg';
+import { normaliseEmailAddress } from '../common/validation/email-address';
 import * as schema from './schema';
-
-/** The same shape the API accepts, so this cannot create what login rejects. */
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function required(name: string): string {
   const value = process.env[name];
@@ -40,11 +38,7 @@ function required(name: string): string {
 async function main(): Promise<void> {
   const slug = required('DEEHUB_ORG_SLUG');
   const currentEmail = required('DEEHUB_CURRENT_EMAIL');
-  const newEmail = required('DEEHUB_NEW_EMAIL').trim().toLowerCase();
-
-  if (!EMAIL.test(newEmail)) {
-    throw new Error(`"${newEmail}" is not an email address. Nothing changed.`);
-  }
+  const newEmail = normaliseEmailAddress(required('DEEHUB_NEW_EMAIL'), 'new email');
 
   const connectionString = process.env['DATABASE_URL'];
   if (!connectionString) throw new Error('DATABASE_URL is required');
