@@ -133,6 +133,34 @@ jobs:
             --image "${{ steps.images.outputs.web }}" \
             --quiet
 
+      # The marketing site is static files in a bucket behind the load
+      # balancer, not a container, so it ships by sync rather than by deploy.
+      #
+      # Skipped when the bucket does not exist: it is created by Terraform only
+      # when custom_domain is set, and a missing bucket must not fail a release
+      # of the actual product.
+      #
+      # `-d` deletes objects that are no longer in the repository — without it a
+      # page renamed today stays reachable at its old address forever. The two
+      # cache headers differ on purpose: HTML must be re-fetched or a deploy is
+      # invisible, while fingerprinted assets, fonts and images can sit in the
+      # CDN. Order matters — the broad rule runs first and HTML corrects itself
+      # afterwards.
+      - name: Deploy marketing site
+        run: |
+          BUCKET="deehub-marketing-${ENVIRONMENT}-${{ secrets.GCP_PROJECT_ID }}"
+          if ! gcloud storage buckets describe "gs://${BUCKET}" >/dev/null 2>&1; then
+            echo "No marketing bucket — custom_domain is unset. Skipping."
+            exit 0
+          fi
+          gcloud storage rsync apps/marketing "gs://${BUCKET}" \
+            --recursive --delete-unmatched-destination-objects \
+            --cache-control="public, max-age=3600"
+          gcloud storage cp apps/marketing/index.html "gs://${BUCKET}/index.html" \
+            --cache-control="public, max-age=300"
+          gcloud storage cp apps/marketing/en/index.html "gs://${BUCKET}/en/index.html" \
+            --cache-control="public, max-age=300"
+
       - name: Smoke test
         run: |
           API_URL=$(gcloud run services describe "deehub-api-${ENVIRONMENT}" \

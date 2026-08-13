@@ -470,7 +470,7 @@ both yours to pick:
 Until then, run `terraform plan` before believing any deployment claim in these
 docs, including this file.
 
-## 19. The apex domain is deliberately left empty
+## 19. ~~The apex domain is deliberately left empty~~ — superseded by §22
 
 `deehubhotel.com` was registered 2026-08-12 and mapped as `app.` (dashboard)
 and `api.` (API). The apex itself points at nothing.
@@ -497,5 +497,105 @@ The split is the point: reading infrastructure should be frictionless, and
 changing it should be a decision someone made on purpose. Cloning this repo
 gives you an assistant that can tell you what production looks like, not one
 that can rearrange it.
+
+## 21. The OTA markup, and the booking value it quietly fixed
+
+You asked for OTA prices at +80% of the direct rate. It is built: a factor per
+channel per rate plan, set on the channel screen, applied at the single point
+where a price becomes a price-for-a-channel. Direct bookings, the front desk and
+reports are untouched, which is the whole point of it.
+
+**The part you did not ask for, and should know about.** Before this, an OTA
+booking was priced from OUR rate rows — the channel's own total was parsed,
+stored in the raw payload, and then thrown away. That was harmless only while
+the two numbers agreed. With a markup they never agree: Agoda sells the room at
+1,800 and DeeHub would have recorded 1,000, understating the folio, the guest's
+bill at check-out, ADR and RevPAR by 44% on every OTA booking. It is fixed in
+the same change, because shipping the markup without it would have quietly
+corrupted the numbers you use to decide whether OTA business is worth having.
+
+**Three calls in there are yours to overturn.**
+
+**The channel's price is taken as GROSS — what the guest paid, not what you
+will be paid.** It is the number a guest would recognise and the one an OTA
+statement can be reconciled against. Net revenue needs a commission percentage
+per channel, which does not exist yet; until it does, an OTA booking's value
+includes the commission you will later hand over.
+
+**A total we cannot use falls back to your own rates rather than failing the
+booking.** A foreign currency is the real case — there are no exchange rates in
+this system, and a USD total in a THB folio would be worse than a stale price.
+The booking is still created (the guest holds a confirmation; refusing does not
+un-sell the room), the log says so loudly, and the audit entry records
+`pricedFrom: PROPERTY_RATES`. Search that field to find every booking whose
+value may be wrong.
+
+**The factor is typed as a decimal — `1.8`, matching eZee's "Rate Multiply
+Factor" field — and stored as basis points.** An operator moving across from
+eZee copies the same number they already have. If you would rather type "80%",
+that is a label change, not a rebuild.
+
+**One thing to watch at cutover:** if eZee and DeeHub are ever both connected to
+the same channel with a factor set, the markup applies twice. The switch is a
+scheduled cutover, never a parallel run — check the OTA extranet price after the
+first push.
+
+## 22. A load balancer, and the apex is no longer empty
+
+You asked to use the real domain. Two things were in the way and both are now
+written, though **neither is applied — the apply is yours** (§20).
+
+**Cloud Run could not get a certificate for the dashboard, twice.** `app.` never
+got one and was abandoned on the theory that the name was unlucky.
+`dashboard.` then did exactly the same thing: six hours, no certificate
+presented at all, while `api.` — same project, same apply, byte-identical
+A/AAAA/CNAME records, no CAA, no proxy — was issued one within the hour. Two
+names failing identically against the same service is not a name problem, and
+there was nothing left on our side to correct.
+
+So certificate issuance moves to a **global load balancer**, which reports its
+state per domain rather than retrying in silence. That is the actual fix: not a
+better guess, but somewhere to look.
+
+**It costs roughly $18-25/month** for the forwarding rule and its traffic,
+against $0 for a domain mapping that works. You chose this over waiting, and
+the number is worth repeating because it is a standing cost, not a one-off. It
+also buys the thing rate limiting needs: Cloud Armor attaches to a load
+balancer, so §17's open item now has somewhere to go.
+
+**This supersedes §19.** The apex now carries the **marketing site**, which is
+what an apex is for. §19's reasoning was "do not park something there that will
+have to move later" — and that argues for the marketing site rather than
+against it. The guest booking engine gets its own name when it exists; the
+address a stranger types should say who we are.
+
+**Three calls you may want to overturn.**
+
+**The marketing site is a bucket, not a Cloud Run service** — which is what
+`marketing-site-plan.md` assumed. It is 2 MB of hand-written HTML with no build
+step and no server behaviour; a container to cold-start in order to hand back
+bytes that never change is a moving part with nothing to do. CI syncs it on
+merge, so editing a headline is a commit rather than a Terraform apply from
+your laptop.
+
+**`www` 301s to the apex** rather than serving the same pages. Two addresses for
+one page splits its search ranking and its analytics.
+
+**`cors_origins` names the run.app URL as well as the custom domain.** The
+certificate takes 15-60 minutes after DNS moves, and during that window the
+run.app URL is the only way in — naming only the new domain would have caused
+an outage in the middle of a migration meant to end one. Drop it once the
+domain serves.
+
+**What you have to do**, in this order — `terraform output` prints the DNS
+records, and deployment.md §2 has the full runbook:
+
+1. `terraform apply` — 15 to add, 2 to change, 1 to destroy (the dead dashboard
+   mapping).
+2. Point `deehubhotel.com`, `www` and `dashboard` at the load balancer's IP as
+   **A records, DNS-only**. `api.` does not change.
+3. Watch the certificate; `FAILED_NOT_VISIBLE` on a domain means that record has
+   not moved or is still proxied.
+4. Sync the marketing bucket once by hand; CI does it from then on.
 
 _(Updated as the session continues.)_

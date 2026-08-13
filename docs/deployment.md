@@ -88,8 +88,11 @@ Unpausing catches up on the outbox and holds on the next pass. **The missed OTB
 snapshots do not come back** — each one is a photograph of a business date that
 has passed. That is the cost that grows with every day paused.
 
-> **Currently paused in production** (set 2026-08-11) while a daily failure is
-> diagnosed. See §9.
+> **Running in production again since 2026-08-13.** It was paused from
+> 2026-08-11 while the daily failure behind it was diagnosed; the connect
+> timeout and the missing retry are both fixed and applied. Verified by
+> execution history, not by configuration: the eight most recent runs all
+> succeeded, ten minutes apart. See §9.
 
 ---
 
@@ -106,57 +109,72 @@ egress through the VPC would need a Cloud NAT we do not otherwise want.
 
 ### Custom domain
 
-`custom_domain` maps two subdomains and leaves the apex alone:
+The dashboard, the apex and www are served by a **global load balancer**
+(`loadbalancer.tf`). `api.` keeps its Cloud Run domain mapping.
 
-| Name                 | Serves                                        |
-| -------------------- | --------------------------------------------- |
-| `dashboard.<domain>` | the dashboard                                 |
-| `api.<domain>`       | the API                                       |
-| `<domain>` (apex)    | nothing — reserved for the guest booking site |
+| Name                 | Serves             | How                        |
+| -------------------- | ------------------ | -------------------------- |
+| `<domain>` (apex)    | the marketing site | load balancer → GCS bucket |
+| `www.<domain>`       | 301 to the apex    | load balancer              |
+| `dashboard.<domain>` | the dashboard      | load balancer → Cloud Run  |
+| `api.<domain>`       | the API            | Cloud Run domain mapping   |
 
-The apex is unmapped on purpose. It is the address a guest will type, and the
-booking site that belongs there is not built (roadmap Phase 3). Parking the
-dashboard on it now costs a migration later, once staff have bookmarked it.
+**Why two mechanisms rather than one.** Cloud Run issues certificates for its
+own domain mappings, and for this project it twice did not. `api.` was issued
+one within the hour. `app.` never got one and was abandoned; `dashboard.`, a
+different name with byte-identical DNS against the same service, sat six hours
+presenting no certificate at all while the API reported `CertificatePending`
+and retried hourly. There was nothing left to correct on our side — no CAA
+record, no proxy, matching A/AAAA/CNAME — so certificate issuance moved to a
+load balancer, which reports its state per domain instead of retrying in
+silence. `api.` stays where it is because it works.
+
+It costs roughly **$18-25/month** for the forwarding rule and its traffic. It is
+also the thing Cloud Armor attaches to, so the rate limiting the public booking
+routes still need (`decisions-pending-review.md` §17) now has somewhere to go.
 
 The order matters, and each step fails unhelpfully if the one before it is
 skipped:
 
 ```bash
-# 1. Prove ownership. Opens Search Console; ownership is a TXT record.
-#    Applies run from a laptop, not CI, so this is your own Google account
-#    and no service account needs adding as a co-owner.
+# 1. Prove ownership, once per domain. Opens Search Console; ownership is a TXT
+#    record. Applies run from a laptop, not CI, so this is your own Google
+#    account and no service account needs adding as a co-owner.
+#    Already done for deehubhotel.com on 2026-08-12.
 gcloud domains verify deehubhotel.com
-gcloud domains list-user-verified --project=deehub-hotel   # confirm
+gcloud domains list-user-verified --project=deehub-hotel
 
-# 2. Create the mappings.
-#    custom_domain = "deehubhotel.com"   in terraform.tfvars
+# 2. Build the load balancer. Creates the static IP, the certificate (which
+#    starts PROVISIONING), the bucket, and DESTROYS the dashboard's old Cloud
+#    Run mapping — which serves nothing anyway.
 terraform apply
 
-# 3. Add what Cloud Run asks for at the registrar (CNAMEs to
-#    ghs.googlehosted.com, one per subdomain).
+# 3. Point DNS at it. Three A records to one address, plus api. unchanged.
 terraform output custom_domain_dns_records
 
-# 4. Wait. Cloud Run issues the certificate itself and cannot start until the
-#    name resolves to it — minutes to a few hours, mostly DNS propagation.
-gcloud beta run domain-mappings describe --domain=dashboard.deehubhotel.com \
-  --region=asia-southeast1 --project=deehub-hotel
+# 4. Watch the certificate. Per domain, which is the whole point.
+eval "$(terraform output -raw lb_certificate_check)"
+
+# 5. Fill the bucket. CI does this on every merge to main; run it by hand the
+#    first time rather than waiting for a commit.
+gcloud storage rsync apps/marketing \
+  "gs://$(terraform output -raw marketing_bucket)" \
+  --recursive --delete-unmatched-destination-objects
 ```
 
-**Created is not serving.** Terraform reports the mapping as created the moment
-the API accepts it, while the certificate is still pending. Step 4 is how you
-find out which one you have.
+**`PROVISIONING` is normal for 15-60 minutes** after the records go live. A
+domain reporting `FAILED_NOT_VISIBLE` is one whose DNS has not moved yet, or
+is proxied — that one is on us, and it is the only failure mode here that we
+can fix.
 
-**Only when `dashboard.` actually serves**, point the application at it — these are
-separate settings and moving them early breaks the working deployment:
+**If DNS is behind a proxy** (Cloudflare's orange cloud), turn it off for every
+record. A proxied name answers with the proxy's own address, the validator
+never reaches ours, and the certificate waits forever.
 
-```hcl
-admin_web_url = "https://dashboard.deehubhotel.com"   # reset links
-cors_origins  = "https://dashboard.deehubhotel.com"   # what the API will accept
-```
-
-**If DNS is behind a proxy** (Cloudflare's orange cloud), turn it off for these
-two records. A proxied name answers with the proxy's own address, so Cloud Run
-never sees its challenge succeed and the certificate never issues.
+**During the certificate window the dashboard is only reachable on its run.app
+URL**, which is why `cors_origins` names both that URL and the custom domain.
+Drop the run.app origin once the domain serves; leaving it is not dangerous,
+just untidy.
 
 ---
 
@@ -567,23 +585,27 @@ cover Singapore.
 
 1. **No staging environment.** `environment` is already a variable, so a second
    workspace is the mechanism; it is simply not stood up yet.
-2. **No custom domain or CDN.** Cloud Run's generated URLs are in use.
+2. **No CDN.** ~~No custom domain.~~ `deehubhotel.com` was registered on
+   2026-08-12 and both services answer on it — `api.` and `dashboard.` domain
+   mappings exist in production. The apex is deliberately still empty
+   (`decisions-pending-review.md` §19).
 3. **No self-service signup.** The first organization and owner are seeded by
    hand against production.
-4. **Terraform is validated but never applied.** The configuration passes
-   `terraform validate`, and both images have been built and run locally
-   against a real database — but nothing here has touched GCP yet. The first
-   apply should be treated as a first apply, not a routine deploy.
-5. **Maintenance is paused in production**, `maintenance_paused = true` since
-   2026-08-11 (§1), to stop the alert email. The underlying failure is known
-   and unfixed: roughly one run in three dies on `Connection terminated due to
-connection timeout`, the pool's 5s `connectionTimeoutMillis`
-   (`apps/api/src/database/database.module.ts`) against a shared-core
-   `db-f1-micro` with no SLA. The other two in three succeed. Fix is a longer
-   connect timeout plus `max_retries = 1` on the job — a transient connect
-   failure is exactly what a retry should absorb, and unlike drift it will not
-   be masked by one, because drift fails the retry too. **Unpause before the
-   first live guest:** while paused no confirmation email is delivered.
+4. ~~**Terraform is validated but never applied.**~~ **Resolved.** It has been
+   applied since 2026-07-31; a `terraform plan` on 2026-08-13 reported
+   `No changes`. What replaced this gap is a subtler one: the plan is run by
+   hand, so drift is invisible until somebody looks
+   (`decisions-pending-review.md` §18).
+5. ~~**Maintenance is paused in production.**~~ **Resolved 2026-08-13.** The
+   diagnosis holds and is worth keeping: roughly one run in three died on
+   `Connection terminated due to connection timeout` against a shared-core
+   `db-f1-micro` with no SLA, and the alert noise is what got the job paused on
+   2026-08-11 — taking guest email, hold expiry and the on-the-books snapshot
+   with it. Both halves of the fix are in and applied: the pool waits 15s rather
+   than 5s (`apps/api/src/database/database.module.ts`) and the scheduler
+   retries once, which absorbs a transient connect failure without masking
+   inventory drift — drift fails the retry too. Verified from execution history
+   on 2026-08-13, not from configuration.
 6. **Single region, zonal database.** Accepted for Milestone 1
    (architecture.md §11); regional HA is a tier change when revenue justifies
    it.

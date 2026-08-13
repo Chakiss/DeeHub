@@ -34,6 +34,12 @@ locals {
     "cloudscheduler.googleapis.com",
     "monitoring.googleapis.com",
     "clouderrorreporting.googleapis.com",
+    # Both were already on in this project — the VPC needed compute long before
+    # the load balancer did — so declaring them changes nothing here. They are
+    # listed because a fresh project would fail the apply without them, and the
+    # error names a permission rather than a missing API.
+    "compute.googleapis.com",
+    "storage.googleapis.com",
   ]
 }
 
