@@ -61,6 +61,33 @@ export function TeamList({
     });
   }
 
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
+
+  /*
+   * Names are editable in place. The pilot's first account was created with a
+   * template placeholder typed into Full name — "<อีเมลเจ้าของโรงแรม>" — and
+   * there was no way to correct it from the screen, so the placeholder was on
+   * its way into every audit entry. The server has allowed renames all along
+   * (self included: "renaming yourself is fine"); only the control was missing.
+   */
+  function saveName(user: OrganizationUser) {
+    const fullName = nameDraft.trim();
+    if (!fullName || fullName === user.fullName) {
+      setRenamingId(null);
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await updateUser(user.id, { fullName });
+      if (!result.ok) {
+        setError(result.error?.message ?? t('failed'));
+        return;
+      }
+      setRenamingId(null);
+    });
+  }
+
   function changeRole(user: OrganizationUser, role: string) {
     setError(null);
     startTransition(async () => {
@@ -116,7 +143,70 @@ export function TeamList({
                   }`}
                 >
                   <td className="px-3 py-2 text-ink-800">{user.email}</td>
-                  <td className="px-3 py-2 text-stone-600">{user.fullName}</td>
+                  <td className="px-3 py-2 text-stone-600">
+                    {renamingId === user.id ? (
+                      <span className="flex items-center gap-1.5">
+                        <input
+                          aria-label={`${t('fullName')} — ${user.email}`}
+                          value={nameDraft}
+                          disabled={pending}
+                          autoFocus
+                          onChange={(event) => setNameDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              saveName(user);
+                            }
+                            if (event.key === 'Escape') setRenamingId(null);
+                          }}
+                          className="w-40 rounded-md border border-stone-300 px-2 py-1 text-sm"
+                        />
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => saveName(user)}
+                          className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                        >
+                          {t('saveName')}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => setRenamingId(null)}
+                          className="rounded-md px-2 py-1 text-xs text-stone-500 hover:text-ink-800"
+                        >
+                          {t('cancelName')}
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        {user.fullName}
+                        {(mayAdminister || isSelf) && (
+                          <button
+                            type="button"
+                            aria-label={`${t('editName')} — ${user.email}`}
+                            title={t('editName')}
+                            disabled={pending}
+                            onClick={() => {
+                              setRenamingId(user.id);
+                              setNameDraft(user.fullName);
+                            }}
+                            className="rounded p-0.5 text-stone-400 hover:bg-sunk hover:text-ink-800"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                              <path
+                                d="m11.1 2.4 2.5 2.5M2.5 13.5l.6-3 7.6-7.6a1.4 1.4 0 0 1 2 0l.4.4a1.4 1.4 0 0 1 0 2l-7.6 7.6-3 .6Z"
+                                stroke="currentColor"
+                                strokeWidth="1.4"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     {mayAdminister ? (
                       <select

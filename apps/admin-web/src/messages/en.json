@@ -421,7 +421,10 @@
     "reset": "Reset password",
     "resetTitle": "Password reset",
     "resetIntro": "Give this to {name}. It is shown once and cannot be retrieved again — every session they had has been signed out.",
-    "password": "Password"
+    "password": "Password",
+    "editName": "Edit name",
+    "saveName": "Save",
+    "cancelName": "Cancel"
   },
   "roles": {
     "OWNER": "Owner",
