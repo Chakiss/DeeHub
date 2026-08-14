@@ -732,7 +732,253 @@ export interface AuditPage {
 
 // --- Endpoints ---------------------------------------------------------------
 
+/* ---------------------------------------------------------------- accounting */
+
+export interface MoneyAmount {
+  amount: number;
+  currency: string;
+}
+
+export interface AccountingSettings {
+  propertyId: string;
+  taxpayerType: 'INDIVIDUAL' | 'JURISTIC' | null;
+  taxId: string | null;
+  branchCode: string;
+  legalNameTh: string | null;
+  legalNameEn: string | null;
+  addressTh: string | null;
+  vatRegistered: boolean;
+  vatRegisteredFrom: string | null;
+  withholdingEnabled: boolean;
+  localLevyEnabled: boolean;
+  localLevyRateBp: number;
+  fiscalYearStartMonth: number;
+}
+
+export interface ExpenseCategory {
+  id: string;
+  code: string;
+  nameTh: string;
+  nameEn: string;
+  group: string;
+  defaultWhtRateBp: number;
+  defaultWhtIncomeType: string | null;
+  isDeductible: boolean;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  taxId: string | null;
+  taxpayerType: 'INDIVIDUAL' | 'JURISTIC' | null;
+  country: string;
+  isForeign: boolean;
+  defaultCategoryId: string | null;
+  defaultWhtRateBp: number | null;
+  isActive: boolean;
+}
+
+export interface Expense {
+  id: string;
+  categoryId: string;
+  categoryCode: string;
+  categoryNameTh: string;
+  categoryNameEn: string;
+  categoryGroup: string;
+  vendorId: string | null;
+  vendorName: string | null;
+  kind: 'EXPENSE' | 'VENDOR_CREDIT_NOTE';
+  description: string;
+  currency: string;
+  net: MoneyAmount;
+  vat: MoneyAmount;
+  gross: MoneyAmount;
+  wht: MoneyAmount;
+  paid: MoneyAmount;
+  vatClaimable: boolean;
+  vatClaimedPeriod: string | null;
+  whtRateBp: number;
+  expenseDate: string;
+  paidDate: string | null;
+  paymentMethod: string | null;
+  supplierDocNumber: string | null;
+  note: string | null;
+  recordedBy: string | null;
+  recordedAt: string;
+  voidedAt: string | null;
+  voidedReason: string | null;
+}
+
+export interface ProfitLossReport {
+  currency: string;
+  revenue: {
+    room: MoneyAmount;
+    extras: MoneyAmount;
+    other: MoneyAmount;
+    serviceCharge: MoneyAmount;
+    total: MoneyAmount;
+  };
+  expenseGroups: {
+    group: string;
+    total: MoneyAmount;
+    categories: {
+      categoryId: string;
+      categoryCode: string;
+      categoryNameTh: string;
+      categoryNameEn: string;
+      amount: MoneyAmount;
+    }[];
+  }[];
+  totalExpenses: MoneyAmount;
+  nonDeductibleExpenses: MoneyAmount;
+  netProfit: MoneyAmount;
+  retained: MoneyAmount;
+  vat: { output: MoneyAmount; reclaimableInput: MoneyAmount; netPayable: MoneyAmount };
+}
+
+export interface AccountingSummary {
+  year: number;
+  month: number;
+  basis: 'CASH' | 'ACCRUAL';
+  currency: string;
+  revenue: MoneyAmount;
+  expenses: MoneyAmount;
+  netProfit: MoneyAmount;
+  netVatPayable: MoneyAmount;
+  previous: { revenue: MoneyAmount; expenses: MoneyAmount; netProfit: MoneyAmount };
+  profitLoss: ProfitLossReport;
+  missingRecurring: {
+    label: string;
+    categoryId: string;
+    categoryNameTh: string;
+    categoryNameEn: string;
+    expectedAmountMinor: number | null;
+  }[];
+}
+
+export interface CashBookReport {
+  currency: string;
+  from: string;
+  to: string;
+  openingBalance: MoneyAmount;
+  totalReceived: MoneyAmount;
+  totalPaid: MoneyAmount;
+  closingBalance: MoneyAmount;
+  items: {
+    seq: number;
+    date: string;
+    description: string;
+    reference: string | null;
+    source: string;
+    received: MoneyAmount;
+    paid: MoneyAmount;
+    balance: MoneyAmount;
+  }[];
+}
+
+export interface NewExpenseInput {
+  categoryId: string;
+  vendorId?: string | null;
+  description: string;
+  amount: number;
+  amountIs?: 'GROSS' | 'NET';
+  vatRateBp?: number | null;
+  vatClaimable?: boolean;
+  whtRateBp?: number;
+  expenseDate?: string | null;
+  paidDate?: string | null;
+  paymentMethod?: string | null;
+  supplierDocNumber?: string | null;
+  supplierDocDate?: string | null;
+  note?: string | null;
+}
+
 export const api = {
+  accountingSettings: (propertyId: string) =>
+    request<AccountingSettings>(`/properties/${propertyId}/accounting/settings`),
+
+  saveAccountingSettings: (propertyId: string, input: Partial<AccountingSettings>) =>
+    request<AccountingSettings>(`/properties/${propertyId}/accounting/settings`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  expenseCategories: (propertyId: string) =>
+    request<{ items: ExpenseCategory[] }>(`/properties/${propertyId}/accounting/categories`).then(
+      (r) => r.items,
+    ),
+
+  vendors: (propertyId: string) =>
+    request<{ items: Vendor[] }>(`/properties/${propertyId}/accounting/vendors`).then(
+      (r) => r.items,
+    ),
+
+  createVendor: (
+    propertyId: string,
+    input: {
+      name: string;
+      taxId?: string | null;
+      taxpayerType?: string | null;
+      isForeign?: boolean;
+    },
+  ) =>
+    request<Vendor>(`/properties/${propertyId}/accounting/vendors`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  expenses: (
+    propertyId: string,
+    from: string,
+    to: string,
+    options: { basis?: 'CASH' | 'ACCRUAL'; categoryId?: string; includeVoided?: boolean } = {},
+  ) => {
+    const params = new URLSearchParams({ from, to });
+    if (options.basis) params.set('basis', options.basis);
+    if (options.categoryId) params.set('categoryId', options.categoryId);
+    if (options.includeVoided) params.set('includeVoided', 'true');
+    return request<{ items: Expense[] }>(
+      `/properties/${propertyId}/accounting/expenses?${params.toString()}`,
+    ).then((r) => r.items);
+  },
+
+  createExpense: (propertyId: string, input: NewExpenseInput) =>
+    request<Expense>(`/properties/${propertyId}/accounting/expenses`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  voidExpense: (propertyId: string, expenseId: string, reason: string) =>
+    request<Expense>(`/properties/${propertyId}/accounting/expenses/${expenseId}/void`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  accountingSummary: (
+    propertyId: string,
+    year: number,
+    month: number,
+    basis?: 'CASH' | 'ACCRUAL',
+  ) => {
+    const params = new URLSearchParams({ year: String(year), month: String(month) });
+    if (basis) params.set('basis', basis);
+    return request<AccountingSummary>(
+      `/properties/${propertyId}/accounting/summary?${params.toString()}`,
+    );
+  },
+
+  profitLoss: (propertyId: string, from: string, to: string, basis: 'CASH' | 'ACCRUAL') =>
+    request<ProfitLossReport>(
+      `/properties/${propertyId}/accounting/reports/profit-loss?from=${from}&to=${to}&basis=${basis}`,
+    ),
+
+  cashBook: (propertyId: string, from: string, to: string) =>
+    request<CashBookReport>(
+      `/properties/${propertyId}/accounting/reports/cash-book?from=${from}&to=${to}`,
+    ),
+
   me: () =>
     request<{
       id: string;

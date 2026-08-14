@@ -38,6 +38,7 @@ export async function OrgShell({ children }: { children: React.ReactNode }) {
         { href: `/properties/${anchor.id}/guests`, label: t('guests') },
         { href: `/properties/${anchor.id}/channels`, label: t('channels') },
         { href: `/properties/${anchor.id}/reports`, label: t('reports') },
+        { href: `/properties/${anchor.id}/accounting`, label: t('accounting') },
         { href: `/properties/${anchor.id}/notifications`, label: t('notifications') },
         { href: `/properties/${anchor.id}/audit`, label: t('audit') },
         { href: '/team', label: t('team') },
