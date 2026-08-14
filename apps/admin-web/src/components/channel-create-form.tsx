@@ -53,7 +53,7 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+        className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
       >
         {t('add')}
       </button>
@@ -61,11 +61,11 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="w-full max-w-md space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-sm font-semibold text-slate-900">{t('createTitle')}</p>
+    <div className="w-full max-w-md space-y-3 rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
+      <p className="text-sm font-semibold text-ink-900">{t('createTitle')}</p>
 
       <label className="block">
-        <span className="mb-1 block text-xs text-slate-500">{t('type')}</span>
+        <span className="mb-1 block text-xs text-stone-500">{t('type')}</span>
         <select
           value={type}
           onChange={(event) => setType(event.target.value as ChannelType)}
@@ -80,7 +80,7 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-xs text-slate-500">{t('name')}</span>
+        <span className="mb-1 block text-xs text-stone-500">{t('name')}</span>
         <input
           type="text"
           value={name}
@@ -90,7 +90,7 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-xs text-slate-500">{t('syncHorizon')}</span>
+        <span className="mb-1 block text-xs text-stone-500">{t('syncHorizon')}</span>
         <input
           type="number"
           min={1}
@@ -112,7 +112,7 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
           type="button"
           disabled={pending}
           onClick={submit}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           {pending ? t('saving') : t('save')}
         </button>
@@ -123,7 +123,7 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
             setOpen(false);
             setError(null);
           }}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-50"
         >
           {t('cancel')}
         </button>
@@ -133,4 +133,4 @@ export function ChannelCreateForm({ propertyId }: { propertyId: string }) {
 }
 
 const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900';
+  'w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900';

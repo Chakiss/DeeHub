@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 620" role="img" aria-label="ภาพประกอบรีสอร์ทริมสระน้ำ">
+  <!--
+    The hero scene, in the reference's flat geometric grammar (ref/web1):
+    layered silhouettes, no outlines, no faces. Landscape greens are scene
+    colours; everything man-made uses the brand palette.
+  -->
+
+  <!-- distant skyline -->
+  <g fill="#cfe6f6">
+    <rect x="120" y="180" width="46" height="150"/>
+    <rect x="178" y="140" width="34" height="190"/>
+    <rect x="224" y="200" width="52" height="130"/>
+    <rect x="1210" y="170" width="40" height="160"/>
+    <rect x="1262" y="130" width="30" height="200"/>
+    <rect x="1304" y="196" width="48" height="134"/>
+    <rect x="1390" y="160" width="36" height="170"/>
+  </g>
+
+  <!-- sun + clouds -->
+  <circle cx="1332" cy="96" r="46" fill="#f5c445"/>
+  <g fill="#ffffff" opacity="0.92">
+    <ellipse cx="300" cy="100" rx="58" ry="20"/>
+    <ellipse cx="352" cy="86" rx="40" ry="16"/>
+    <ellipse cx="1120" cy="70" rx="52" ry="18"/>
+    <ellipse cx="1168" cy="58" rx="34" ry="14"/>
+  </g>
+
+  <!-- hills -->
+  <path d="M0 330 Q 260 210 560 300 T 1120 300 Q 1400 260 1600 320 V 620 H 0 Z" fill="#86c895"/>
+  <path d="M0 400 Q 320 300 700 380 T 1600 380 V 620 H 0 Z" fill="#5aae6f"/>
+
+  <!-- winding path -->
+  <path d="M690 620 C 660 520 560 470 430 440 C 330 418 300 380 320 340 L 352 340 C 340 376 380 398 470 418 C 610 448 720 510 754 620 Z" fill="#f3ecd9"/>
+
+  <!-- pool -->
+  <g>
+    <ellipse cx="1080" cy="520" rx="300" ry="86" fill="#ffffff"/>
+    <ellipse cx="1080" cy="516" rx="272" ry="72" fill="#6ec4f0"/>
+    <ellipse cx="1010" cy="504" rx="120" ry="30" fill="#9ad9f7"/>
+    <!-- float ring -->
+    <circle cx="1180" cy="516" r="30" fill="#f1704b"/>
+    <circle cx="1180" cy="516" r="16" fill="#6ec4f0"/>
+    <g stroke="#ffffff" stroke-width="7">
+      <line x1="1180" y1="487" x2="1180" y2="545"/>
+      <line x1="1151" y1="516" x2="1209" y2="516"/>
+    </g>
+    <!-- ladder -->
+    <g stroke="#e9eef4" stroke-width="8" stroke-linecap="round">
+      <line x1="880" y1="452" x2="880" y2="516"/>
+      <line x1="912" y1="452" x2="912" y2="516"/>
+    </g>
+    <line x1="874" y1="472" x2="918" y2="472" stroke="#e9eef4" stroke-width="6"/>
+    <line x1="874" y1="494" x2="918" y2="494" stroke="#e9eef4" stroke-width="6"/>
+  </g>
+
+  <!-- hotel building -->
+  <g>
+    <rect x="520" y="208" width="250" height="204" rx="10" fill="#ffffff"/>
+    <rect x="500" y="184" width="290" height="40" rx="12" fill="#0046b8"/>
+    <!-- windows: the logo's four panes, echoed -->
+    <g fill="#bfe3fb">
+      <rect x="548" y="250" width="42" height="42" rx="6"/>
+      <rect x="624" y="250" width="42" height="42" rx="6"/>
+      <rect x="700" y="250" width="42" height="42" rx="6"/>
+      <rect x="548" y="318" width="42" height="42" rx="6"/>
+      <rect x="700" y="318" width="42" height="42" rx="6"/>
+    </g>
+    <!-- door -->
+    <rect x="620" y="318" width="50" height="94" rx="8" fill="#008ff2"/>
+    <!-- sign dot -->
+    <circle cx="645" cy="204" r="9" fill="#f5c445"/>
+  </g>
+
+  <!-- palms -->
+  <g>
+    <path d="M420 430 q 10 -90 -6 -150" stroke="#8a6239" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <g fill="#3f9d5e">
+      <path d="M414 276 q -70 -26 -110 6 q 62 4 96 26 Z"/>
+      <path d="M414 276 q 70 -30 112 0 q -64 6 -98 28 Z"/>
+      <path d="M414 276 q -14 -64 -58 -84 q 22 52 34 92 Z"/>
+      <path d="M414 276 q 20 -62 66 -78 q -26 50 -40 90 Z"/>
+    </g>
+    <circle cx="404" cy="292" r="9" fill="#8a6239"/>
+    <circle cx="426" cy="296" r="9" fill="#8a6239"/>
+  </g>
+  <g transform="translate(880 -34) scale(0.82)">
+    <path d="M420 430 q 10 -90 -6 -150" stroke="#8a6239" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <g fill="#2f7f4b">
+      <path d="M414 276 q -70 -26 -110 6 q 62 4 96 26 Z"/>
+      <path d="M414 276 q 70 -30 112 0 q -64 6 -98 28 Z"/>
+      <path d="M414 276 q -14 -64 -58 -84 q 22 52 34 92 Z"/>
+      <path d="M414 276 q 20 -62 66 -78 q -26 50 -40 90 Z"/>
+    </g>
+  </g>
+
+  <!-- umbrella + loungers -->
+  <g>
+    <path d="M240 470 a 64 64 0 0 1 128 0 Z" fill="#f1704b"/>
+    <path d="M240 470 a 64 64 0 0 1 64 -64 l 0 64 Z" fill="#ffffff"/>
+    <line x1="304" y1="420" x2="304" y2="530" stroke="#8a6239" stroke-width="7" stroke-linecap="round"/>
+    <!-- loungers -->
+    <g transform="translate(360 508)">
+      <path d="M0 22 L 96 22 L 96 8 L 30 8 L 6 -8 Z" fill="#f5c445"/>
+      <line x1="8" y1="22" x2="8" y2="40" stroke="#8a6239" stroke-width="6"/>
+      <line x1="88" y1="22" x2="88" y2="40" stroke="#8a6239" stroke-width="6"/>
+    </g>
+    <g transform="translate(160 520)">
+      <path d="M0 22 L 96 22 L 96 8 L 30 8 L 6 -8 Z" fill="#7c6bd0"/>
+      <line x1="8" y1="22" x2="8" y2="40" stroke="#8a6239" stroke-width="6"/>
+      <line x1="88" y1="22" x2="88" y2="40" stroke="#8a6239" stroke-width="6"/>
+    </g>
+  </g>
+
+  <!-- bushes -->
+  <g fill="#4c9a60">
+    <ellipse cx="80" cy="590" rx="70" ry="34"/>
+    <ellipse cx="150" cy="600" rx="52" ry="26"/>
+    <ellipse cx="1480" cy="592" rx="76" ry="36"/>
+    <ellipse cx="1552" cy="604" rx="50" ry="24"/>
+  </g>
+  <g fill="#f5c445">
+    <circle cx="60" cy="572" r="6"/>
+    <circle cx="112" cy="580" r="6"/>
+    <circle cx="1466" cy="574" r="6"/>
+  </g>
+
+  <!-- ground base, blending into the page -->
+  <rect x="0" y="600" width="1600" height="20" fill="#f7f4ec"/>
+</svg>

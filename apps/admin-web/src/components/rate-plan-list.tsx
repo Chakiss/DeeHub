@@ -61,8 +61,8 @@ export function RatePlanList({
   // nothing to attach one to. Point at the step that actually comes first.
   if (roomTypes.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-        <p className="text-sm font-medium text-slate-700">{t('needRoomType')}</p>
+      <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+        <p className="text-sm font-medium text-ink-700">{t('needRoomType')}</p>
         <Link
           href={`/properties/${propertyId}/room-types`}
           className="mt-4 inline-block rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
@@ -94,15 +94,15 @@ export function RatePlanList({
       )}
 
       {ratePlans.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-          <p className="text-sm font-medium text-slate-700">{t('empty')}</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t('emptyHint')}</p>
+        <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+          <p className="text-sm font-medium text-ink-700">{t('empty')}</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-stone-500">{t('emptyHint')}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+              <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
                 <th className="px-3 py-2 font-medium">{t('code')}</th>
                 <th className="px-3 py-2 font-medium">{t('name')}</th>
                 <th className="px-3 py-2 font-medium">{t('roomType')}</th>
@@ -118,12 +118,12 @@ export function RatePlanList({
                 return (
                   <tr
                     key={ratePlan.id}
-                    className={`border-b border-slate-100 last:border-0 ${
-                      ratePlan.isActive ? '' : 'bg-slate-50/60 text-slate-400'
+                    className={`border-b border-stone-100 last:border-0 ${
+                      ratePlan.isActive ? '' : 'bg-sunk/60 text-stone-400'
                     }`}
                   >
                     <td className="px-3 py-2 font-mono text-xs">{ratePlan.code}</td>
-                    <td className="px-3 py-2 font-medium text-slate-800">
+                    <td className="px-3 py-2 font-medium text-ink-800">
                       {ratePlan.name}
                       {/* A derived plan has no prices of its own, and the
                           "Set prices" button below is hidden for it — saying
@@ -137,9 +137,9 @@ export function RatePlanList({
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{roomType?.name ?? '—'}</td>
-                    <td className="px-3 py-2 text-slate-600">{meals(ratePlan.mealPlan)}</td>
-                    <td className="px-3 py-2 text-slate-600">
+                    <td className="px-3 py-2 text-stone-600">{roomType?.name ?? '—'}</td>
+                    <td className="px-3 py-2 text-stone-600">{meals(ratePlan.mealPlan)}</td>
+                    <td className="px-3 py-2 text-stone-600">
                       {ratePlan.isRefundable ? t('refundable') : t('nonRefundable')}
                     </td>
                     <td className="px-3 py-2">
@@ -147,7 +147,7 @@ export function RatePlanList({
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           ratePlan.isActive
                             ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-slate-200 text-slate-600'
+                            : 'bg-stone-200 text-stone-600'
                         }`}
                       >
                         {ratePlan.isActive ? t('active') : t('inactive')}
@@ -189,7 +189,7 @@ export function RatePlanList({
                           <button
                             type="button"
                             onClick={() => setEditing(ratePlan)}
-                            className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                            className="rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70"
                           >
                             {t('edit')}
                           </button>
@@ -197,7 +197,7 @@ export function RatePlanList({
                             type="button"
                             disabled={pending}
                             onClick={() => toggleSelling(ratePlan)}
-                            className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                            className="rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
                           >
                             {ratePlan.isActive ? t('deactivate') : t('activate')}
                           </button>
@@ -212,7 +212,7 @@ export function RatePlanList({
         </div>
       )}
 
-      {canEdit && ratePlans.length > 0 && <p className="text-xs text-slate-400">{t('noDelete')}</p>}
+      {canEdit && ratePlans.length > 0 && <p className="text-xs text-stone-400">{t('noDelete')}</p>}
 
       {creating && (
         <RatePlanForm

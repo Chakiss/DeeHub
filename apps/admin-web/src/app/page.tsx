@@ -15,8 +15,8 @@ export default async function HomePage() {
     return (
       <main className="flex min-h-screen items-center justify-center p-8 text-center">
         <div>
-          <h1 className="text-lg font-medium text-slate-900">No properties yet</h1>
-          <p className="mt-2 max-w-sm text-sm text-slate-500">
+          <h1 className="text-lg font-medium text-ink-900">No properties yet</h1>
+          <p className="mt-2 max-w-sm text-sm text-stone-500">
             Your account has no property access. Ask an administrator to add you to a property.
           </p>
         </div>

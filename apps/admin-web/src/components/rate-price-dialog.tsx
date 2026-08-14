@@ -101,19 +101,19 @@ export function RatePriceDialog({
       role="dialog"
       aria-modal="true"
       aria-label={t('pricesFor', { name: ratePlan.name })}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/30 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink-950/40 p-4 sm:items-center"
     >
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-lg space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-lg space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg"
       >
-        <h2 className="text-lg font-medium text-slate-900">
+        <h2 className="text-lg font-medium text-ink-900">
           {t('pricesFor', { name: ratePlan.name })}
         </h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="rate-from" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="rate-from" className="mb-1 block text-sm font-medium text-ink-700">
               {t('from')}
             </label>
             <input
@@ -122,11 +122,11 @@ export function RatePriceDialog({
               value={from}
               onChange={(event) => setFrom(event.target.value)}
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </div>
           <div>
-            <label htmlFor="rate-to" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="rate-to" className="mb-1 block text-sm font-medium text-ink-700">
               {t('to')}
             </label>
             <input
@@ -135,13 +135,13 @@ export function RatePriceDialog({
               value={to}
               onChange={(event) => setTo(event.target.value)}
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </div>
         </div>
 
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-slate-700">{t('weekdays')}</legend>
+          <legend className="mb-1 text-sm font-medium text-ink-700">{t('weekdays')}</legend>
           <div className="flex flex-wrap gap-1">
             {WEEKDAYS.map((day) => (
               <button
@@ -152,26 +152,24 @@ export function RatePriceDialog({
                 className={`rounded-md border px-2 py-1 text-xs font-medium ${
                   days.includes(day)
                     ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                    : 'border-stone-300 text-stone-600 hover:bg-sunk/70'
                 }`}
               >
                 {day}
               </button>
             ))}
           </div>
-          <p className="mt-1 text-xs text-slate-400">{t('weekdaysHint')}</p>
+          <p className="mt-1 text-xs text-stone-400">{t('weekdaysHint')}</p>
         </fieldset>
 
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-slate-700">
-            {t('occupancyPrices')}
-          </legend>
+          <legend className="mb-1 text-sm font-medium text-ink-700">{t('occupancyPrices')}</legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {occupancies.map((occupancy) => (
               <div key={occupancy}>
                 <label
                   htmlFor={`rate-occ-${String(occupancy)}`}
-                  className="mb-1 block text-xs text-slate-500"
+                  className="mb-1 block text-xs text-stone-500"
                 >
                   {occupancy === 1 ? t('guest') : t('guests', { count: occupancy })}
                 </label>
@@ -185,12 +183,12 @@ export function RatePriceDialog({
                   onChange={(event) =>
                     setAmounts((current) => ({ ...current, [occupancy]: event.target.value }))
                   }
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm tabular-nums outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
             ))}
           </div>
-          <p className="mt-1 text-xs text-slate-400">{t('occupancyHint', { currency })}</p>
+          <p className="mt-1 text-xs text-stone-400">{t('occupancyHint', { currency })}</p>
         </fieldset>
 
         {error && (
@@ -203,7 +201,7 @@ export function RatePriceDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('cancel')}
           </button>

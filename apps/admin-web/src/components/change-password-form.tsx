@@ -64,11 +64,11 @@ export function ChangePasswordForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="max-w-sm space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="max-w-sm space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-sm"
     >
       <div>
-        <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
-        <p className="mt-1 text-sm text-slate-500">{t('subtitle')}</p>
+        <h1 className="text-lg font-medium text-ink-900">{t('title')}</h1>
+        <p className="mt-1 text-sm text-stone-500">{t('subtitle')}</p>
       </div>
 
       <Field id="current-password" label={t('currentPassword')}>
@@ -79,7 +79,7 @@ export function ChangePasswordForm() {
           onChange={(event) => setCurrentPassword(event.target.value)}
           autoComplete="current-password"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
@@ -93,7 +93,7 @@ export function ChangePasswordForm() {
           autoComplete="new-password"
           minLength={MIN_LENGTH}
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
@@ -105,7 +105,7 @@ export function ChangePasswordForm() {
           onChange={(event) => setConfirmPassword(event.target.value)}
           autoComplete="new-password"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
@@ -153,12 +153,12 @@ function Field({
 
   return (
     <div className="block">
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink-700">
         {label}
       </label>
       {children}
       {hint && (
-        <span id={hintId} className="mt-1 block text-xs text-slate-400">
+        <span id={hintId} className="mt-1 block text-xs text-stone-400">
           {hint}
         </span>
       )}

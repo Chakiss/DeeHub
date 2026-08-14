@@ -12,19 +12,21 @@
     <link rel="alternate" hreflang="th" href="https://deehubhotel.com/" />
     <link rel="alternate" hreflang="en" href="https://deehubhotel.com/en/" />
     <link rel="alternate" hreflang="x-default" href="https://deehubhotel.com/" />
+    <link rel="icon" href="../assets/img/logo-mark.png" type="image/png" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content="en_GB" />
-    <meta property="og:title" content="DeeHub — one availability, every channel, every second" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="DeeHub — One availability. Every channel. Every second." />
     <meta
       property="og:description"
-      content="Hotel management and channel manager built for 10–30 room properties in Thailand."
+      content="Hotel management and channel manager for 10–30 room properties in Thailand."
     />
     <meta property="og:url" content="https://deehubhotel.com/en/" />
 
+    <!-- The two weights the first screen needs. Everything else loads normally. -->
     <link
       rel="preload"
-      href="../assets/fonts/NotoSerifThai-600-latin.woff2"
+      href="../assets/fonts/IBMPlexSansThai-600-latin.woff2"
       as="font"
       type="font/woff2"
       crossorigin
@@ -37,15 +39,35 @@
       crossorigin
     />
     <link rel="stylesheet" href="../assets/css/site.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "DeeHub",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "inLanguage": ["th", "en"],
+        "url": "https://deehubhotel.com/en/",
+        "offers": {
+          "@type": "AggregateOffer",
+          "priceCurrency": "THB",
+          "lowPrice": "1000",
+          "highPrice": "2000",
+          "offerCount": "1"
+        }
+      }
+    </script>
   </head>
 
   <body>
-    <div class="cursor" aria-hidden="true"></div>
-
     <header class="nav">
       <div class="wrap nav-inner">
-        <a class="brand" href="/en/">Dee<span>Hub</span></a>
-        <nav class="nav-links" aria-label="Main">
+        <a class="brand" href="/en/">
+          <img src="../assets/img/logo-mark.png" alt="" width="30" height="30" />
+          <span class="wordmark">Dee<em>Hub</em></span>
+        </a>
+        <nav class="nav-links" aria-label="Main menu">
           <a href="#problem">The problem</a>
           <a href="#system">The system</a>
           <a href="#price">Pricing</a>
@@ -57,10 +79,14 @@
     </header>
 
     <main>
-      <section class="wrap hero">
-        <div class="hero-copy">
+      <!-- ---------------- hero ---------------- -->
+      <section class="hero">
+        <div class="wrap hero-inner">
           <p class="eyebrow" data-reveal>Hotel management · Channel manager</p>
-          <h1 data-reveal>One availability. Every channel. Every second.</h1>
+          <h1>
+            <span class="blob blob-yellow" data-reveal>One availability. Every channel.</span>
+            <span class="blob blob-blue" data-reveal>Every second.</span>
+          </h1>
           <p class="lede" data-reveal>
             DeeHub holds bookings, availability, rates and sales channels in one place, so the same
             room is never sold twice. That guarantee is enforced by the database itself — not
@@ -70,25 +96,29 @@
             <a class="btn btn-primary" href="#demo">Book a demo</a>
             <a class="btn btn-ghost" href="#system">See what it does</a>
           </div>
-          <div class="hero-meta" data-reveal>
-            <div><b>0</b>double-sales the system will accept</div>
-            <div><b>10–30</b>rooms — the size it is built for</div>
-            <div><b>฿1,000</b>per month to start</div>
-          </div>
+          <p class="scroll-hint" data-reveal>Scroll</p>
         </div>
-        <figure class="hero-figure" data-clip data-parallax="0.12">
+        <div class="hero-scene">
           <img
-            src="../assets/img/pavilion-lg.jpg"
-            srcset="../assets/img/pavilion-sm.jpg 800w, ../assets/img/pavilion-lg.jpg 1600w"
-            sizes="(max-width: 880px) 100vw, 46vw"
+            src="../assets/img/hero-scene.svg"
+            alt=""
             width="1600"
-            height="2000"
-            alt="An open teak hotel lobby with natural light between timber columns"
+            height="620"
             fetchpriority="high"
           />
-        </figure>
+        </div>
       </section>
 
+      <!-- ---------------- stats ---------------- -->
+      <section class="stats">
+        <div class="wrap stats-row">
+          <p class="stat" data-reveal><b>0</b><span>double-sales the system will accept</span></p>
+          <p class="stat" data-reveal><b>10–30</b><span>rooms — the size it is built for</span></p>
+          <p class="stat" data-reveal><b>฿1,000</b><span>per month to start</span></p>
+        </div>
+      </section>
+
+      <!-- ---------------- problem ---------------- -->
       <section class="section" id="problem">
         <div class="wrap">
           <div class="section-head">
@@ -101,6 +131,31 @@
           </div>
           <div class="problem-grid">
             <article class="problem-card" data-reveal>
+              <div class="spot" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect
+                    x="3"
+                    y="5"
+                    width="24"
+                    height="21"
+                    rx="4"
+                    stroke="#f1704b"
+                    stroke-width="2.4"
+                  />
+                  <path
+                    d="M3 12h24M10 3v4M20 3v4"
+                    stroke="#f1704b"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="m11.5 17 7 5M18.5 17l-7 5"
+                    stroke="#f1704b"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
               <h3>Sold twice, updated too late</h3>
               <p>
                 A guest books through an OTA at 2am. By the time somebody lowers the count on the
@@ -109,6 +164,17 @@
               </p>
             </article>
             <article class="problem-card" data-reveal>
+              <div class="spot" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <path
+                    d="M14 4h8a4 4 0 0 1 4 4v8l-11 11a3 3 0 0 1-4.2 0L4.2 20.2a3 3 0 0 1 0-4.2Z"
+                    stroke="#eab020"
+                    stroke-width="2.4"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="20" cy="10" r="2.2" fill="#eab020" />
+                </svg>
+              </div>
               <h3>Rates edited one channel at a time</h3>
               <p>
                 Changing Songkran pricing means editing every channel, every date, every room type.
@@ -116,6 +182,14 @@
               </p>
             </article>
             <article class="problem-card" data-reveal>
+              <div class="spot" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <path d="M4 26h22" stroke="#7c6bd0" stroke-width="2.4" stroke-linecap="round" />
+                  <rect x="7" y="16" width="4" height="7" rx="1.4" fill="#7c6bd0" />
+                  <rect x="14" y="10" width="4" height="13" rx="1.4" fill="#7c6bd0" />
+                  <rect x="21" y="5" width="4" height="18" rx="1.4" fill="#7c6bd0" />
+                </svg>
+              </div>
               <h3>Numbers that arrive at month end</h3>
               <p>
                 Occupancy, the rate you actually achieved, how many nights are already on the books
@@ -127,25 +201,16 @@
         </div>
       </section>
 
+      <!-- ---------------- band ---------------- -->
       <section class="band" aria-hidden="true">
-        <figure class="band-figure" data-expand>
-          <img
-            src="../assets/img/resort-lg.jpg"
-            srcset="../assets/img/resort-sm.jpg 800w, ../assets/img/resort-lg.jpg 1600w"
-            sizes="100vw"
-            width="1600"
-            height="686"
-            alt=""
-            loading="lazy"
-            data-parallax="0.08"
-          />
-        </figure>
+        <img src="../assets/img/band-strip.svg" alt="" width="1600" height="240" loading="lazy" />
         <p class="band-caption">
           Built for properties in Thailand — a hotel night is a calendar date in the property's own
           timezone, never a UTC timestamp
         </p>
       </section>
 
+      <!-- ---------------- capabilities ---------------- -->
       <section class="section" id="system">
         <div class="wrap">
           <div class="section-head">
@@ -170,9 +235,13 @@
                 <li>Take a booking at the desk; extend or shorten a stay in progress</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>A real screenshot belongs here</b>
-              <span>Stay view · to be captured from the live system</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>A real screenshot belongs here</b>
+                  <span>Stay view · to be captured from the live system</span>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -188,9 +257,13 @@
                 <li>Test the connection any time; force a full re-send when in doubt</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>A real screenshot belongs here</b>
-              <span>Channel administration · to be captured from the live system</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>A real screenshot belongs here</b>
+                  <span>Channel administration · to be captured from the live system</span>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -206,9 +279,13 @@
                 <li>The room is held while the guest types, and returns to sale if they stop</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>A real screenshot belongs here</b>
-              <span>Guest booking page · in development</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>A real screenshot belongs here</b>
+                  <span>Guest booking page · in development</span>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -226,14 +303,19 @@
                 <li>Who changed what, when — readable line by line</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>A real screenshot belongs here</b>
-              <span>Performance report · to be captured from the live system</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>A real screenshot belongs here</b>
+                  <span>Performance report · to be captured from the live system</span>
+                </div>
+              </div>
             </div>
           </article>
         </div>
       </section>
 
+      <!-- ---------------- trust ---------------- -->
       <section class="trust">
         <div class="wrap">
           <div class="section-head">
@@ -279,6 +361,7 @@
         </div>
       </section>
 
+      <!-- ---------------- pricing ---------------- -->
       <section class="section" id="price">
         <div class="wrap">
           <div class="section-head">
@@ -317,13 +400,12 @@
         </div>
       </section>
 
+      <!-- ---------------- demo ---------------- -->
       <section class="section" id="demo">
         <div class="wrap cta-row">
           <div>
             <p class="eyebrow" data-reveal>Book a demo</p>
-            <h2 data-reveal style="font-size: clamp(25px, 3.4vw, 40px); margin-block: 14px 16px">
-              Half an hour, on screen, with your property's own data
-            </h2>
+            <h2 data-reveal>Half an hour, on screen, with your property's own data</h2>
             <p class="lede" data-reveal>
               Not a slide deck. We open the real system, put your room types and rates into it, and
               hand you the controls. If it isn't for you, you'll know in thirty minutes rather than
@@ -373,12 +455,20 @@
     </main>
 
     <footer class="footer">
-      <div class="wrap footer-inner">
-        <span class="footer-brand">DeeHub</span>
-        <a href="https://dashboard.deehubhotel.com">Sign in</a>
-        <a href="mailto:hello@deehubhotel.com">hello@deehubhotel.com</a>
-        <a href="../" hreflang="th">ไทย</a>
-        <span>© 2026 DeeHub</span>
+      <div class="footer-scene" aria-hidden="true">
+        <img src="../assets/img/band-strip.svg" alt="" width="1600" height="240" loading="lazy" />
+      </div>
+      <div class="footer-band">
+        <div class="wrap footer-inner">
+          <span class="footer-brand">
+            <img src="../assets/img/logo-mark.png" alt="" width="26" height="26" />
+            <span class="wordmark">Dee<em>Hub</em></span>
+          </span>
+          <a href="https://dashboard.deehubhotel.com">Sign in</a>
+          <a href="mailto:hello@deehubhotel.com">hello@deehubhotel.com</a>
+          <a href="../" hreflang="th">ไทย</a>
+          <span>© 2026 DeeHub</span>
+        </div>
       </div>
     </footer>
 

@@ -18,9 +18,9 @@ export async function PickupReport({ pickup }: { pickup: Pickup }) {
 
   if (pickup.asOfUsed === null) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center">
-        <p className="text-sm font-medium text-slate-700">{t('noBaseline')}</p>
-        <p className="mx-auto mt-1 max-w-lg text-sm text-slate-500">{t('noBaselineHint')}</p>
+      <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-8 text-center">
+        <p className="text-sm font-medium text-ink-700">{t('noBaseline')}</p>
+        <p className="mx-auto mt-1 max-w-lg text-sm text-stone-500">{t('noBaselineHint')}</p>
       </div>
     );
   }
@@ -62,14 +62,14 @@ export async function PickupReport({ pickup }: { pickup: Pickup }) {
           label={t('onTheBooks')}
           value={String(totals.roomsSold)}
           hint={t('onTheBooksHint')}
-          tone="text-slate-900"
+          tone="text-ink-900"
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+            <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
               <th className="px-3 py-2 font-medium">{t('date')}</th>
               <th className="px-3 py-2 text-right font-medium">{t('was')}</th>
               <th className="px-3 py-2 text-right font-medium">{t('now')}</th>
@@ -79,12 +79,12 @@ export async function PickupReport({ pickup }: { pickup: Pickup }) {
           </thead>
           <tbody>
             {nights.map((night) => (
-              <tr key={night.date} className="border-b border-slate-100 last:border-0">
-                <td className="tabular px-3 py-2 text-slate-700">{night.date}</td>
-                <td className="tabular px-3 py-2 text-right text-slate-500">
+              <tr key={night.date} className="border-b border-stone-100 last:border-0">
+                <td className="tabular px-3 py-2 text-ink-700">{night.date}</td>
+                <td className="tabular px-3 py-2 text-right text-stone-500">
                   {night.baselineRoomsSold ?? '—'}
                 </td>
-                <td className="tabular px-3 py-2 text-right text-slate-800">{night.roomsSold}</td>
+                <td className="tabular px-3 py-2 text-right text-ink-800">{night.roomsSold}</td>
                 <td className={`tabular px-3 py-2 text-right ${tone(night.pickupRooms)}`}>
                   {signed(night.pickupRooms)}
                 </td>
@@ -113,7 +113,7 @@ function signed(value: number | null): string {
 }
 
 function tone(value: number | null): string {
-  if (value === null || value === 0) return 'text-slate-500';
+  if (value === null || value === 0) return 'text-stone-500';
   return value > 0 ? 'text-emerald-700' : 'text-rose-700';
 }
 
@@ -129,10 +129,10 @@ function Tile({
   tone: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+    <div className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
       <p className={`tabular mt-1 text-2xl font-semibold ${tone}`}>{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{hint}</p>
+      <p className="mt-1 text-xs text-stone-400">{hint}</p>
     </div>
   );
 }

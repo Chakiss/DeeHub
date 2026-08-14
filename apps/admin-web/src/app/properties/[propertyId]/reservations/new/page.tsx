@@ -24,14 +24,12 @@ export default async function NewReservationPage({
       <div>
         <Link
           href={`/properties/${propertyId}/reservations`}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-stone-500 hover:text-ink-800"
         >
           ← {t('backToList')}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
-          {t('newTitle')}
-        </h1>
-        <p className="text-sm text-slate-500">{t('newSubtitle')}</p>
+        <h1 className="mt-2 text-xl font-semibold tracking-tight text-ink-900">{t('newTitle')}</h1>
+        <p className="text-sm text-stone-500">{t('newSubtitle')}</p>
       </div>
 
       <BookingForm

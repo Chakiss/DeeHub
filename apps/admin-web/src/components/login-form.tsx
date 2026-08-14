@@ -116,9 +116,9 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
             }}
             className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25"
           >
-            <h1 className="text-lg font-medium text-slate-900">{t('welcomeBack')}</h1>
+            <h1 className="text-lg font-medium text-ink-900">{t('welcomeBack')}</h1>
 
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+            <div className="flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-2">
               <span
                 aria-hidden
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold uppercase text-brand-700"
@@ -126,11 +126,11 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
                 {remembered.fullName.trim().charAt(0) || '?'}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-slate-800">
+                <span className="block truncate text-sm font-medium text-ink-800">
                   {remembered.fullName}
                 </span>
-                <span className="block truncate text-xs text-slate-500">{remembered.email}</span>
-                <span className="block truncate text-xs text-slate-400">
+                <span className="block truncate text-xs text-stone-500">{remembered.email}</span>
+                <span className="block truncate text-xs text-stone-400">
                   {remembered.organizationSlug}
                 </span>
               </span>
@@ -139,7 +139,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
                 onClick={() => void forget()}
                 aria-label={t('forget')}
                 title={t('forget')}
-                className="shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="shrink-0 rounded-md p-1.5 text-stone-400 transition hover:bg-sunk hover:text-ink-700"
               >
                 ✕
               </button>
@@ -154,7 +154,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
                 // The only field on this path, so it should be ready to type in.
                 autoFocus
                 required
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
@@ -175,7 +175,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
             <button
               type="button"
               onClick={() => void forget()}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 transition hover:bg-sunk/70"
             >
               {t('useAnotherAccount')}
             </button>
@@ -195,7 +195,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
             }}
             className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25"
           >
-            <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
+            <h1 className="text-lg font-medium text-ink-900">{t('title')}</h1>
 
             {justReset && (
               <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
@@ -209,7 +209,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
                 onChange={(event) => setOrganizationSlug(event.target.value)}
                 autoComplete="organization"
                 required
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 placeholder="deehub-demo"
               />
             </Field>
@@ -221,7 +221,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete="username"
                 required
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
@@ -232,7 +232,7 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 required
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
@@ -274,9 +274,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-ink-700">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-stone-400">{hint}</span>}
     </label>
   );
 }

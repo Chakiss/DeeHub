@@ -12,6 +12,7 @@
     <link rel="alternate" hreflang="th" href="https://deehubhotel.com/" />
     <link rel="alternate" hreflang="en" href="https://deehubhotel.com/en/" />
     <link rel="alternate" hreflang="x-default" href="https://deehubhotel.com/" />
+    <link rel="icon" href="assets/img/logo-mark.png" type="image/png" />
 
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="th_TH" />
@@ -22,10 +23,10 @@
     />
     <meta property="og:url" content="https://deehubhotel.com/" />
 
-    <!-- The two faces the first screen needs. Everything else loads normally. -->
+    <!-- The two weights the first screen needs. Everything else loads normally. -->
     <link
       rel="preload"
-      href="assets/fonts/NotoSerifThai-600-thai.woff2"
+      href="assets/fonts/IBMPlexSansThai-600-thai.woff2"
       as="font"
       type="font/woff2"
       crossorigin
@@ -60,11 +61,12 @@
   </head>
 
   <body>
-    <div class="cursor" aria-hidden="true"></div>
-
     <header class="nav">
       <div class="wrap nav-inner">
-        <a class="brand" href="/">Dee<span>Hub</span></a>
+        <a class="brand" href="/">
+          <img src="assets/img/logo-mark.png" alt="" width="30" height="30" />
+          <span class="wordmark">Dee<em>Hub</em></span>
+        </a>
         <nav class="nav-links" aria-label="เมนูหลัก">
           <a href="#problem">ปัญหาที่แก้</a>
           <a href="#system">ระบบ</a>
@@ -78,10 +80,13 @@
 
     <main>
       <!-- ---------------- hero ---------------- -->
-      <section class="wrap hero">
-        <div class="hero-copy">
+      <section class="hero">
+        <div class="wrap hero-inner">
           <p class="eyebrow" data-reveal>ระบบจัดการโรงแรม · Channel Manager</p>
-          <h1 data-reveal>ห้องว่างตรงกันทุกช่องทาง ทุกวินาที</h1>
+          <h1>
+            <span class="blob blob-yellow" data-reveal>ห้องว่างตรงกันทุกช่องทาง</span>
+            <span class="blob blob-blue" data-reveal>ทุกวินาที</span>
+          </h1>
           <p class="lede" data-reveal>
             DeeHub รวมการจอง ห้องว่าง ราคา และช่องทางขายไว้ที่เดียว ห้องเดียวกันจะไม่ถูกขายซ้ำสองที่
             เพราะระบบกันไว้ตั้งแต่ระดับฐานข้อมูล ไม่ใช่แค่เขียนไว้ในโบรชัวร์
@@ -90,23 +95,26 @@
             <a class="btn btn-primary" href="#demo">ขอเดโม</a>
             <a class="btn btn-ghost" href="#system">ดูว่าระบบทำอะไรได้บ้าง</a>
           </div>
-          <div class="hero-meta" data-reveal>
-            <div><b>0</b>การขายซ้ำที่ระบบยอมให้เกิด</div>
-            <div><b>10–30</b>ห้อง — ขนาดที่ออกแบบเพื่อ</div>
-            <div><b>฿1,000</b>ต่อเดือน เริ่มต้น</div>
-          </div>
+          <p class="scroll-hint" data-reveal>เลื่อนดู</p>
         </div>
-        <figure class="hero-figure" data-clip data-parallax="0.12">
+        <div class="hero-scene">
           <img
-            src="assets/img/pavilion-lg.jpg"
-            srcset="assets/img/pavilion-sm.jpg 800w, assets/img/pavilion-lg.jpg 1600w"
-            sizes="(max-width: 880px) 100vw, 46vw"
+            src="assets/img/hero-scene.svg"
+            alt=""
             width="1600"
-            height="2000"
-            alt="ล็อบบี้โรงแรมไม้สักโปร่ง แสงธรรมชาติส่องผ่านเสาไม้"
+            height="620"
             fetchpriority="high"
           />
-        </figure>
+        </div>
+      </section>
+
+      <!-- ---------------- stats ---------------- -->
+      <section class="stats">
+        <div class="wrap stats-row">
+          <p class="stat" data-reveal><b>0</b><span>การขายซ้ำที่ระบบยอมให้เกิด</span></p>
+          <p class="stat" data-reveal><b>10–30</b><span>ห้อง — ขนาดที่ออกแบบเพื่อ</span></p>
+          <p class="stat" data-reveal><b>฿1,000</b><span>ต่อเดือน เริ่มต้น</span></p>
+        </div>
       </section>
 
       <!-- ---------------- problem ---------------- -->
@@ -122,6 +130,31 @@
           </div>
           <div class="problem-grid">
             <article class="problem-card" data-reveal>
+              <div class="spot" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect
+                    x="3"
+                    y="5"
+                    width="24"
+                    height="21"
+                    rx="4"
+                    stroke="#f1704b"
+                    stroke-width="2.4"
+                  />
+                  <path
+                    d="M3 12h24M10 3v4M20 3v4"
+                    stroke="#f1704b"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="m11.5 17 7 5M18.5 17l-7 5"
+                    stroke="#f1704b"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
               <h3>ขายซ้ำเพราะอัปเดตไม่ทัน</h3>
               <p>
                 แขกจองผ่าน OTA ตอนตีสอง กว่าจะมีคนไปลดจำนวนห้องในอีกสามช่องทางก็เช้าแล้ว
@@ -129,6 +162,17 @@
               </p>
             </article>
             <article class="problem-card" data-reveal>
+              <div class="spot" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <path
+                    d="M14 4h8a4 4 0 0 1 4 4v8l-11 11a3 3 0 0 1-4.2 0L4.2 20.2a3 3 0 0 1 0-4.2Z"
+                    stroke="#eab020"
+                    stroke-width="2.4"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="20" cy="10" r="2.2" fill="#eab020" />
+                </svg>
+              </div>
               <h3>แก้ราคาทีละช่องทาง</h3>
               <p>
                 ปรับราคาช่วงสงกรานต์ทีต้องเข้าไปแก้ทุกที่ ทุกวัน ทุกประเภทห้อง
@@ -136,6 +180,14 @@
               </p>
             </article>
             <article class="problem-card" data-reveal>
+              <div class="spot" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <path d="M4 26h22" stroke="#7c6bd0" stroke-width="2.4" stroke-linecap="round" />
+                  <rect x="7" y="16" width="4" height="7" rx="1.4" fill="#7c6bd0" />
+                  <rect x="14" y="10" width="4" height="13" rx="1.4" fill="#7c6bd0" />
+                  <rect x="21" y="5" width="4" height="18" rx="1.4" fill="#7c6bd0" />
+                </svg>
+              </div>
               <h3>ไม่รู้ตัวเลขจนกว่าจะสิ้นเดือน</h3>
               <p>
                 อัตราเข้าพักเท่าไหร่ ราคาเฉลี่ยที่ขายได้จริงเท่าไหร่ เดือนหน้าจองมาแล้วกี่คืน
@@ -146,20 +198,9 @@
         </div>
       </section>
 
-      <!-- ---------------- expanding band ---------------- -->
+      <!-- ---------------- band ---------------- -->
       <section class="band" aria-hidden="true">
-        <figure class="band-figure" data-expand>
-          <img
-            src="assets/img/resort-lg.jpg"
-            srcset="assets/img/resort-sm.jpg 800w, assets/img/resort-lg.jpg 1600w"
-            sizes="100vw"
-            width="1600"
-            height="686"
-            alt=""
-            loading="lazy"
-            data-parallax="0.08"
-          />
-        </figure>
+        <img src="assets/img/band-strip.svg" alt="" width="1600" height="240" loading="lazy" />
         <p class="band-caption">
           สร้างมาเพื่อที่พักในประเทศไทย — วันเข้าพักนับตามเวลาโรงแรม ไม่ใช่เวลา UTC
         </p>
@@ -189,9 +230,13 @@
                 <li>รับจองหน้าเคาน์เตอร์ แก้ไขวันเข้าพัก ขยายหรือย่นวันออกได้</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
-              <span>ผังการเข้าพัก · รอถ่ายจากระบบที่ใช้งานจริง</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+                  <span>ผังการเข้าพัก · รอถ่ายจากระบบที่ใช้งานจริง</span>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -207,9 +252,13 @@
                 <li>ทดสอบการเชื่อมต่อได้ตลอดเวลา และสั่งส่งข้อมูลใหม่ทั้งหมดเมื่อสงสัย</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
-              <span>หน้าจัดการช่องทางขาย · รอถ่ายจากระบบที่ใช้งานจริง</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+                  <span>หน้าจัดการช่องทางขาย · รอถ่ายจากระบบที่ใช้งานจริง</span>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -225,9 +274,13 @@
                 <li>ห้องถูกกันไว้ระหว่างที่แขกกรอกข้อมูล และคืนสู่การขายเองถ้าไม่จบ</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
-              <span>หน้าจองสำหรับแขก · อยู่ระหว่างพัฒนา</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+                  <span>หน้าจองสำหรับแขก · อยู่ระหว่างพัฒนา</span>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -243,9 +296,13 @@
                 <li>บันทึกว่าใครแก้อะไรเมื่อไหร่ ย้อนดูได้ทุกบรรทัด</li>
               </ul>
             </div>
-            <div class="shot" data-reveal>
-              <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
-              <span>รายงานผลประกอบการ · รอถ่ายจากระบบที่ใช้งานจริง</span>
+            <div class="shot-stage" data-reveal>
+              <div class="laptop">
+                <div class="screen">
+                  <b>ภาพหน้าจอจริงจะมาแทนที่ตรงนี้</b>
+                  <span>รายงานผลประกอบการ · รอถ่ายจากระบบที่ใช้งานจริง</span>
+                </div>
+              </div>
             </div>
           </article>
         </div>
@@ -341,9 +398,7 @@
         <div class="wrap cta-row">
           <div>
             <p class="eyebrow" data-reveal>ขอเดโม</p>
-            <h2 data-reveal style="font-size: clamp(25px, 3.4vw, 40px); margin-block: 14px 16px">
-              ครึ่งชั่วโมง บนหน้าจอ กับข้อมูลโรงแรมของคุณ
-            </h2>
+            <h2 data-reveal>ครึ่งชั่วโมง บนหน้าจอ กับข้อมูลโรงแรมของคุณ</h2>
             <p class="lede" data-reveal>
               ไม่ใช่การนำเสนอสไลด์ — เราจะเปิดระบบจริง ใส่ประเภทห้องและราคาของคุณลงไป
               แล้วให้คุณลองกดเอง ถ้าไม่ใช่ทางของคุณ จะได้รู้ในสามสิบนาที ไม่ใช่สามเดือน
@@ -391,12 +446,20 @@
     </main>
 
     <footer class="footer">
-      <div class="wrap footer-inner">
-        <span class="footer-brand">DeeHub</span>
-        <a href="https://dashboard.deehubhotel.com">เข้าสู่ระบบ</a>
-        <a href="mailto:hello@deehubhotel.com">hello@deehubhotel.com</a>
-        <a href="en/" hreflang="en">English</a>
-        <span>© 2026 DeeHub</span>
+      <div class="footer-scene" aria-hidden="true">
+        <img src="assets/img/band-strip.svg" alt="" width="1600" height="240" loading="lazy" />
+      </div>
+      <div class="footer-band">
+        <div class="wrap footer-inner">
+          <span class="footer-brand">
+            <img src="assets/img/logo-mark.png" alt="" width="26" height="26" />
+            <span class="wordmark">Dee<em>Hub</em></span>
+          </span>
+          <a href="https://dashboard.deehubhotel.com">เข้าสู่ระบบ</a>
+          <a href="mailto:hello@deehubhotel.com">hello@deehubhotel.com</a>
+          <a href="en/" hreflang="en">English</a>
+          <span>© 2026 DeeHub</span>
+        </div>
       </div>
     </footer>
 

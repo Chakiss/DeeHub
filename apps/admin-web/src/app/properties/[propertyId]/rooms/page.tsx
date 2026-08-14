@@ -14,8 +14,8 @@ export default async function RoomsPage({ params }: { params: Promise<{ property
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{t('title')}</h1>
-        <p className="text-sm text-slate-500">{t('subtitle')}</p>
+        <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
+        <p className="text-sm text-stone-500">{t('subtitle')}</p>
       </div>
 
       <RoomList

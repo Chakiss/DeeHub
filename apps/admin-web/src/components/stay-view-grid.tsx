@@ -70,9 +70,9 @@ export function StayViewGrid({
 
   if (view.rooms.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-        <p className="text-sm font-medium text-slate-700">{t('empty')}</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t('emptyHint')}</p>
+      <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+        <p className="text-sm font-medium text-ink-700">{t('empty')}</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-stone-500">{t('emptyHint')}</p>
         <Link
           href={`/properties/${propertyId}/rooms`}
           className="mt-4 inline-block rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
@@ -90,13 +90,13 @@ export function StayViewGrid({
       <div className="flex flex-wrap items-center gap-2">
         <Link
           href={`?from=${addDays(from, -windowDays)}`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70"
         >
           ← {t('previous')}
         </Link>
         <Link
           href={`?from=${addDays(from, windowDays)}`}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70"
         >
           {t('next')} →
         </Link>
@@ -109,8 +109,8 @@ export function StayViewGrid({
       )}
 
       {/* The front desk's worklist: booked, in the window, nowhere to sleep. */}
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-medium text-slate-800">
+      <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
+        <h2 className="text-sm font-medium text-ink-800">
           {t('unassigned')}
           {view.unassigned.length > 0 && (
             <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
@@ -120,7 +120,7 @@ export function StayViewGrid({
         </h2>
 
         {view.unassigned.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">{t('unassignedEmpty')}</p>
+          <p className="mt-2 text-sm text-stone-500">{t('unassignedEmpty')}</p>
         ) : (
           <ul className="mt-2 space-y-1">
             {view.unassigned.map((stay) => (
@@ -128,11 +128,11 @@ export function StayViewGrid({
                 key={stay.stayId}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-amber-50/60 px-3 py-2 text-sm"
               >
-                <span className="font-medium text-slate-800">
+                <span className="font-medium text-ink-800">
                   {stay.guestName ?? stay.reservationCode}
                 </span>
-                <span className="text-xs text-slate-500">{stay.roomTypeName}</span>
-                <span className="tabular text-xs text-slate-500">
+                <span className="text-xs text-stone-500">{stay.roomTypeName}</span>
+                <span className="tabular text-xs text-stone-500">
                   {stay.checkIn} → {stay.checkOut}
                 </span>
                 {canAssign && (
@@ -151,21 +151,21 @@ export function StayViewGrid({
       </section>
 
       {/* Scrolling stays inside the grid: the page body must never move. */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 min-w-[170px] border-b border-r border-slate-200 bg-slate-50 px-3 py-2 text-left font-medium text-slate-600">
+              <th className="sticky left-0 z-10 min-w-[170px] border-b border-r border-stone-200 bg-sunk px-3 py-2 text-left font-medium text-stone-600">
                 {t('title')}
               </th>
               {view.dates.map((date) => (
                 <th
                   key={date}
-                  className={`min-w-[44px] border-b border-slate-200 px-1 py-2 text-center font-medium ${
-                    isWeekend(date) ? 'bg-slate-100 text-slate-700' : 'bg-slate-50 text-slate-600'
+                  className={`min-w-[44px] border-b border-stone-200 px-1 py-2 text-center font-medium ${
+                    isWeekend(date) ? 'bg-sunk text-ink-700' : 'bg-sunk text-stone-600'
                   }`}
                 >
-                  <div className="text-[10px] uppercase tracking-wide text-slate-400">
+                  <div className="text-[10px] uppercase tracking-wide text-stone-400">
                     {weekdayLabel(date)}
                   </div>
                   <div className="tabular text-xs">{dayLabel(date)}</div>
@@ -176,13 +176,13 @@ export function StayViewGrid({
           <tbody>
             {view.rooms.map((room) => (
               <tr key={room.roomId} className="group">
-                <th className="sticky left-0 z-10 border-b border-r border-slate-200 bg-white px-3 py-2 text-left font-medium text-slate-800 group-hover:bg-slate-50">
+                <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-3 py-2 text-left font-medium text-ink-800 group-hover:bg-sunk/70">
                   <span className="flex items-center gap-2">
                     <span
                       aria-label={housekeeping(room.housekeepingStatus)}
                       title={housekeeping(room.housekeepingStatus)}
                       className={`h-2 w-2 shrink-0 rounded-full ${
-                        HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-slate-300'
+                        HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-stone-300'
                       }`}
                     />
                     <span className="min-w-0">
@@ -194,7 +194,7 @@ export function StayViewGrid({
                           </span>
                         )}
                       </span>
-                      <span className="block truncate text-xs font-normal text-slate-400">
+                      <span className="block truncate text-xs font-normal text-stone-400">
                         {room.roomTypeName}
                       </span>
                     </span>
@@ -216,8 +216,8 @@ export function StayViewGrid({
                     return (
                       <td
                         key={date}
-                        className={`border-b border-slate-100 px-1 py-2 ${
-                          isWeekend(date) ? 'bg-slate-50/60' : ''
+                        className={`border-b border-stone-100 px-1 py-2 ${
+                          isWeekend(date) ? 'bg-sunk/60' : ''
                         }`}
                       />
                     );
@@ -233,13 +233,13 @@ export function StayViewGrid({
                     <td
                       key={date}
                       colSpan={span}
-                      className="border-b border-slate-100 px-0.5 py-1.5"
+                      className="border-b border-stone-100 px-0.5 py-1.5"
                     >
                       <span
                         title={`${starting.reservationCode} · ${starting.checkIn} → ${starting.checkOut}`}
                         className={`flex items-center gap-1 truncate rounded px-2 py-1 text-xs font-medium ${
                           starting.status === 'CHECKED_OUT'
-                            ? 'bg-slate-100 text-slate-500'
+                            ? 'bg-sunk text-stone-500'
                             : starting.status === 'CHECKED_IN'
                               ? 'bg-emerald-100 text-emerald-900'
                               : starting.upgraded
@@ -278,7 +278,7 @@ export function StayViewGrid({
                               </button>
                             )}
                             {starting.status === 'CHECKED_OUT' && (
-                              <span className="text-[10px] text-slate-500">{t('departed')}</span>
+                              <span className="text-[10px] text-stone-500">{t('departed')}</span>
                             )}
                             {/* Releasing a room only makes sense before arrival;
                                 afterwards the assignment is history. */}
@@ -288,7 +288,7 @@ export function StayViewGrid({
                                 disabled={pending}
                                 onClick={() => release(starting.stayId)}
                                 aria-label={`${t('release')} ${starting.reservationCode}`}
-                                className="rounded px-1 text-[10px] text-slate-500 hover:bg-white/60 disabled:opacity-60"
+                                className="rounded px-1 text-[10px] text-stone-500 hover:bg-white/60 disabled:opacity-60"
                               >
                                 ✕
                               </button>
@@ -349,7 +349,7 @@ function AssignDialog({
       role="dialog"
       aria-modal="true"
       aria-label={t('assignTo', { guest: stay.guestName ?? stay.reservationCode })}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4"
     >
       <form
         onSubmit={async (event) => {
@@ -366,17 +366,17 @@ function AssignDialog({
           }
           onClose();
         }}
-        className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-md space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg"
       >
-        <h2 className="text-lg font-medium text-slate-900">
+        <h2 className="text-lg font-medium text-ink-900">
           {t('assignTo', { guest: stay.guestName ?? stay.reservationCode })}
         </h2>
-        <p className="tabular text-sm text-slate-500">
+        <p className="tabular text-sm text-stone-500">
           {stay.checkIn} → {stay.checkOut} · {stay.roomTypeName}
         </p>
 
         <div>
-          <label htmlFor="assign-room" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="assign-room" className="mb-1 block text-sm font-medium text-ink-700">
             {t('choose')}
           </label>
           <select
@@ -384,7 +384,7 @@ function AssignDialog({
             value={roomId}
             onChange={(event) => setRoomId(event.target.value)}
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           >
             {candidates.map((room) => (
               <option key={room.roomId} value={room.roomId}>
@@ -405,7 +405,7 @@ function AssignDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('previous')}
           </button>

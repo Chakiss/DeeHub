@@ -60,7 +60,7 @@ export default async function PropertyLayout({
           <div className="ml-auto flex items-center gap-3 text-sm">
             <Link
               href="/account"
-              className="hidden text-slate-300 transition hover:text-white sm:inline"
+              className="hidden text-stone-300 transition hover:text-white sm:inline"
             >
               {me.email}
             </Link>
@@ -70,17 +70,24 @@ export default async function PropertyLayout({
         </div>
       </header>
 
-      <MainNav items={items} />
+      {/*
+       * The rail and the content share one row (design-restyle-plan.md §5,
+       * Phase B). On small screens MainNav renders as a pill row above the
+       * content instead; flex-col makes that stacking free.
+       */}
+      <div className="mx-auto flex max-w-[1600px] flex-col items-stretch gap-6 px-6 py-6 lg:flex-row lg:items-start">
+        <MainNav items={items} />
 
-      <main className="mx-auto max-w-[1600px] px-6 py-6">
-        {current ? (
-          children
-        ) : (
-          <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            You do not have access to this property.
-          </p>
-        )}
-      </main>
+        <main className="min-w-0 flex-1">
+          {current ? (
+            children
+          ) : (
+            <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              You do not have access to this property.
+            </p>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

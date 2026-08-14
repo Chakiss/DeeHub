@@ -176,7 +176,7 @@ export function ChannelEditor({
 
       <Card title={t('status')}>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-slate-700">{channel.status.toLowerCase()}</span>
+          <span className="text-sm text-ink-700">{channel.status.toLowerCase()}</span>
           {canEdit &&
             (channel.status === 'ACTIVE' ? (
               <button
@@ -185,7 +185,7 @@ export function ChannelEditor({
                 onClick={() =>
                   run(() => updateChannel(propertyId, channel.id, { status: 'INACTIVE' }))
                 }
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-50"
               >
                 {t('deactivate')}
               </button>
@@ -197,7 +197,7 @@ export function ChannelEditor({
                 onClick={() =>
                   run(() => updateChannel(propertyId, channel.id, { status: 'ACTIVE' }))
                 }
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
               >
                 {t('activate')}
               </button>
@@ -206,12 +206,12 @@ export function ChannelEditor({
         </div>
 
         {canEdit && (
-          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-3">
             <button
               type="button"
               disabled={pending}
               onClick={test}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-50"
             >
               {t('testConnection')}
             </button>
@@ -220,11 +220,11 @@ export function ChannelEditor({
               disabled={pending || channel.status !== 'ACTIVE'}
               title={channel.status === 'ACTIVE' ? undefined : t('syncNeedsActive')}
               onClick={sync}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-50"
             >
               {t('syncNow')}
             </button>
-            <span className="text-xs text-slate-400">{t('syncHint')}</span>
+            <span className="text-xs text-stone-400">{t('syncHint')}</span>
           </div>
         )}
 
@@ -241,7 +241,7 @@ export function ChannelEditor({
       </Card>
 
       <Card title={t('mappingsHeading')}>
-        <p className="mb-3 text-xs text-slate-500">{t('mappingsHint')}</p>
+        <p className="mb-3 text-xs text-stone-500">{t('mappingsHint')}</p>
         <MappingTable
           rows={channel.availableRoomTypes.map((roomType) => ({
             id: roomType.id,
@@ -257,7 +257,7 @@ export function ChannelEditor({
       </Card>
 
       <Card title={t('ratePlanMappingsHeading')}>
-        <p className="mb-3 text-xs text-slate-500">{t('markupHint')}</p>
+        <p className="mb-3 text-xs text-stone-500">{t('markupHint')}</p>
         <MappingTable
           rows={channel.availableRatePlans.map((plan) => ({
             id: plan.id,
@@ -276,7 +276,7 @@ export function ChannelEditor({
             type="button"
             disabled={pending}
             onClick={saveMappings}
-            className="mt-3 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="mt-3 rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {pending ? t('saving') : t('saveMappings')}
           </button>
@@ -306,7 +306,7 @@ export function ChannelEditor({
             </Labelled>
           </div>
 
-          <p className="mt-3 text-xs text-slate-500">{t('credentialsHint')}</p>
+          <p className="mt-3 text-xs text-stone-500">{t('credentialsHint')}</p>
           <ul className="mt-2 space-y-2">
             {credentials.map((row, index) => (
               <li key={index} className="flex gap-2">
@@ -347,7 +347,7 @@ export function ChannelEditor({
           <button
             type="button"
             onClick={() => setCredentials((current) => [...current, { key: '', value: '' }])}
-            className="mt-2 text-xs text-slate-500 hover:text-slate-800"
+            className="mt-2 text-xs text-stone-500 hover:text-ink-800"
           >
             + {t('addCredential')}
           </button>
@@ -357,7 +357,7 @@ export function ChannelEditor({
               type="button"
               disabled={pending}
               onClick={saveSettings}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               {pending ? t('saving') : t('save')}
             </button>
@@ -405,7 +405,7 @@ function MappingTable({
             key={row.id}
             className={`grid items-center gap-2 ${markupLabel ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}
           >
-            <span className={`text-sm ${mapped ? 'text-slate-700' : 'text-amber-700'}`}>
+            <span className={`text-sm ${mapped ? 'text-ink-700' : 'text-amber-700'}`}>
               {row.label}
               {!mapped && <span className="ml-2 text-xs">({emptyLabel})</span>}
             </span>
@@ -514,12 +514,12 @@ function toRatePlanInputs(drafts: Record<string, Draft>): RatePlanMappingInput[]
 }
 
 const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 disabled:bg-slate-50';
+  'w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900 disabled:bg-sunk';
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
+    <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
+      <h2 className="mb-3 text-sm font-semibold text-ink-900">{title}</h2>
       {children}
     </section>
   );
@@ -528,7 +528,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-slate-500">{label}</span>
+      <span className="mb-1 block text-xs text-stone-500">{label}</span>
       {children}
     </label>
   );

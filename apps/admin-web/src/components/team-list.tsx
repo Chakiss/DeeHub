@@ -89,10 +89,10 @@ export function TeamList({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+            <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
               <th className="px-3 py-2 font-medium">{t('email')}</th>
               <th className="px-3 py-2 font-medium">{t('fullName')}</th>
               <th className="px-3 py-2 font-medium">{t('role')}</th>
@@ -111,12 +111,12 @@ export function TeamList({
               return (
                 <tr
                   key={user.id}
-                  className={`border-b border-slate-100 last:border-0 ${
-                    user.status === 'DISABLED' ? 'bg-slate-50/60 text-slate-400' : ''
+                  className={`border-b border-stone-100 last:border-0 ${
+                    user.status === 'DISABLED' ? 'bg-sunk/60 text-stone-400' : ''
                   }`}
                 >
-                  <td className="px-3 py-2 text-slate-800">{user.email}</td>
-                  <td className="px-3 py-2 text-slate-600">{user.fullName}</td>
+                  <td className="px-3 py-2 text-ink-800">{user.email}</td>
+                  <td className="px-3 py-2 text-stone-600">{user.fullName}</td>
                   <td className="px-3 py-2">
                     {mayAdminister ? (
                       <select
@@ -124,7 +124,7 @@ export function TeamList({
                         value={role}
                         disabled={pending}
                         onChange={(event) => changeRole(user, event.target.value)}
-                        className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+                        className="rounded-md border border-stone-300 px-2 py-1 text-xs"
                       >
                         {ROLES.filter((candidate) => assignableRoles.includes(candidate)).map(
                           (candidate) => (
@@ -135,7 +135,7 @@ export function TeamList({
                         )}
                       </select>
                     ) : (
-                      <span className="text-slate-600">{roleNames(role)}</span>
+                      <span className="text-stone-600">{roleNames(role)}</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -143,13 +143,13 @@ export function TeamList({
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                         user.status === 'ACTIVE'
                           ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-slate-200 text-slate-600'
+                          : 'bg-stone-200 text-stone-600'
                       }`}
                     >
                       {user.status === 'ACTIVE' ? t('active') : t('disabled')}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-xs text-slate-500">
+                  <td className="px-3 py-2 text-xs text-stone-500">
                     {user.lastLoginAt
                       ? new Date(user.lastLoginAt).toLocaleDateString()
                       : t('never')}
@@ -161,7 +161,7 @@ export function TeamList({
                           type="button"
                           disabled={pending}
                           onClick={() => toggleStatus(user)}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                          className="rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
                         >
                           {user.status === 'DISABLED' ? t('enable') : t('disable')}
                         </button>
@@ -171,13 +171,13 @@ export function TeamList({
                           type="button"
                           disabled={pending}
                           onClick={() => resetPassword(user)}
-                          className="ml-2 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                          className="ml-2 rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
                         >
                           {t('reset')}
                         </button>
                       )}
                       {/* Explains the absent control rather than leaving it blank. */}
-                      {isSelf && <span className="text-xs text-slate-400">{t('cannotSelf')}</span>}
+                      {isSelf && <span className="text-xs text-stone-400">{t('cannotSelf')}</span>}
                     </td>
                   )}
                 </tr>
@@ -187,7 +187,7 @@ export function TeamList({
         </table>
       </div>
 
-      {canUpdate && <p className="text-xs text-slate-400">{t('noDelete')}</p>}
+      {canUpdate && <p className="text-xs text-stone-400">{t('noDelete')}</p>}
 
       {inviting && (
         <InviteDialog
@@ -235,7 +235,7 @@ function InviteDialog({
       role="dialog"
       aria-modal="true"
       aria-label={t('invite')}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/30 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink-950/40 p-4 sm:items-center"
     >
       <form
         onSubmit={async (event) => {
@@ -254,12 +254,12 @@ function InviteDialog({
           }
           onCreated(result.user);
         }}
-        className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-md space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg"
       >
-        <h2 className="text-lg font-medium text-slate-900">{t('invite')}</h2>
+        <h2 className="text-lg font-medium text-ink-900">{t('invite')}</h2>
 
         <div>
-          <label htmlFor="invite-email" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="invite-email" className="mb-1 block text-sm font-medium text-ink-700">
             {t('email')}
           </label>
           <input
@@ -268,12 +268,12 @@ function InviteDialog({
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           />
         </div>
 
         <div>
-          <label htmlFor="invite-name" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="invite-name" className="mb-1 block text-sm font-medium text-ink-700">
             {t('fullName')}
           </label>
           <input
@@ -282,19 +282,19 @@ function InviteDialog({
             onChange={(event) => setFullName(event.target.value)}
             required
             maxLength={200}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           />
         </div>
 
         <div>
-          <label htmlFor="invite-role" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="invite-role" className="mb-1 block text-sm font-medium text-ink-700">
             {t('role')}
           </label>
           <select
             id="invite-role"
             value={role}
             onChange={(event) => setRole(event.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           >
             {assignableRoles.map((candidate) => (
               <option key={candidate} value={candidate}>
@@ -302,7 +302,7 @@ function InviteDialog({
               </option>
             ))}
           </select>
-          <span className="mt-1 block text-xs text-slate-400">{t('roleHint')}</span>
+          <span className="mt-1 block text-xs text-stone-400">{t('roleHint')}</span>
         </div>
 
         {error && (
@@ -315,7 +315,7 @@ function InviteDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('cancel')}
           </button>
@@ -354,28 +354,28 @@ function CredentialDialog({
       role="dialog"
       aria-modal="true"
       aria-label={credential.title}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4"
     >
-      <div className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-medium text-slate-900">{credential.title}</h2>
-        <p className="text-sm text-slate-600">{credential.intro}</p>
+      <div className="w-full max-w-md space-y-4 rounded-2xl border border-stone-200/70 bg-white shadow-card p-6 shadow-lg">
+        <h2 className="text-lg font-medium text-ink-900">{credential.title}</h2>
+        <p className="text-sm text-stone-600">{credential.intro}</p>
 
-        <dl className="space-y-2 rounded-md bg-slate-50 p-3 text-sm">
+        <dl className="space-y-2 rounded-md bg-sunk p-3 text-sm">
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">{t('email')}</dt>
-            <dd className="font-mono text-slate-800">{credential.email}</dd>
+            <dt className="text-stone-500">{t('email')}</dt>
+            <dd className="font-mono text-ink-800">{credential.email}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-slate-500">{t('password')}</dt>
+            <dt className="text-stone-500">{t('password')}</dt>
             <dd className="flex items-center gap-2">
-              <span className="font-mono text-slate-900">{credential.password}</span>
+              <span className="font-mono text-ink-900">{credential.password}</span>
               <button
                 type="button"
                 onClick={() => {
                   void navigator.clipboard.writeText(credential.password);
                   setCopied(true);
                 }}
-                className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-white"
+                className="rounded border border-stone-300 px-2 py-0.5 text-xs text-stone-600 hover:bg-white"
               >
                 {copied ? t('copied') : t('copy')}
               </button>
@@ -383,7 +383,7 @@ function CredentialDialog({
           </div>
         </dl>
 
-        <p className="text-xs text-slate-500">{t('passwordAdvise')}</p>
+        <p className="text-xs text-stone-500">{t('passwordAdvise')}</p>
 
         <div className="flex justify-end">
           <button

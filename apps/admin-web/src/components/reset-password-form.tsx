@@ -82,7 +82,7 @@ export function ResetPasswordForm() {
             onSubmit={(event) => void submit(event)}
             className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25"
           >
-            <h1 className="text-lg font-medium text-slate-900">{t('title')}</h1>
+            <h1 className="text-lg font-medium text-ink-900">{t('title')}</h1>
 
             <Field id="new-password" label={t('newPassword')} hint={t('hint', { min: MIN_LENGTH })}>
               <input
@@ -95,7 +95,7 @@ export function ResetPasswordForm() {
                 minLength={MIN_LENGTH}
                 required
                 autoFocus
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
@@ -108,7 +108,7 @@ export function ResetPasswordForm() {
                 autoComplete="new-password"
                 minLength={MIN_LENGTH}
                 required
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
@@ -130,8 +130,8 @@ export function ResetPasswordForm() {
           // Reached by typing the address, or by a mail client that mangled the
           // link. Saying so beats an empty form that fails on submit.
           <div className="space-y-4 rounded-xl bg-white p-6 shadow-xl shadow-ink-950/25">
-            <h1 className="text-lg font-medium text-slate-900">{t('noTokenTitle')}</h1>
-            <p className="text-sm text-slate-600">{t('noTokenBody')}</p>
+            <h1 className="text-lg font-medium text-ink-900">{t('noTokenTitle')}</h1>
+            <p className="text-sm text-stone-600">{t('noTokenBody')}</p>
             <Link
               href="/forgot-password"
               className="block w-full rounded-md bg-brand-600 px-3 py-2 text-center text-sm font-medium text-white transition hover:bg-brand-700"
@@ -164,12 +164,12 @@ function Field({
 }) {
   return (
     <div className="block">
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink-700">
         {label}
       </label>
       {children}
       {hint && (
-        <span id={`${id}-hint`} className="mt-1 block text-xs text-slate-400">
+        <span id={`${id}-hint`} className="mt-1 block text-xs text-stone-400">
           {hint}
         </span>
       )}

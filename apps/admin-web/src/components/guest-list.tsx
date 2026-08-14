@@ -84,10 +84,10 @@ export function GuestList({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+            <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
               <th className="px-3 py-2 font-medium">{t('name')}</th>
               <th className="px-3 py-2 font-medium">{t('contact')}</th>
               <th className="px-3 py-2 text-right font-medium">{t('stays')}</th>
@@ -98,9 +98,9 @@ export function GuestList({
           <tbody>
             {guests.map((guest) => (
               <Fragment key={guest.id}>
-                <tr className="border-b border-slate-100 last:border-0">
+                <tr className="border-b border-stone-100 last:border-0">
                   <td className="px-3 py-2">
-                    <div className="font-medium text-slate-800">{displayName(guest)}</div>
+                    <div className="font-medium text-ink-800">{displayName(guest)}</div>
                     {/* Flagged, never merged: two people can share an address. */}
                     {guest.possibleDuplicates > 0 &&
                       (canMerge ? (
@@ -121,23 +121,23 @@ export function GuestList({
                         </span>
                       ))}
                   </td>
-                  <td className="px-3 py-2 text-slate-600">
+                  <td className="px-3 py-2 text-stone-600">
                     <div>{guest.email ?? '—'}</div>
-                    {guest.phone && <div className="text-xs text-slate-400">{guest.phone}</div>}
+                    {guest.phone && <div className="text-xs text-stone-400">{guest.phone}</div>}
                   </td>
-                  <td className="tabular px-3 py-2 text-right text-slate-800">{guest.stays}</td>
-                  <td className="tabular px-3 py-2 text-slate-600">
+                  <td className="tabular px-3 py-2 text-right text-ink-800">{guest.stays}</td>
+                  <td className="tabular px-3 py-2 text-stone-600">
                     {guest.lastStay ?? t('never')}
                   </td>
-                  <td className="tabular px-3 py-2 text-right text-slate-800">
+                  <td className="tabular px-3 py-2 text-right text-ink-800">
                     {guest.revenueMinor > 0 ? formatMoney(guest.revenueMinor, 'THB') : '—'}
                   </td>
                 </tr>
 
                 {openFor === guest.id && (
-                  <tr className="border-b border-slate-100 bg-slate-50">
+                  <tr className="border-b border-stone-100 bg-sunk">
                     <td colSpan={5} className="px-3 py-3">
-                      <p className="mb-2 text-sm font-medium text-slate-800">
+                      <p className="mb-2 text-sm font-medium text-ink-800">
                         {t('mergeInto', { name: displayName(guest) })}
                       </p>
 
@@ -151,24 +151,24 @@ export function GuestList({
                       )}
 
                       {pending && candidates.length === 0 && (
-                        <p className="text-sm text-slate-500">{t('loading')}</p>
+                        <p className="text-sm text-stone-500">{t('loading')}</p>
                       )}
 
                       {!pending && candidates.length === 0 && !error && (
-                        <p className="text-sm text-slate-500">{t('noCandidates')}</p>
+                        <p className="text-sm text-stone-500">{t('noCandidates')}</p>
                       )}
 
                       <ul className="space-y-2">
                         {candidates.map((candidate) => (
                           <li
                             key={candidate.id}
-                            className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2"
+                            className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200/70 bg-white shadow-card px-3 py-2"
                           >
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-medium text-slate-800">
+                              <span className="block text-sm font-medium text-ink-800">
                                 {displayName(candidate)}
                               </span>
-                              <span className="block text-xs text-slate-500">
+                              <span className="block text-xs text-stone-500">
                                 {[candidate.email, candidate.phone].filter(Boolean).join(' · ') ||
                                   t('noContact')}
                               </span>
@@ -176,14 +176,14 @@ export function GuestList({
 
                             <ConfidenceBadge confidence={candidate.confidence} t={t} />
 
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-stone-500">
                               {candidate.signals.map((signal) => t(`signal${signal}`)).join(', ')}
                             </span>
 
                             {confirming?.id === candidate.id ? (
                               <span className="flex items-center gap-2">
                                 {/* Named in full, because this cannot be undone. */}
-                                <span className="text-xs text-slate-700">
+                                <span className="text-xs text-ink-700">
                                   {t('mergeConfirm', {
                                     from: displayName(candidate),
                                     into: displayName(guest),
@@ -200,7 +200,7 @@ export function GuestList({
                                 <button
                                   type="button"
                                   onClick={() => setConfirming(null)}
-                                  className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                                  className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-ink-700 hover:bg-sunk/70"
                                 >
                                   {t('cancel')}
                                 </button>
@@ -209,7 +209,7 @@ export function GuestList({
                               <button
                                 type="button"
                                 onClick={() => setConfirming(candidate)}
-                                className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                                className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-ink-700 hover:bg-sunk/70"
                               >
                                 {t('mergeAction')}
                               </button>
@@ -243,7 +243,7 @@ function ConfidenceBadge({
       ? 'bg-emerald-50 text-emerald-800'
       : confidence === 'MEDIUM'
         ? 'bg-amber-50 text-amber-800'
-        : 'bg-slate-100 text-slate-600';
+        : 'bg-sunk text-stone-600';
 
   return (
     <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${tone}`}>

@@ -66,13 +66,13 @@ export async function PerformanceReport({
         <Metric label={t('offered')} value={String(totals.allotment)} />
       </div>
 
-      <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <h2 className="border-b border-slate-200 px-4 py-2 text-sm font-medium text-slate-800">
+      <section className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
+        <h2 className="border-b border-stone-200 px-4 py-2 text-sm font-medium text-ink-800">
           {t('byNight')}
         </h2>
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+            <tr className="border-b border-stone-200 bg-sunk text-left text-stone-600">
               <th className="px-3 py-2 font-medium">{t('date')}</th>
               <th className="px-3 py-2 text-right font-medium">{t('roomsSold')}</th>
               <th className="px-3 py-2 text-right font-medium">{t('offered')}</th>
@@ -86,28 +86,28 @@ export async function PerformanceReport({
             {performance.nights.map((night) => (
               <tr
                 key={night.date}
-                className={`border-b border-slate-100 last:border-0 ${
-                  isWeekend(night.date) ? 'bg-slate-50/60' : ''
+                className={`border-b border-stone-100 last:border-0 ${
+                  isWeekend(night.date) ? 'bg-sunk/60' : ''
                 }`}
               >
                 <td className="px-3 py-2">
-                  <span className="text-xs uppercase tracking-wide text-slate-400">
+                  <span className="text-xs uppercase tracking-wide text-stone-400">
                     {weekdayLabel(night.date)}
                   </span>{' '}
-                  <span className="tabular text-slate-800">{dayLabel(night.date)}</span>
+                  <span className="tabular text-ink-800">{dayLabel(night.date)}</span>
                 </td>
-                <td className="tabular px-3 py-2 text-right text-slate-800">{night.roomsSold}</td>
-                <td className="tabular px-3 py-2 text-right text-slate-500">{night.allotment}</td>
-                <td className="tabular px-3 py-2 text-right text-slate-800">
+                <td className="tabular px-3 py-2 text-right text-ink-800">{night.roomsSold}</td>
+                <td className="tabular px-3 py-2 text-right text-stone-500">{night.allotment}</td>
+                <td className="tabular px-3 py-2 text-right text-ink-800">
                   {percent(night.occupancy)}
                 </td>
-                <td className="tabular px-3 py-2 text-right text-slate-600">
+                <td className="tabular px-3 py-2 text-right text-stone-600">
                   {percent(night.sellThrough)}
                 </td>
-                <td className="tabular px-3 py-2 text-right text-slate-600">
+                <td className="tabular px-3 py-2 text-right text-stone-600">
                   {night.adrMinor === null ? '—' : formatMoneyCompact(night.adrMinor)}
                 </td>
-                <td className="tabular px-3 py-2 text-right font-medium text-slate-800">
+                <td className="tabular px-3 py-2 text-right font-medium text-ink-800">
                   {night.revenueMinor === 0 ? '—' : formatMoneyCompact(night.revenueMinor)}
                 </td>
               </tr>
@@ -119,12 +119,33 @@ export async function PerformanceReport({
   );
 }
 
+/*
+ * The reference's stat tile: a sunken beige box whose NUMBER carries the
+ * colour (ref/dashboard.jpg). The tone is hashed from the label — the same
+ * tile is always the same colour, across renders, locales and range toggles,
+ * without a counter that would drift on re-render.
+ */
+const METRIC_TONES = [
+  'text-brand-600',
+  'text-success-700',
+  'text-accent-900',
+  'text-ink-900',
+  'text-brand-800',
+] as const;
+
+function metricTone(label: string): string {
+  let hash = 0;
+  for (const ch of label) hash = (hash * 31 + ch.codePointAt(0)!) >>> 0;
+  return METRIC_TONES[hash % METRIC_TONES.length] as string;
+}
+
 function Metric({ label, hint, value }: { label: string; hint?: string; value: string }) {
+  const tone = metricTone(label);
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="tabular mt-1 text-2xl font-semibold text-slate-900">{value}</div>
-      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
+    <div className="rounded-xl bg-sunk p-4">
+      <div className="text-xs font-medium uppercase tracking-wide text-stone-500">{label}</div>
+      <div className={`tabular mt-1 text-2xl font-semibold ${tone}`}>{value}</div>
+      {hint && <div className="mt-1 text-xs text-stone-400">{hint}</div>}
     </div>
   );
 }

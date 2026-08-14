@@ -185,12 +185,12 @@ export function BookingForm({
 
   if (roomTypes.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
-        <p className="font-medium text-slate-900">{t('noRoomTypes')}</p>
-        <p className="mt-1 text-sm text-slate-500">{t('noRoomTypesHint')}</p>
+      <div className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-8 text-center">
+        <p className="font-medium text-ink-900">{t('noRoomTypes')}</p>
+        <p className="mt-1 text-sm text-stone-500">{t('noRoomTypesHint')}</p>
         <a
           href={`/properties/${propertyId}/room-types`}
-          className="mt-4 inline-block rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
+          className="mt-4 inline-block rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white"
         >
           {t('goToRoomTypes')}
         </a>
@@ -227,7 +227,7 @@ export function BookingForm({
               />
             </Labelled>
             {nights > 0 && (
-              <span className="pb-1.5 text-sm text-slate-500">
+              <span className="pb-1.5 text-sm text-stone-500">
                 {t('nightCount', { count: nights })}
               </span>
             )}
@@ -240,9 +240,9 @@ export function BookingForm({
               const plans = plansFor.get(stay.roomTypeId) ?? [];
               const roomType = roomTypes.find((candidate) => candidate.id === stay.roomTypeId);
               return (
-                <li key={stay.key} className="rounded-lg border border-slate-200 p-3">
+                <li key={stay.key} className="rounded-lg border border-stone-200 p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    <span className="text-xs font-medium uppercase tracking-wide text-stone-400">
                       {t('roomLabel', { index: index + 1 })}
                     </span>
                     {stays.length > 1 && (
@@ -336,7 +336,7 @@ export function BookingForm({
           <button
             type="button"
             onClick={() => setStays((current) => [...current, newStay(roomTypes, plansFor)])}
-            className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className="mt-3 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('addRoom')}
           </button>
@@ -397,14 +397,14 @@ export function BookingForm({
 
       <div className="space-y-5">
         <Card title={t('availabilityHeading')}>
-          {loadingGrid && <p className="text-sm text-slate-500">{t('checkingAvailability')}</p>}
+          {loadingGrid && <p className="text-sm text-stone-500">{t('checkingAvailability')}</p>}
           {!loadingGrid && (
             <ul className="space-y-2">
               {roomTypes.map((roomType) => {
                 const state = availability.get(roomType.id);
                 return (
                   <li key={roomType.id} className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm text-slate-700">{roomType.name}</span>
+                    <span className="text-sm text-ink-700">{roomType.name}</span>
                     <span className="text-right">
                       <span
                         className={`block text-sm font-medium ${
@@ -421,7 +421,7 @@ export function BookingForm({
                               ? t('soldOut')
                               : t('availableCount', { count: state.available })}
                       </span>
-                      <span className="tabular block text-xs text-slate-500">
+                      <span className="tabular block text-xs text-stone-500">
                         {state?.lowestRate == null
                           ? t('noRate')
                           : t('fromPrice', { price: formatMoney(state.lowestRate, currency) })}
@@ -432,7 +432,7 @@ export function BookingForm({
               })}
             </ul>
           )}
-          <p className="mt-3 text-xs text-slate-500">{t('availabilityHint')}</p>
+          <p className="mt-3 text-xs text-stone-500">{t('availabilityHint')}</p>
         </Card>
 
         <div className="space-y-2">
@@ -445,7 +445,7 @@ export function BookingForm({
             type="button"
             disabled={pending}
             onClick={submit}
-            className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {pending ? t('saving') : t('save')}
           </button>
@@ -453,7 +453,7 @@ export function BookingForm({
             type="button"
             disabled={pending}
             onClick={() => router.push(`/properties/${propertyId}/reservations`)}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-50"
           >
             {t('discard')}
           </button>
@@ -464,7 +464,7 @@ export function BookingForm({
 }
 
 const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900';
+  'w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900';
 
 function newStay(roomTypes: RoomType[], plansFor: Map<string, RatePlan[]>): StayDraft {
   const roomType = roomTypes[0];
@@ -493,8 +493,8 @@ function countNights(from: string, to: string): number {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
+    <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
+      <h2 className="mb-3 text-sm font-semibold text-ink-900">{title}</h2>
       {children}
     </section>
   );
@@ -503,7 +503,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-slate-500">{label}</span>
+      <span className="mb-1 block text-xs text-stone-500">{label}</span>
       {children}
     </label>
   );
