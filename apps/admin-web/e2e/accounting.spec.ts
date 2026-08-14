@@ -160,21 +160,23 @@ test.describe('accounting', () => {
      * widening the page — without `min-w-0` on the grid children it does the
      * latter, and the save button ends up off-screen.
      *
-     * Asserted as "no worse than a page without a wide table" rather than as
-     * zero, because the navy header already overflows by ~108px at this width
-     * on EVERY screen in the dashboard. That is a real pre-existing bug and a
-     * separate change; pinning zero here would fail for a reason that has
-     * nothing to do with the books.
+     * shell.spec.ts holds the same line for every other screen; this one is
+     * here because the accounting page is the only place with a table that
+     * wide, so it is the page that would break the rule first.
      */
-    const overflowOf = () =>
-      page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      );
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(0);
 
-    const onAccounting = await overflowOf();
-    await page.goto(`/properties/${data.propertyId}/reports`);
-    const onReports = await overflowOf();
-
-    expect(onAccounting).toBeLessThanOrEqual(onReports);
+    // The table itself still scrolls, rather than having been squeezed flat.
+    const scrolls = await page
+      .locator('table')
+      .first()
+      .evaluate((table) => {
+        const wrapper = table.parentElement as HTMLElement;
+        return wrapper.scrollWidth > wrapper.clientWidth;
+      });
+    expect(scrolls).toBe(true);
   });
 });

@@ -48,7 +48,9 @@ export async function OrgShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="bg-ink-900">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-6 py-3">
+        {/* Wraps rather than overflowing — same reason as the property shell:
+            the account cluster alone is wider than a phone viewport. */}
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
           <Link href="/" aria-label="DeeHub">
             <Wordmark tone="light" />
           </Link>
@@ -66,12 +68,12 @@ export async function OrgShell({ children }: { children: React.ReactNode }) {
             </>
           )}
 
-          <div className="ml-auto flex items-center gap-3 text-sm">
+          <div className="ml-auto flex min-w-0 items-center gap-3 text-sm">
             {/* Visible on every width: on a phone this link is the only path
                 to changing your own password. */}
             <Link
               href="/account"
-              className="max-w-[38vw] truncate text-stone-300 transition hover:text-white"
+              className="min-w-0 max-w-[55vw] truncate text-stone-300 transition hover:text-white sm:max-w-[38vw]"
             >
               {me.email}
             </Link>

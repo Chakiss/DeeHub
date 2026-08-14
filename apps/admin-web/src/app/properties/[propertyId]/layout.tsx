@@ -44,7 +44,18 @@ export default async function PropertyLayout({
        * as another menu item sitting between "DeeHub" and "Inventory".
        */}
       <header className="bg-ink-900">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-6 py-3">
+        {/*
+         * Wraps rather than overflowing. On a phone the account cluster alone
+         * needs more width than the whole viewport, and as one rigid row it
+         * pushed the document ~108px wider than the screen — on EVERY page,
+         * which is why nothing here looked responsible for it. A page that
+         * scrolls sideways drags its content out from under the thumb.
+         *
+         * Wrapping keeps every control reachable, which is the point: the
+         * account link is the only route to /account on a phone, and hiding it
+         * is what stranded the pilot's first real user (2bca487).
+         */}
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
           <Link href="/" aria-label="DeeHub">
             <Wordmark tone="light" />
           </Link>
@@ -58,13 +69,15 @@ export default async function PropertyLayout({
             currentId={propertyId}
           />
 
-          <div className="ml-auto flex items-center gap-3 text-sm">
+          <div className="ml-auto flex min-w-0 items-center gap-3 text-sm">
             {/* Visible on every width: on a phone this link is the only
                 path to /account, where a handed-out password gets changed —
-                hiding it stranded the pilot's first real user. */}
+                hiding it stranded the pilot's first real user.
+                Wider once wrapped onto its own line, so more of the address is
+                readable on the screen where truncation bites hardest. */}
             <Link
               href="/account"
-              className="max-w-[38vw] truncate text-stone-300 transition hover:text-white"
+              className="min-w-0 max-w-[55vw] truncate text-stone-300 transition hover:text-white sm:max-w-[38vw]"
             >
               {me.email}
             </Link>
