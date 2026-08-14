@@ -58,9 +58,12 @@ export default async function PropertyLayout({
           />
 
           <div className="ml-auto flex items-center gap-3 text-sm">
+            {/* Visible on every width: on a phone this link is the only
+                path to /account, where a handed-out password gets changed —
+                hiding it stranded the pilot's first real user. */}
             <Link
               href="/account"
-              className="hidden text-stone-300 transition hover:text-white sm:inline"
+              className="max-w-[38vw] truncate text-stone-300 transition hover:text-white"
             >
               {me.email}
             </Link>

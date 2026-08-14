@@ -1,33 +1,18 @@
-import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
-import { api } from '@/lib/api';
-import { Wordmark } from '@/components/wordmark';
+import { OrgShell } from '@/components/org-shell';
 import { ChangePasswordForm } from '@/components/change-password-form';
 
 /**
  * Account settings.
  *
- * Outside the property layout on purpose: an account is owned by a user, not by
- * a property, and the first thing a new owner does — change the password they
- * were handed — happens before they have chosen one.
+ * Organization-level rather than property-level — an account is owned by a
+ * user — but it wears the same chrome as every other screen (OrgShell): the
+ * pilot's first real user could not find this page at all, because its only
+ * entry was an email link the property header hid on phones.
  */
-export default async function AccountPage() {
-  const [t, me] = await Promise.all([getTranslations('nav'), api.me()]);
-
+export default function AccountPage() {
   return (
-    <div className="min-h-screen">
-      <header className="bg-ink-900">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-6 py-3">
-          <Link href="/" aria-label="DeeHub">
-            <Wordmark tone="light" />
-          </Link>
-          <div className="ml-auto text-sm text-stone-300">{me.email}</div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-[1600px] px-6 py-6">
-        <ChangePasswordForm />
-      </main>
-    </div>
+    <OrgShell>
+      <ChangePasswordForm />
+    </OrgShell>
   );
 }

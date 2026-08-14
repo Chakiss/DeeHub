@@ -1,7 +1,6 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { ApiError, api, type OrganizationUser } from '@/lib/api';
-import { Wordmark } from '@/components/wordmark';
+import { OrgShell } from '@/components/org-shell';
 import { TeamList } from '@/components/team-list';
 
 const ROLES = ['OWNER', 'ADMIN', 'MANAGER', 'FRONT_DESK', 'READ_ONLY'] as const;
@@ -35,19 +34,8 @@ export default async function TeamPage() {
   const assignableRoles = ROLES.filter((_, index) => index >= myRank);
 
   return (
-    <div className="min-h-screen">
-      <header className="bg-ink-900">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-6 py-3">
-          <Link href="/" aria-label="DeeHub">
-            <Wordmark tone="light" />
-          </Link>
-          <Link href="/account" className="ml-auto text-sm text-stone-300 hover:text-white">
-            {me.email}
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-[1600px] space-y-4 px-6 py-6">
+    <OrgShell>
+      <div className="space-y-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
           <p className="text-sm text-stone-500">{t('subtitle')}</p>
@@ -70,7 +58,7 @@ export default async function TeamPage() {
             canUpdate={me.capabilities.includes('user:update')}
           />
         )}
-      </main>
-    </div>
+      </div>
+    </OrgShell>
   );
 }
