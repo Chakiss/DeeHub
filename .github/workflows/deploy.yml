@@ -149,9 +149,18 @@ jobs:
       - name: Deploy marketing site
         run: |
           BUCKET="deehub-marketing-${ENVIRONMENT}-${{ secrets.GCP_PROJECT_ID }}"
-          if ! gcloud storage buckets describe "gs://${BUCKET}" >/dev/null 2>&1; then
-            echo "No marketing bucket — custom_domain is unset. Skipping."
-            exit 0
+          # Skip ONLY when the bucket genuinely does not exist. A describe that
+          # fails for any other reason — a 403, most likely — must fail the
+          # step: the first version of this guard read "cannot see it" as
+          # "does not exist" and silently shipped a release with no site.
+          if ! DESCRIBE_ERR=$(gcloud storage buckets describe "gs://${BUCKET}" 2>&1 >/dev/null); then
+            if echo "$DESCRIBE_ERR" | grep -qiE "not found|404"; then
+              echo "No marketing bucket — custom_domain is unset. Skipping."
+              exit 0
+            fi
+            echo "Marketing bucket could not be read — refusing to skip silently:"
+            echo "$DESCRIBE_ERR"
+            exit 1
           fi
           gcloud storage rsync apps/marketing "gs://${BUCKET}" \
             --recursive --delete-unmatched-destination-objects \

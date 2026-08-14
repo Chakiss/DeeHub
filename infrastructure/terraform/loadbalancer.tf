@@ -86,6 +86,22 @@ resource "google_storage_bucket_iam_member" "marketing_public" {
   member = "allUsers"
 }
 
+# The CI deployer is that only writer, and it needs saying: the first deploy
+# after this bucket existed skipped the sync with "no marketing bucket",
+# because the deployer could not even DESCRIBE it — a 403 wearing a 404's
+# clothes, and the restyle launch shipped everything except the site.
+#
+# storage.admin scoped to this one bucket: buckets.get for the existence
+# check, object CRUD for the rsync. The deployer SA itself is created by the
+# bootstrap in deployment.md §4, not by Terraform, so it is referenced by
+# name rather than by resource.
+resource "google_storage_bucket_iam_member" "marketing_ci" {
+  count  = local.lb_enabled
+  bucket = google_storage_bucket.marketing[0].name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:deehub-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
+
 resource "google_compute_backend_bucket" "marketing" {
   count       = local.lb_enabled
   name        = "deehub-marketing-${local.suffix}"
