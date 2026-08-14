@@ -25,8 +25,59 @@ describe('capabilitiesFor()', () => {
     }
   });
 
+  /**
+   * The read-only bundle used to be `CAPABILITIES.filter(c => c.endsWith(':read'))`,
+   * so a new capability joined it by being named. This asserts the set itself,
+   * which is what makes adding one a decision rather than a spelling.
+   */
+  it('grants READ_ONLY exactly the agreed set, and nothing new by naming', () => {
+    expect([...capabilitiesFor('READ_ONLY')].sort()).toEqual(
+      [
+        'audit:read',
+        'channel:read',
+        'folio:read',
+        'guest:read',
+        'inventory:read',
+        'notification:read',
+        'org:read',
+        'property:read',
+        'rate:read',
+        'rateplan:read',
+        'reservation:read',
+        'room:read',
+        'roomtype:read',
+        'user:read',
+      ].sort(),
+    );
+  });
+
   it('does not let READ_ONLY create a reservation', () => {
     expect(capabilitiesFor('READ_ONLY').has('reservation:create')).toBe(false);
+  });
+
+  it('keeps the hotel books away from READ_ONLY and FRONT_DESK', () => {
+    for (const role of ['READ_ONLY', 'FRONT_DESK'] as const) {
+      const capabilities = capabilitiesFor(role);
+      expect(capabilities.has('expense:read')).toBe(false);
+      expect(capabilities.has('expense:write')).toBe(false);
+      expect(capabilities.has('accounting:read')).toBe(false);
+      expect(capabilities.has('accounting:settings')).toBe(false);
+    }
+  });
+
+  /**
+   * The distinction accounting-plan.md §6 turns on: a manager buys the
+   * property's electricity, so recording it is their work. What the owner
+   * clears after those costs, and the tax identity the business files under,
+   * are not.
+   */
+  it('lets MANAGER record expenses without seeing the profit or the tax identity', () => {
+    const manager = capabilitiesFor('MANAGER');
+    expect(manager.has('expense:read')).toBe(true);
+    expect(manager.has('expense:write')).toBe(true);
+    expect(manager.has('expense:void')).toBe(false);
+    expect(manager.has('accounting:read')).toBe(false);
+    expect(manager.has('accounting:settings')).toBe(false);
   });
 
   it('lets FRONT_DESK take and cancel bookings but not change rates', () => {
