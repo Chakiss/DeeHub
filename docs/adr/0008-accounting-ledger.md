@@ -121,7 +121,10 @@ settlement reconciliation, fixed assets and depreciation.
 be guessed in code: the provincial room levy rate for the property's province,
 current e-filing deadline extensions, the line between a refundable security
 deposit and an advance payment for VAT purposes, and whether any given OTA's
-tax treaty relieves withholding under มาตรา 70.
+tax treaty relieves withholding under มาตรา 70. These are written up as
+questions an accountant can answer directly, each stating what the code
+currently assumes, in
+[accounting-questions-for-accountant.md](../accounting-questions-for-accountant.md).
 
 ## Alternatives considered
 
