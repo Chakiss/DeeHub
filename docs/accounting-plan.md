@@ -232,9 +232,27 @@ e2e → admin-web section → `database.md` and `api-spec.md`.
 adjust-forward after close, and the drift reconciler. Profit and loss moves off
 live derivation onto postings.
 
-**Phase 3 — tax documents.** Issued against payments, because the VAT tax point
-for a service is receipt of payment. Credit and debit notes, gapless numbering,
-A4 print view, sales and purchase VAT reports, ภ.พ.30 worksheet.
+**Phase 3 — tax documents.** Credit and debit notes, gapless numbering, sales
+and purchase VAT reports, ภ.พ.30 worksheet. Founder decisions now settled
+(2026-08-15, recorded in
+[accounting-questions-for-accountant.md](accounting-questions-for-accountant.md)):
+
+- **Numbering is `YYYYMMDDNNN`, reset daily** — `20260801001` is the first
+  document of 1 August. Not the yearly sequence this plan first assumed, so the
+  sequence key is the date rather than the year.
+- **A refundable security deposit carries no VAT and gets no tax invoice.** It
+  is a different kind of receipt from a room deposit, which is payment against a
+  price, and the two need separating at the point money is taken.
+- **Full-form invoices only**, when the property is VAT registered.
+- **Delivery is by email.** This needs the e-Tax Invoice by Email registration
+  to stand up legally — see the risk below — so phase 3 builds the print view
+  as well and does not present an emailed file as the original until that
+  registration is confirmed.
+- **Issued after the stay ends and is paid in full, in the following month.**
+  This is the hotel's practice and is implemented as the default workflow, but
+  it is NOT confirmed against มาตรา 78/1: if the tax point is receipt of
+  payment, a deposit taken in October and invoiced in January is three months
+  late. The two open questions above are gating for this phase.
 
 **Phase 4 — withholding and foreign vendors.** 50 ทวิ, ภ.ง.ด.3/53, ภ.พ.36,
 half-year aggregation for ภ.ง.ด.94/51, provincial levy report.

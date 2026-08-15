@@ -32,6 +32,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { v7 as uuidv7 } from 'uuid';
 import * as schema from './schema';
+import { isValidThaiTaxId } from '../modules/accounting/domain/tax-id';
 
 interface RoomTypeSetup {
   /** Short code the hotel recognises; also the idempotency key. */
@@ -69,6 +70,35 @@ interface PropertySetup {
     readonly serviceChargePercent: number;
     /** True when the rates below are what the guest pays, all in. */
     readonly ratesIncludeTax: boolean;
+  };
+  /**
+   * Who the hotel is to the Revenue Department.
+   *
+   * Optional, unlike `tax`, because a property can sell rooms perfectly well
+   * before anyone has decided how it is taxed — and because getting it wrong
+   * here is recoverable from the dashboard, whereas a rate written under the
+   * wrong tax treatment is not. Some customers are VAT registered and some are
+   * not; both are normal, so there is no default worth guessing.
+   *
+   * The same answers are editable at
+   * /properties/{id}/accounting/settings.
+   */
+  readonly accounting?: {
+    readonly taxpayerType?: 'INDIVIDUAL' | 'JURISTIC';
+    /** 13 digits; punctuation is stripped. */
+    readonly taxId?: string;
+    /** '00000' is the head office. */
+    readonly branchCode?: string;
+    readonly legalNameTh?: string;
+    readonly legalNameEn?: string;
+    readonly addressTh?: string;
+    readonly vatRegistered?: boolean;
+    /** Required when vatRegistered — a VAT report needs the boundary month. */
+    readonly vatRegisteredFrom?: string;
+    readonly withholdingEnabled?: boolean;
+    /** ค่าธรรมเนียมบำรุง อบจ. — the rate is set by each province. */
+    readonly localLevyPercent?: number;
+    readonly fiscalYearStartMonth?: number;
   };
   readonly roomTypes: readonly RoomTypeSetup[];
 }
@@ -180,6 +210,8 @@ async function main(): Promise<void> {
         pricesIncludeTax: setup.tax.ratesIncludeTax,
       })
       .where(eq(schema.properties.id, property.id));
+
+    await applyAccounting(db, organization.id, property.id, setup);
 
     const dates = horizon(property.timezone, setup.horizonDays ?? 365);
     console.log(
@@ -342,6 +374,66 @@ async function main(): Promise<void> {
   } finally {
     await pool.end();
   }
+}
+
+/**
+ * Record the taxpayer identity, when the onboarding file carries one.
+ *
+ * Idempotent like the rest of this script: re-running with a corrected file
+ * updates the row rather than failing. Silent when the block is absent, because
+ * a hotel that has not decided yet should still be able to open for business —
+ * the dashboard asks for the same answers later.
+ */
+async function applyAccounting(
+  db: ReturnType<typeof drizzle>,
+  organizationId: string,
+  propertyId: string,
+  setup: PropertySetup,
+): Promise<void> {
+  const accounting = setup.accounting;
+  if (!accounting) return;
+
+  const taxId = accounting.taxId?.replace(/[\s-]/g, '');
+  if (taxId !== undefined && !isValidThaiTaxId(taxId)) {
+    throw new Error(
+      `accounting.taxId "${accounting.taxId}" is not a valid 13-digit tax ID. ` +
+        'A wrong one prints on every invoice the hotel issues.',
+    );
+  }
+  if (accounting.vatRegistered && !accounting.vatRegisteredFrom) {
+    throw new Error(
+      'accounting.vatRegisteredFrom is required when vatRegistered is true — ' +
+        'a VAT report cannot tell which month registration started in without it.',
+    );
+  }
+
+  const values = {
+    propertyId,
+    organizationId,
+    taxpayerType: accounting.taxpayerType ?? null,
+    taxId: taxId ?? null,
+    branchCode: accounting.branchCode ?? '00000',
+    legalNameTh: accounting.legalNameTh ?? null,
+    legalNameEn: accounting.legalNameEn ?? null,
+    addressTh: accounting.addressTh ?? null,
+    vatRegistered: accounting.vatRegistered ?? false,
+    vatRegisteredFrom: accounting.vatRegisteredFrom ?? null,
+    withholdingEnabled: accounting.withholdingEnabled ?? true,
+    localLevyEnabled: (accounting.localLevyPercent ?? 0) > 0,
+    localLevyRateBp: Math.round((accounting.localLevyPercent ?? 0) * 100),
+    fiscalYearStartMonth: accounting.fiscalYearStartMonth ?? 1,
+    updatedAt: new Date(),
+  };
+
+  await db
+    .insert(schema.accountingSettings)
+    .values(values)
+    .onConflictDoUpdate({ target: schema.accountingSettings.propertyId, set: values });
+
+  console.log(
+    `Accounting: ${values.taxpayerType ?? 'taxpayer type not set'}, ` +
+      `VAT ${values.vatRegistered ? `registered from ${String(values.vatRegisteredFrom)}` : 'not registered'}`,
+  );
 }
 
 main().catch((error: unknown) => {

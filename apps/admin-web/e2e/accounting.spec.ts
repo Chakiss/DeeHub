@@ -180,3 +180,70 @@ test.describe('accounting', () => {
     expect(scrolls).toBe(true);
   });
 });
+
+test.describe('tax settings', () => {
+  test('records the taxpayer identity a customer gives at sign-up', async ({ page }) => {
+    const data = testData();
+    await login(page, data.ownerEmail);
+    await page.goto(`/properties/${data.propertyId}/accounting/settings`);
+
+    await page.getByLabel('Taxpayer', { exact: true }).selectOption('JURISTIC');
+    // Typed the way it is printed on an invoice, punctuation and all.
+    await page.getByLabel('Tax ID').fill('0-1055-56012-34-1');
+    await page.getByLabel('Legal name (Thai)').fill('บริษัท ดีฮับ รีสอร์ท จำกัด');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByRole('status')).toHaveText('Saved');
+    await page.reload();
+    await expect(page.getByLabel('Tax ID')).toHaveValue('0105556012341');
+  });
+
+  test('refuses a tax ID whose check digit does not agree', async ({ page }) => {
+    const data = testData();
+    await login(page, data.ownerEmail);
+    await page.goto(`/properties/${data.propertyId}/accounting/settings`);
+
+    await page.getByLabel('Tax ID').fill('0105556012345');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    // Asserted by the words the owner reads, not by the role: a page may carry
+    // more than one live region, and what matters is that this message landed.
+    await expect(page.getByText(/check digit does not agree/i)).toBeVisible();
+  });
+
+  test('will not accept VAT registration without an effective date', async ({ page }) => {
+    const data = testData();
+    await login(page, data.ownerEmail);
+    await page.goto(`/properties/${data.propertyId}/accounting/settings`);
+
+    const registered = page.getByLabel('Registered for VAT', { exact: true });
+    if (!(await registered.isChecked())) await registered.check();
+
+    // Cleared explicitly. Unchecking the box deliberately KEEPS whatever date
+    // was typed — losing it because someone toggled a checkbox would be its own
+    // small cruelty — so the empty case has to be made rather than assumed.
+    const from = page.getByLabel('Registered from');
+    await from.fill('');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    /*
+     * The browser refuses first — the field is `required`, which is this
+     * codebase's form pattern: an HTML5 constraint, then a hand-written check
+     * in onSubmit, then the server. So the assertion is that nothing got
+     * through, not that a particular sentence appeared: the first line of
+     * defence writes its own message and the browser owns its wording.
+     *
+     * The server refuses it too, covered in accounting.e2e.test.ts.
+     */
+    await expect(from).toHaveJSProperty('validity.valueMissing', true);
+    await expect(page.getByRole('status')).toHaveCount(0);
+  });
+
+  test('is closed to a manager', async ({ page }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+    const response = await page.goto(`/properties/${data.propertyId}/accounting/settings`);
+    // The page fetches with accounting:settings, which a manager does not hold.
+    expect(response?.status()).toBeGreaterThanOrEqual(400);
+  });
+});

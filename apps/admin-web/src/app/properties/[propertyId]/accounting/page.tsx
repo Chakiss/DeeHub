@@ -1,5 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { api } from '@/lib/api';
+import { formatMoney } from '@/lib/dates';
 import { businessDate } from '@/lib/dates';
 import { AccountingSummaryTiles } from '@/components/accounting-summary';
 import { ExpenseList } from '@/components/expense-list';
@@ -38,6 +40,7 @@ export default async function AccountingPage({
 
   const canReadBooks = me.capabilities.includes('accounting:read');
   const canVoid = me.capabilities.includes('expense:void');
+  const canEditSettings = me.capabilities.includes('accounting:settings');
 
   // The month being looked at, defaulting to the one in progress — in the
   // property's timezone, never the server's.
@@ -59,17 +62,59 @@ export default async function AccountingPage({
     canReadBooks ? api.accountingSummary(propertyId, year, month, basis) : Promise.resolve(null),
   ]);
 
+  /** 1.8M THB, in satang. Warned about from 70% so there is time to act. */
+  const VAT_THRESHOLD_MINOR = 180_000_000;
+  const yearToDate =
+    canReadBooks && settings && !settings.vatRegistered
+      ? await api.profitLoss(propertyId, `${String(year)}-01-01`, monthEnd, 'ACCRUAL')
+      : null;
+  const vatWarning =
+    yearToDate && yearToDate.revenue.total.amount > VAT_THRESHOLD_MINOR * 0.7
+      ? formatMoney(yearToDate.revenue.total.amount, currency, locale)
+      : null;
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
-        <p className="text-sm text-stone-500">{t('subtitle')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-ink-900">{t('title')}</h1>
+          <p className="text-sm text-stone-500">{t('subtitle')}</p>
+        </div>
+        {canEditSettings ? (
+          <Link
+            href={`/properties/${propertyId}/accounting/settings`}
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70"
+          >
+            {t('openSettings')}
+          </Link>
+        ) : null}
       </div>
 
       {/* The line that keeps this a bookkeeping aid rather than a tax filing. */}
       {canReadBooks ? (
         <p className="rounded-xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-ink-800">
           {t('worksheetNotice')}
+        </p>
+      ) : null}
+
+      {/*
+       * VAT registration becomes compulsory past 1.8M THB of turnover in a
+       * year. Driven by the revenue the system already holds rather than by a
+       * number the owner typed at sign-up: a self-reported figure is stale the
+       * month after it is entered, and this is a deadline rather than a
+       * preference. Shown from 70% so there is time to act, not on the day.
+       */}
+      {vatWarning ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {t('vatThresholdWarning', { amount: vatWarning })}{' '}
+          {canEditSettings ? (
+            <Link
+              href={`/properties/${propertyId}/accounting/settings`}
+              className="font-medium underline"
+            >
+              {t('openSettings')}
+            </Link>
+          ) : null}
         </p>
       ) : null}
 
@@ -142,7 +187,6 @@ async function ProfitLossTable({
 }) {
   const t = await getTranslations('accounting');
   const { profitLoss: pl, currency } = summary;
-  const { formatMoney } = await import('@/lib/dates');
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
