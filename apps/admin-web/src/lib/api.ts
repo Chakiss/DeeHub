@@ -106,11 +106,32 @@ export interface InventoryGrid {
   roomTypes: InventoryRow[];
 }
 
+/** How a booking arrived: the category. OTA and TRAVEL_AGENT ones also name which. */
+export const RESERVATION_SOURCES = [
+  'WALK_IN',
+  'PHONE',
+  'EMAIL',
+  'DIRECT',
+  'OTA',
+  'TRAVEL_AGENT',
+] as const;
+export type ReservationSource = (typeof RESERVATION_SOURCES)[number];
+
+/** An OTA or agent a property takes bookings from — a label, not a connector. */
+export interface BookingSource {
+  id: string;
+  name: string;
+  kind: 'OTA' | 'TRAVEL_AGENT';
+  channelType: string | null;
+  isActive: boolean;
+}
+
 export interface ReservationListItem {
   id: string;
   code: string;
   status: string;
   source: string;
+  bookingSource: { id: string; name: string } | null;
   bookerName: string;
   checkIn: string | null;
   checkOut: string | null;
@@ -134,6 +155,7 @@ export interface ReservationDetail {
   version: number;
   currency: string;
   source: string;
+  bookingSource: { id: string; name: string; kind: string } | null;
   bookerName: string;
   bookerEmail: string | null;
   bookerPhone: string | null;
@@ -167,7 +189,9 @@ export interface ReservationDetail {
 
 /** Mirrors the API's create schema (api-spec.md §6.5). One stay = one room unit. */
 export interface CreateReservationInput {
-  source: 'DIRECT' | 'OTA' | 'WALK_IN' | 'PHONE' | 'EMAIL';
+  source: ReservationSource;
+  /** Which OTA or agent; required by the API for OTA and TRAVEL_AGENT. */
+  bookingSourceId?: string;
   status?: 'PENDING' | 'CONFIRMED';
   booker: { name: string; email?: string; phone?: string };
   stays: {
@@ -1095,6 +1119,33 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
+
+  bookingSources: (propertyId: string) =>
+    request<{ items: BookingSource[] }>(`/properties/${propertyId}/booking-sources`).then(
+      (body) => body.items,
+    ),
+
+  createBookingSource: (propertyId: string, input: { name: string; kind: 'OTA' | 'TRAVEL_AGENT' }) =>
+    request<BookingSource>(`/properties/${propertyId}/booking-sources`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateBookingSource: (
+    propertyId: string,
+    sourceId: string,
+    input: { name?: string; isActive?: boolean },
+  ) =>
+    request<BookingSource>(`/properties/${propertyId}/booking-sources/${sourceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  addDefaultBookingSources: (propertyId: string) =>
+    request<{ items: BookingSource[] }>(`/properties/${propertyId}/booking-sources/defaults`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }).then((body) => body.items),
 
   assignableRooms: (propertyId: string, checkIn: string, checkOut: string) =>
     request<{ items: AssignableRoom[] }>(

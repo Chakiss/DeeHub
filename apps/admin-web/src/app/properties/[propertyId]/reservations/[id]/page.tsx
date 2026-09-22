@@ -89,8 +89,11 @@ export default async function ReservationDetailPage({
           >
             {reservation.status.replace('_', ' ').toLowerCase()}
           </span>
-          <span className="text-xs uppercase tracking-wide text-stone-400">
-            {reservation.source}
+          <span className="text-xs text-stone-500">
+            {t.has(`source${reservation.source}`)
+              ? t(`source${reservation.source}`)
+              : reservation.source}
+            {reservation.bookingSource && ` · ${reservation.bookingSource.name}`}
           </span>
         </div>
       </div>

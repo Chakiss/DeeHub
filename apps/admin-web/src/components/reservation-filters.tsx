@@ -17,17 +17,23 @@ export function ReservationFilters({
   allStatusesLabel,
   defaultQuery,
   defaultStatus,
+  defaultSource,
+  allSourcesLabel,
+  sourceOptions,
 }: {
   searchPlaceholder: string;
   allStatusesLabel: string;
   defaultQuery: string;
   defaultStatus: string;
+  defaultSource: string;
+  allSourcesLabel: string;
+  sourceOptions: { value: string; label: string }[];
 }) {
   const router = useRouter();
   const params = useSearchParams();
   const [query, setQuery] = useState(defaultQuery);
 
-  function apply(next: { q?: string; status?: string }) {
+  function apply(next: { q?: string; status?: string; source?: string }) {
     const search = new URLSearchParams(params.toString());
     for (const [key, value] of Object.entries(next)) {
       if (value) search.set(key, value);
@@ -61,6 +67,19 @@ export function ReservationFilters({
         {STATUSES.map((status) => (
           <option key={status} value={status}>
             {status.replace('_', ' ').toLowerCase()}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label={allSourcesLabel}
+        defaultValue={defaultSource}
+        onChange={(event) => apply({ source: event.target.value })}
+        className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink-700"
+      >
+        <option value="">{allSourcesLabel}</option>
+        {sourceOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>

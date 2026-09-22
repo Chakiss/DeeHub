@@ -280,7 +280,7 @@ describeIfDb('Booking sources', () => {
         .set(asDesk())
         .send({ name: 'Agoda', kind: 'OTA' })
         .expect(403);
-      expect(response.body.error.details.capability).toBe('property:update');
+      expect(response.body.error.details.capability).toBe('channel:update');
     });
 
     it('does not know another organization property', async () => {

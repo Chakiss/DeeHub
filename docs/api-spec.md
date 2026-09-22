@@ -220,8 +220,8 @@ the room would stay blocked for those nights forever.
 | `POST`  | `/properties/{id}/booking-sources/defaults`         | add whichever of the usual OTAs are not listed yet         |
 | `PATCH` | `/properties/{id}/booking-sources/{sourceId}`       | rename, or retire with `isActive: false`                    |
 
-Reading rides on `property:read`; writing is setup work and rides on
-`property:update`. No delete and no changing a kind: reservations point at
+Reading rides on `property:read`; writing is commercial setup and rides on
+`channel:update`, which a manager holds and a receptionist does not. No delete and no changing a kind: reservations point at
 these and report by them (ADR-0009). Names are unique per property ignoring
 case; a duplicate is a 409.
 

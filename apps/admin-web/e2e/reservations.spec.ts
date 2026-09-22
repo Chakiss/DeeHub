@@ -117,8 +117,9 @@ test.describe('reservations', () => {
     // different result set and skip rows.
     //
     // Scoped to the page body: the header carries a language switcher, so a
-    // bare select matches two things.
-    await page.getByRole('main').getByRole('combobox').selectOption('CONFIRMED');
+    // bare select matches two things — and the filters row has two of its
+    // own (status, then source).
+    await page.getByRole('main').getByRole('combobox').first().selectOption('CONFIRMED');
     await expect(page).toHaveURL(/status=CONFIRMED/);
     await expect(page).not.toHaveURL(/cursor=/);
   });

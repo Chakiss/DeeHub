@@ -12,10 +12,11 @@ export default async function NewReservationPage({
   const { propertyId } = await params;
   const t = await getTranslations('reservations');
 
-  const [properties, roomTypes, ratePlans, rooms] = await Promise.all([
+  const [properties, roomTypes, ratePlans, bookingSources, rooms] = await Promise.all([
     api.properties(),
     api.roomTypes(propertyId),
     api.ratePlans(propertyId),
+    api.bookingSources(propertyId),
     // Only to know whether a room picker makes sense here. Someone who may
     // take bookings but not read the room list simply gets no picker.
     api.rooms(propertyId).catch(() => []),
@@ -44,6 +45,7 @@ export default async function NewReservationPage({
         roomTypes={roomTypes.filter((roomType) => roomType.isActive)}
         ratePlans={ratePlans}
         hasRooms={rooms.some((room) => room.isActive)}
+        bookingSources={bookingSources.filter((source) => source.isActive)}
       />
     </div>
   );

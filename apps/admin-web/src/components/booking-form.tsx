@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import type {
   AssignableRoom,
+  BookingSource,
   CreateReservationInput,
   InventoryGrid,
   RatePlan,
@@ -17,7 +18,27 @@ import {
 } from '@/app/properties/[propertyId]/reservations/actions';
 import { formatMoney } from '@/lib/dates';
 
-const SOURCES = ['WALK_IN', 'PHONE', 'EMAIL', 'DIRECT'] as const;
+/** The categories that stand alone. OTAs and agents come from the property's list. */
+const PLAIN_SOURCES = ['WALK_IN', 'PHONE', 'EMAIL', 'DIRECT'] as const;
+
+/**
+ * One select for "how did this booking arrive". A plain category is its own
+ * value; an OTA or agent is `src:<id>` and sets both the category and which
+ * one. Two questions in one control, because on a phone one control is what
+ * fits, and because the desk thinks "Agoda", not "OTA, then Agoda".
+ */
+function sourceValue(choice: string, sources: BookingSource[]) {
+  if (choice.startsWith('src:')) {
+    const source = sources.find((candidate) => candidate.id === choice.slice(4));
+    if (source) {
+      return {
+        source: source.kind as CreateReservationInput['source'],
+        bookingSourceId: source.id,
+      };
+    }
+  }
+  return { source: choice as CreateReservationInput['source'] };
+}
 
 interface StayDraft {
   key: string;
@@ -48,12 +69,15 @@ export function BookingForm({
   roomTypes,
   ratePlans,
   hasRooms,
+  bookingSources,
 }: {
   propertyId: string;
   currency: string;
   today: string;
   roomTypes: RoomType[];
   ratePlans: RatePlan[];
+  /** The property's OTAs and agents, active ones only. */
+  bookingSources: BookingSource[];
   /**
    * Whether the property has physical rooms at all. Without any, a room
    * picker saying "none free" would be a lie about the wrong thing.
@@ -79,7 +103,7 @@ export function BookingForm({
 
   const [stays, setStays] = useState<StayDraft[]>(() => [newStay(roomTypes, plansFor)]);
   const [booker, setBooker] = useState({ name: '', email: '', phone: '' });
-  const [source, setSource] = useState<(typeof SOURCES)[number]>('WALK_IN');
+  const [sourceChoice, setSourceChoice] = useState<string>('WALK_IN');
   const [specialRequests, setSpecialRequests] = useState('');
 
   const [grid, setGrid] = useState<InventoryGrid | null>(null);
@@ -199,7 +223,7 @@ export function BookingForm({
     }
 
     const input: CreateReservationInput = {
-      source,
+      ...sourceValue(sourceChoice, bookingSources),
       status: 'CONFIRMED',
       booker: {
         name: booker.name.trim(),
@@ -417,15 +441,37 @@ export function BookingForm({
             </Labelled>
             <Labelled label={t('sourceLabel')}>
               <select
-                value={source}
-                onChange={(event) => setSource(event.target.value as (typeof SOURCES)[number])}
+                value={sourceChoice}
+                onChange={(event) => setSourceChoice(event.target.value)}
                 className={inputClass}
               >
-                {SOURCES.map((option) => (
+                {PLAIN_SOURCES.map((option) => (
                   <option key={option} value={option}>
                     {t(`source${option}`)}
                   </option>
                 ))}
+                {bookingSources.some((source) => source.kind === 'OTA') && (
+                  <optgroup label={t('sourceGroupOta')}>
+                    {bookingSources
+                      .filter((source) => source.kind === 'OTA')
+                      .map((source) => (
+                        <option key={source.id} value={`src:${source.id}`}>
+                          {source.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+                {bookingSources.some((source) => source.kind === 'TRAVEL_AGENT') && (
+                  <optgroup label={t('sourceGroupAgent')}>
+                    {bookingSources
+                      .filter((source) => source.kind === 'TRAVEL_AGENT')
+                      .map((source) => (
+                        <option key={source.id} value={`src:${source.id}`}>
+                          {source.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
               </select>
             </Labelled>
             <Labelled label={t('bookerEmail')}>

@@ -32,10 +32,11 @@ type CreateBody = z.infer<typeof createSchema>;
 type UpdateBody = z.infer<typeof updateSchema>;
 
 /**
- * Where bookings come from, per property. Setup rather than front-desk work,
- * so writes ride on `property:update`; reading the list is part of taking a
- * booking and rides on `property:read`, which everyone who can see the
- * property has.
+ * Where bookings come from, per property. Commercial setup rather than
+ * front-desk work — the same hands that configure channels and rate plans —
+ * so writes ride on `channel:update`, which a property manager holds and a
+ * receptionist does not. Reading the list is part of taking a booking and
+ * rides on `property:read`, which everyone who can see the property has.
  */
 @ApiTags('booking-sources')
 @Controller('properties/:propertyId/booking-sources')
@@ -55,7 +56,7 @@ export class BookingSourcesController {
   }
 
   @Post()
-  @RequireCapability('property:update')
+  @RequireCapability('channel:update')
   @ApiOperation({ summary: 'Add a booking source' })
   async create(
     @Param('propertyId') propertyId: string,
@@ -66,7 +67,7 @@ export class BookingSourcesController {
   }
 
   @Post('defaults')
-  @RequireCapability('property:update')
+  @RequireCapability('channel:update')
   @ApiOperation({ summary: 'Add the usual OTAs that are not yet listed' })
   async addDefaults(@Param('propertyId') propertyId: string, @Req() request: AuthenticatedRequest) {
     const rows = await this.manage.addDefaults(propertyId, actorFrom(request));
@@ -76,7 +77,7 @@ export class BookingSourcesController {
   // No DELETE: reservations point at these. isActive: false retires one and
   // keeps every booking that named it reportable.
   @Patch(':sourceId')
-  @RequireCapability('property:update')
+  @RequireCapability('channel:update')
   @ApiOperation({ summary: 'Rename a booking source, or retire it' })
   async update(
     @Param('propertyId') propertyId: string,

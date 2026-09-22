@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { api } from '@/lib/api';
+import { RESERVATION_SOURCES, api } from '@/lib/api';
 import { formatMoney } from '@/lib/dates';
 import { ReservationFilters } from '@/components/reservation-filters';
 
@@ -19,16 +19,17 @@ export default async function ReservationsPage({
   searchParams,
 }: {
   params: Promise<{ propertyId: string }>;
-  searchParams: Promise<{ q?: string; status?: string; cursor?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; source?: string; cursor?: string }>;
 }) {
   const { propertyId } = await params;
-  const { q, status, cursor } = await searchParams;
+  const { q, status, source, cursor } = await searchParams;
   const t = await getTranslations('reservations');
 
   const [list, me] = await Promise.all([
     api.reservations(propertyId, {
       ...(q ? { q } : {}),
       ...(status ? { status } : {}),
+      ...(source ? { source } : {}),
       ...(cursor ? { cursor } : {}),
     }),
     api.me(),
@@ -56,6 +57,12 @@ export default async function ReservationsPage({
         allStatusesLabel={t('allStatuses')}
         defaultQuery={q ?? ''}
         defaultStatus={status ?? ''}
+        defaultSource={source ?? ''}
+        allSourcesLabel={t('allSources')}
+        sourceOptions={RESERVATION_SOURCES.map((value) => ({
+          value,
+          label: t(`source${value}`),
+        }))}
       />
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
@@ -111,8 +118,13 @@ export default async function ReservationsPage({
                     {reservation.status.replace('_', ' ').toLowerCase()}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-stone-400">
-                  {reservation.source}
+                <td className="px-4 py-2.5 text-xs text-stone-500">
+                  {t.has(`source${reservation.source}`)
+                    ? t(`source${reservation.source}`)
+                    : reservation.source}
+                  {reservation.bookingSource && (
+                    <span className="text-ink-700"> · {reservation.bookingSource.name}</span>
+                  )}
                 </td>
                 <td className="tabular px-4 py-2.5 text-right font-medium text-ink-800">
                   {formatMoney(reservation.total.amount, reservation.total.currency)}
@@ -126,7 +138,7 @@ export default async function ReservationsPage({
       {list.pageInfo.hasMore && list.pageInfo.nextCursor && (
         <div className="flex justify-center">
           <Link
-            href={buildHref(propertyId, { q, status, cursor: list.pageInfo.nextCursor })}
+            href={buildHref(propertyId, { q, status, source, cursor: list.pageInfo.nextCursor })}
             className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm text-ink-700 hover:bg-sunk/70"
           >
             {t('loadMore')}
@@ -139,11 +151,12 @@ export default async function ReservationsPage({
 
 function buildHref(
   propertyId: string,
-  params: { q?: string; status?: string; cursor?: string },
+  params: { q?: string; status?: string; source?: string; cursor?: string },
 ): string {
   const query = new URLSearchParams();
   if (params.q) query.set('q', params.q);
   if (params.status) query.set('status', params.status);
+  if (params.source) query.set('source', params.source);
   if (params.cursor) query.set('cursor', params.cursor);
   return `/properties/${propertyId}/reservations?${query.toString()}`;
 }
