@@ -178,6 +178,8 @@ export interface CreateReservationInput {
     adults: number;
     children?: number;
     guestName?: string;
+    /** Put this stay in a room now. The API refuses if it is taken. */
+    roomId?: string;
   }[];
   specialRequests?: string;
   guestId?: string;
@@ -441,6 +443,16 @@ export interface Room {
   housekeepingStatus: string;
   notes: string | null;
   isActive: boolean;
+}
+
+/** A room that could take a guest for a range of nights (advisory). */
+export interface AssignableRoom {
+  roomId: string;
+  roomNumber: string;
+  floor: string | null;
+  roomTypeId: string;
+  roomTypeName: string;
+  housekeepingStatus: string;
 }
 
 export interface StayViewOccupancy {
@@ -1083,6 +1095,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
+
+  assignableRooms: (propertyId: string, checkIn: string, checkOut: string) =>
+    request<{ items: AssignableRoom[] }>(
+      `/properties/${propertyId}/rooms/assignable?checkIn=${checkIn}&checkOut=${checkOut}`,
+    ),
 
   assignRoom: (propertyId: string, stayId: string, roomId: string | null) =>
     request<{ assignedRoomId: string | null }>(`/properties/${propertyId}/stays/${stayId}/room`, {

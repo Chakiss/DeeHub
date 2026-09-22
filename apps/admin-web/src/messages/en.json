@@ -221,7 +221,19 @@
     "earlyWarning": "Putting them back offers the room on every channel within seconds. Take the key back first.",
     "earlyRelease": "Check out and put the room back on sale",
     "earlyKeep": "Check out and hold the room",
-    "earlyDismiss": "Not yet"
+    "earlyDismiss": "Not yet",
+    "roomNumberOptional": "Room number (optional)",
+    "assignLater": "Assign later",
+    "upgradeGroup": "Other room types (upgrade)",
+    "noRoomsFree": "No room is free for these nights",
+    "roomDirty": "not yet cleaned",
+    "changeRoom": "Change room",
+    "assignRoom": "Assign room",
+    "releaseRoom": "Release room",
+    "saveRoom": "Save",
+    "keepRoom": "Keep",
+    "currentRoom": "Current room",
+    "roomLocked": "The room can no longer be changed for a {status} booking."
   },
   "folio": {
     "title": "Guest account",

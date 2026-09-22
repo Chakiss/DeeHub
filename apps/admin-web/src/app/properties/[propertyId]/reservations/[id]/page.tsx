@@ -7,6 +7,7 @@ import { ReservationActions } from '@/components/reservation-actions';
 import { StayEditor } from '@/components/stay-editor';
 import { StayDeparture } from '@/components/stay-departure';
 import { FolioPanel } from '@/components/folio-panel';
+import { StayRoomPicker } from '@/components/stay-room-picker';
 
 /** Bookings a modification can still take apart and re-hold. */
 const MODIFIABLE = ['PENDING', 'CONFIRMED'];
@@ -47,6 +48,9 @@ export default async function ReservationDetailPage({
   const me = await api.me();
   const capabilities = me.capabilities;
   const canModify = capabilities.includes('reservation:modify');
+  // Assignment is front-desk work and rides on the same capability the stay
+  // view uses for it.
+  const canAssign = capabilities.includes('reservation:update');
   const [roomTypes, ratePlans, properties] = canModify
     ? await Promise.all([api.roomTypes(propertyId), api.ratePlans(propertyId), api.properties()])
     : [[], [], []];
@@ -140,10 +144,23 @@ export default async function ReservationDetailPage({
                         children: stay.children,
                       })}
                     />
-                    <Field
-                      label={t('assignedRoom')}
-                      value={stay.assignedRoomNumber ?? t('notAssigned')}
-                    />
+                    {canAssign ? (
+                      <StayRoomPicker
+                        propertyId={propertyId}
+                        stayId={stay.id}
+                        roomTypeId={stay.roomTypeId}
+                        checkIn={stay.checkIn}
+                        checkOut={stay.checkOut}
+                        assignedRoomId={stay.assignedRoomId}
+                        assignedRoomNumber={stay.assignedRoomNumber}
+                        status={reservation.status}
+                      />
+                    ) : (
+                      <Field
+                        label={t('assignedRoom')}
+                        value={stay.assignedRoomNumber ?? t('notAssigned')}
+                      />
+                    )}
                     {stay.guestName && <Field label={t('guestName')} value={stay.guestName} />}
                   </dl>
 
