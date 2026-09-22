@@ -129,7 +129,10 @@ export class ManageBookingSourcesUseCase {
    * connector — is left alone, active or not. What a property retired stays
    * retired.
    */
-  async addDefaults(propertyId: string, actor: AuditActor): Promise<readonly BookingSourceRecord[]> {
+  async addDefaults(
+    propertyId: string,
+    actor: AuditActor,
+  ): Promise<readonly BookingSourceRecord[]> {
     const organizationId = requireOrganizationId();
     await this.requireProperty(propertyId);
 

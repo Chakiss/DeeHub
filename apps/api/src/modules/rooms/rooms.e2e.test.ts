@@ -772,9 +772,9 @@ describeIfDb('Rooms and stay view', () => {
         .send({ version: 0 })
         .expect(200);
 
-      expect(numbersIn((await assignable('2028-04-02', '2028-04-03').expect(200)).body)).toEqual(
-        ['801'],
-      );
+      expect(numbersIn((await assignable('2028-04-02', '2028-04-03').expect(200)).body)).toEqual([
+        '801',
+      ]);
     });
 
     it('rejects an inverted range', async () => {

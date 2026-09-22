@@ -618,7 +618,11 @@ function RoomSelect({
     <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
       <option value="">{rooms.length === 0 ? t('noRoomsFree') : t('assignLater')}</option>
       {sameType.map((room) => (
-        <option key={room.roomId} value={room.roomId} disabled={takenElsewhere.includes(room.roomId)}>
+        <option
+          key={room.roomId}
+          value={room.roomId}
+          disabled={takenElsewhere.includes(room.roomId)}
+        >
           {label(room)}
         </option>
       ))}

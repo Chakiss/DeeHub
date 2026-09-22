@@ -260,131 +260,131 @@ export function StayViewGrid({
                 </th>
               </tr>,
               ...(collapsed.has(group.roomTypeId) ? [] : group.rooms).map((room) => (
-              <tr key={room.roomId} className="group">
-                <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-3 py-2 text-left font-medium text-ink-800 group-hover:bg-sunk/70">
-                  <span className="flex items-center gap-2">
-                    <span
-                      aria-label={housekeeping(room.housekeepingStatus)}
-                      title={housekeeping(room.housekeepingStatus)}
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-stone-300'
-                      }`}
-                    />
-                    <span className="min-w-0">
-                      <span className="block truncate">
-                        {room.roomNumber}
-                        {!room.isActive && (
-                          <span className="ml-1 text-xs font-normal text-rose-600">
-                            {t('outOfService')}
-                          </span>
-                        )}
-                      </span>
-                      <span className="block truncate text-xs font-normal text-stone-400">
-                        {room.roomTypeName}
+                <tr key={room.roomId} className="group">
+                  <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-3 py-2 text-left font-medium text-ink-800 group-hover:bg-sunk/70">
+                    <span className="flex items-center gap-2">
+                      <span
+                        aria-label={housekeeping(room.housekeepingStatus)}
+                        title={housekeeping(room.housekeepingStatus)}
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-stone-300'
+                        }`}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate">
+                          {room.roomNumber}
+                          {!room.isActive && (
+                            <span className="ml-1 text-xs font-normal text-rose-600">
+                              {t('outOfService')}
+                            </span>
+                          )}
+                        </span>
+                        <span className="block truncate text-xs font-normal text-stone-400">
+                          {room.roomTypeName}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </th>
+                  </th>
 
-                {/* One cell per night, with the bar drawn on its first night.
+                  {/* One cell per night, with the bar drawn on its first night.
                     A table keeps the columns aligned with the header without
                     measuring anything in JavaScript. */}
-                {view.dates.map((date) => {
-                  const starting = room.stays.find((stay) => stay.checkIn === date);
-                  const covered = room.stays.find(
-                    (stay) => stay.checkIn < date && stay.checkOut > date,
-                  );
+                  {view.dates.map((date) => {
+                    const starting = room.stays.find((stay) => stay.checkIn === date);
+                    const covered = room.stays.find(
+                      (stay) => stay.checkIn < date && stay.checkOut > date,
+                    );
 
-                  if (covered) return null;
+                    if (covered) return null;
 
-                  if (!starting) {
+                    if (!starting) {
+                      return (
+                        <td
+                          key={date}
+                          className={`border-b border-stone-100 px-1 py-2 ${
+                            isWeekend(date) ? 'bg-sunk/60' : ''
+                          }`}
+                        />
+                      );
+                    }
+
+                    // Clamp to the window: a stay running past the edge draws to
+                    // the edge rather than off it.
+                    const start = index.get(date) ?? 0;
+                    const end = index.get(starting.checkOut) ?? view.dates.length;
+                    const span = Math.max(1, end - start);
+
                     return (
                       <td
                         key={date}
-                        className={`border-b border-stone-100 px-1 py-2 ${
-                          isWeekend(date) ? 'bg-sunk/60' : ''
-                        }`}
-                      />
-                    );
-                  }
-
-                  // Clamp to the window: a stay running past the edge draws to
-                  // the edge rather than off it.
-                  const start = index.get(date) ?? 0;
-                  const end = index.get(starting.checkOut) ?? view.dates.length;
-                  const span = Math.max(1, end - start);
-
-                  return (
-                    <td
-                      key={date}
-                      colSpan={span}
-                      className="border-b border-stone-100 px-0.5 py-1.5"
-                    >
-                      <span
-                        title={`${starting.reservationCode} · ${starting.checkIn} → ${starting.checkOut}`}
-                        className={`flex items-center gap-1 truncate rounded px-2 py-1 text-xs font-medium ${
-                          starting.status === 'CHECKED_OUT'
-                            ? 'bg-sunk text-stone-500'
-                            : starting.status === 'CHECKED_IN'
-                              ? 'bg-emerald-100 text-emerald-900'
-                              : starting.upgraded
-                                ? 'bg-violet-100 text-violet-800'
-                                : 'bg-brand-100 text-brand-800'
-                        }`}
+                        colSpan={span}
+                        className="border-b border-stone-100 px-0.5 py-1.5"
                       >
-                        <span className="truncate">
-                          {starting.guestName ?? starting.reservationCode}
-                        </span>
-                        {starting.upgraded && (
-                          <span className="shrink-0 text-[10px] uppercase">{t('upgraded')}</span>
-                        )}
-                        {canAssign && (
-                          <span className="ml-auto flex shrink-0 items-center gap-1">
-                            {/* The action the front desk needs on this row,
-                                driven by where the booking actually is. */}
-                            {starting.status === 'CONFIRMED' && (
-                              <button
-                                type="button"
-                                disabled={pending}
-                                onClick={() => arrive(starting)}
-                                className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-white disabled:opacity-60"
-                              >
-                                {t('checkIn')}
-                              </button>
-                            )}
-                            {starting.status === 'CHECKED_IN' && (
-                              <button
-                                type="button"
-                                disabled={pending}
-                                onClick={() => depart(starting)}
-                                className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-white disabled:opacity-60"
-                              >
-                                {t('checkOut')}
-                              </button>
-                            )}
-                            {starting.status === 'CHECKED_OUT' && (
-                              <span className="text-[10px] text-stone-500">{t('departed')}</span>
-                            )}
-                            {/* Releasing a room only makes sense before arrival;
-                                afterwards the assignment is history. */}
-                            {starting.status === 'CONFIRMED' && (
-                              <button
-                                type="button"
-                                disabled={pending}
-                                onClick={() => release(starting.stayId)}
-                                aria-label={`${t('release')} ${starting.reservationCode}`}
-                                className="rounded px-1 text-[10px] text-stone-500 hover:bg-white/60 disabled:opacity-60"
-                              >
-                                ✕
-                              </button>
-                            )}
+                        <span
+                          title={`${starting.reservationCode} · ${starting.checkIn} → ${starting.checkOut}`}
+                          className={`flex items-center gap-1 truncate rounded px-2 py-1 text-xs font-medium ${
+                            starting.status === 'CHECKED_OUT'
+                              ? 'bg-sunk text-stone-500'
+                              : starting.status === 'CHECKED_IN'
+                                ? 'bg-emerald-100 text-emerald-900'
+                                : starting.upgraded
+                                  ? 'bg-violet-100 text-violet-800'
+                                  : 'bg-brand-100 text-brand-800'
+                          }`}
+                        >
+                          <span className="truncate">
+                            {starting.guestName ?? starting.reservationCode}
                           </span>
-                        )}
-                      </span>
-                    </td>
-                  );
-                })}
-              </tr>
+                          {starting.upgraded && (
+                            <span className="shrink-0 text-[10px] uppercase">{t('upgraded')}</span>
+                          )}
+                          {canAssign && (
+                            <span className="ml-auto flex shrink-0 items-center gap-1">
+                              {/* The action the front desk needs on this row,
+                                driven by where the booking actually is. */}
+                              {starting.status === 'CONFIRMED' && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => arrive(starting)}
+                                  className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-white disabled:opacity-60"
+                                >
+                                  {t('checkIn')}
+                                </button>
+                              )}
+                              {starting.status === 'CHECKED_IN' && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => depart(starting)}
+                                  className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-white disabled:opacity-60"
+                                >
+                                  {t('checkOut')}
+                                </button>
+                              )}
+                              {starting.status === 'CHECKED_OUT' && (
+                                <span className="text-[10px] text-stone-500">{t('departed')}</span>
+                              )}
+                              {/* Releasing a room only makes sense before arrival;
+                                afterwards the assignment is history. */}
+                              {starting.status === 'CONFIRMED' && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => release(starting.stayId)}
+                                  aria-label={`${t('release')} ${starting.reservationCode}`}
+                                  className="rounded px-1 text-[10px] text-stone-500 hover:bg-white/60 disabled:opacity-60"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
               )),
             ])}
           </tbody>
@@ -437,9 +437,7 @@ function AssignDialog({
       if (!result.ok) setError(result.error?.message ?? t('failed'));
       setRooms(free);
       setRoomId(
-        free.find((room) => room.roomTypeId === stay.roomTypeId)?.roomId ??
-          free[0]?.roomId ??
-          '',
+        free.find((room) => room.roomTypeId === stay.roomTypeId)?.roomId ?? free[0]?.roomId ?? '',
       );
     });
     return () => {

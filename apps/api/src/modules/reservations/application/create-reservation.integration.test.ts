@@ -479,7 +479,14 @@ describeIfDb('booking transaction', () => {
         createReservation.execute(
           oneStay({
             stays: [
-              { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+              {
+                roomTypeId,
+                ratePlanId,
+                checkIn: CHECK_IN,
+                checkOut: CHECK_OUT,
+                adults: 2,
+                roomId: room101,
+              },
             ],
           }),
           actor,
@@ -509,7 +516,14 @@ describeIfDb('booking transaction', () => {
         createReservation.execute(
           oneStay({
             stays: [
-              { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+              {
+                roomTypeId,
+                ratePlanId,
+                checkIn: CHECK_IN,
+                checkOut: CHECK_OUT,
+                adults: 2,
+                roomId: room101,
+              },
             ],
           }),
           actor,
@@ -551,7 +565,14 @@ describeIfDb('booking transaction', () => {
         createReservation.execute(
           oneStay({
             stays: [
-              { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+              {
+                roomTypeId,
+                ratePlanId,
+                checkIn: CHECK_IN,
+                checkOut: CHECK_OUT,
+                adults: 2,
+                roomId: room101,
+              },
             ],
           }),
           actor,
@@ -583,8 +604,22 @@ describeIfDb('booking transaction', () => {
           createReservation.execute(
             oneStay({
               stays: [
-                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
-                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+                {
+                  roomTypeId,
+                  ratePlanId,
+                  checkIn: CHECK_IN,
+                  checkOut: CHECK_OUT,
+                  adults: 2,
+                  roomId: room101,
+                },
+                {
+                  roomTypeId,
+                  ratePlanId,
+                  checkIn: CHECK_IN,
+                  checkOut: CHECK_OUT,
+                  adults: 2,
+                  roomId: room101,
+                },
               ],
             }),
             actor,
@@ -610,13 +645,23 @@ describeIfDb('booking transaction', () => {
           createReservation.execute(
             oneStay({
               stays: [
-                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room102 },
+                {
+                  roomTypeId,
+                  ratePlanId,
+                  checkIn: CHECK_IN,
+                  checkOut: CHECK_OUT,
+                  adults: 2,
+                  roomId: room102,
+                },
               ],
             }),
             actor,
           ),
         ),
-      ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', message: expect.stringMatching(/out of order/i) });
+      ).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+        message: expect.stringMatching(/out of order/i),
+      });
     });
 
     it('does not know a room from another tenant', async () => {
@@ -625,7 +670,14 @@ describeIfDb('booking transaction', () => {
           createReservation.execute(
             oneStay({
               stays: [
-                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+                {
+                  roomTypeId,
+                  ratePlanId,
+                  checkIn: CHECK_IN,
+                  checkOut: CHECK_OUT,
+                  adults: 2,
+                  roomId: room101,
+                },
               ],
             }),
             actor,

@@ -196,7 +196,13 @@ test.describe('rooms and stay view', () => {
     await openForSale(request, token, '2030-09-01', '2030-09-06');
     const guest = `Clash ${Date.now().toString(36)}`;
     await book(request, token, guest, '2030-09-02', '2030-09-04');
-    const rival = await book(request, token, `Rival ${Date.now().toString(36)}`, '2030-09-02', '2030-09-04');
+    const rival = await book(
+      request,
+      token,
+      `Rival ${Date.now().toString(36)}`,
+      '2030-09-02',
+      '2030-09-04',
+    );
 
     const rooms = (await (
       await request.get(`${API}/properties/${data.propertyId}/rooms`, {

@@ -1133,7 +1133,10 @@ export const api = {
       (body) => body.items,
     ),
 
-  createBookingSource: (propertyId: string, input: { name: string; kind: 'OTA' | 'TRAVEL_AGENT' }) =>
+  createBookingSource: (
+    propertyId: string,
+    input: { name: string; kind: 'OTA' | 'TRAVEL_AGENT' },
+  ) =>
     request<BookingSource>(`/properties/${propertyId}/booking-sources`, {
       method: 'POST',
       body: JSON.stringify(input),

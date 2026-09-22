@@ -214,12 +214,12 @@ the room would stay blocked for those nights forever.
 
 ### Booking sources
 
-| Method  | Path                                                | Purpose                                                    |
-| ------- | --------------------------------------------------- | ---------------------------------------------------------- |
-| `GET`   | `/properties/{id}/booking-sources`                  | the OTAs and agents this property takes bookings from      |
-| `POST`  | `/properties/{id}/booking-sources`                  | add one: `{ name, kind: OTA \| TRAVEL_AGENT }`               |
-| `POST`  | `/properties/{id}/booking-sources/defaults`         | add whichever of the usual OTAs are not listed yet         |
-| `PATCH` | `/properties/{id}/booking-sources/{sourceId}`       | rename, or retire with `isActive: false`                    |
+| Method  | Path                                          | Purpose                                               |
+| ------- | --------------------------------------------- | ----------------------------------------------------- |
+| `GET`   | `/properties/{id}/booking-sources`            | the OTAs and agents this property takes bookings from |
+| `POST`  | `/properties/{id}/booking-sources`            | add one: `{ name, kind: OTA \| TRAVEL_AGENT }`        |
+| `POST`  | `/properties/{id}/booking-sources/defaults`   | add whichever of the usual OTAs are not listed yet    |
+| `PATCH` | `/properties/{id}/booking-sources/{sourceId}` | rename, or retire with `isActive: false`              |
 
 Reading rides on `property:read`; writing is commercial setup and rides on
 `channel:update`, which a manager holds and a receptionist does not. No delete and no changing a kind: reservations point at

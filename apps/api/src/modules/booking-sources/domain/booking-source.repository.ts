@@ -49,11 +49,7 @@ export const DEFAULT_BOOKING_SOURCES: readonly {
 
 export interface BookingSourceRepository {
   list(tx: Executor, propertyId: string): Promise<readonly BookingSourceRecord[]>;
-  findById(
-    tx: Executor,
-    propertyId: string,
-    sourceId: string,
-  ): Promise<BookingSourceRecord | null>;
+  findById(tx: Executor, propertyId: string, sourceId: string): Promise<BookingSourceRecord | null>;
   findByChannelType(
     tx: Executor,
     propertyId: string,

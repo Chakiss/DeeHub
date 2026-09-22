@@ -162,10 +162,7 @@ describeIfDb('Booking sources', () => {
     await pool.query('DELETE FROM reservation_stays WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM reservations WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM booking_sources WHERE organization_id = $1', [orgId]);
-    await pool.query(
-      `UPDATE inventory_days SET booked = 0 WHERE organization_id = $1`,
-      [orgId],
-    );
+    await pool.query(`UPDATE inventory_days SET booked = 0 WHERE organization_id = $1`, [orgId]);
   });
 
   async function addSource(name: string, kind = 'OTA'): Promise<string> {
@@ -181,9 +178,7 @@ describeIfDb('Booking sources', () => {
     return {
       source,
       booker: { name: 'Somchai Prasert' },
-      stays: [
-        { roomTypeId, ratePlanId, checkIn: '2029-03-01', checkOut: '2029-03-03', adults: 2 },
-      ],
+      stays: [{ roomTypeId, ratePlanId, checkIn: '2029-03-01', checkOut: '2029-03-03', adults: 2 }],
       ...extra,
     };
   }
@@ -245,7 +240,14 @@ describeIfDb('Booking sources', () => {
         (item) => item.name,
       );
       expect(names).toEqual(
-        expect.arrayContaining(['Agoda', 'Booking.com', 'Expedia', 'Trip.com', 'Airbnb', 'Traveloka']),
+        expect.arrayContaining([
+          'Agoda',
+          'Booking.com',
+          'Expedia',
+          'Trip.com',
+          'Airbnb',
+          'Traveloka',
+        ]),
       );
       expect(names).toHaveLength(6);
 
