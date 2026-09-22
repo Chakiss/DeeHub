@@ -504,7 +504,13 @@
     "arrivingToday": "เข้าพักวันนี้",
     "arrivals": "แขกเข้า",
     "departures": "แขกออก",
-    "nothingToday": "วันนี้ไม่มีแขกเข้าหรือออก"
+    "nothingToday": "วันนี้ไม่มีแขกเข้าหรือออก",
+    "roomsInType": "{count} ห้อง",
+    "needRoomInType": "รอจัดห้อง {count}",
+    "loadingRooms": "กำลังหาห้องว่าง…",
+    "noRoomsFree": "ไม่มีห้องว่างสำหรับคืนที่เลือก ปล่อยห้องอื่นก่อน หรือเปลี่ยนวัน",
+    "upgradeGroup": "ประเภทห้องอื่น (อัปเกรด)",
+    "dirty": "ยังไม่ได้ทำความสะอาด"
   },
   "reports": {
     "title": "ผลประกอบการ",

@@ -504,7 +504,13 @@
     "arrivingToday": "Arriving today",
     "arrivals": "Arrivals",
     "departures": "Departures",
-    "nothingToday": "Nothing arriving or leaving today."
+    "nothingToday": "Nothing arriving or leaving today.",
+    "roomsInType": "{count, plural, one {# room} other {# rooms}}",
+    "needRoomInType": "{count, plural, one {# needs a room} other {# need a room}}",
+    "loadingRooms": "Finding free rooms…",
+    "noRoomsFree": "No room is free for these nights. Release one, or change the dates.",
+    "upgradeGroup": "Other room types (upgrade)",
+    "dirty": "not yet cleaned"
   },
   "reports": {
     "title": "Performance",
