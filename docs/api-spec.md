@@ -166,6 +166,7 @@ takes effect immediately rather than after token expiry.
 | Method  | Path                                   | Purpose                                               |
 | ------- | -------------------------------------- | ----------------------------------------------------- |
 | `GET`   | `/properties/{id}/rooms`               | physical rooms, by floor then number                  |
+| `GET`   | `/properties/{id}/rooms/assignable`    | rooms free to assign for `?checkIn&checkOut`          |
 | `POST`  | `/properties/{id}/rooms`               | add a room                                            |
 | `PATCH` | `/properties/{id}/rooms/{roomId}`      | rename, take out of service, set housekeeping status  |
 | `PATCH` | `/properties/{id}/stays/{stayId}/room` | assign a booking to a room, or release it with `null` |
@@ -187,6 +188,21 @@ leaves a room somebody took OUT_OF_ORDER alone. It does NOT release inventory �
 the guest occupied those nights, and giving them back would make historical
 occupancy lie — and it does NOT clear the room assignment, because "who was in
 302 last Tuesday" is a question hotels ask.
+
+A booking can name its room when it is created — `roomId` on a stay in
+`POST /reservations` (§6.5) — which is the same assignment made inside the
+booking's own transaction. A room that turns out to be taken fails the whole
+booking with a 409 that names the room; nothing is half-written. The same room
+twice in one booking is a 422 that says so, rather than a clash with "another"
+booking.
+
+`GET rooms/assignable` lists the rooms that could take a guest for those
+nights: in service, not out of order, and not held by a live booking on any
+night in `[checkIn, checkOut)`. Dirty rooms are offered — they will be clean by
+arrival, and hiding them would block every same-day turnover. The list is
+advisory; two desks can be offered the same room and the write decides. It is
+NOT availability: it says which keys could be handed over, not how many rooms
+the property will sell (ADR-0002), and nothing in inventory reads it.
 
 Two bookings cannot hold the same room on overlapping nights, and that is
 enforced by an `EXCLUDE` constraint rather than a read-then-write — so it holds
@@ -779,6 +795,7 @@ List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
       "adults": 2,
       "children": 0,
       "guestName": "Somchai Prasert",
+      "roomId": "0192c...", // optional: put this stay in a room now (Phase 4)
     },
   ],
   "specialRequests": "High floor",
@@ -806,7 +823,7 @@ List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
       "checkOut": "2026-08-15",
       "adults": 2,
       "children": 0,
-      "assignedRoomId": null,
+      "assignedRoomId": "0192c...", // null when no room was named
       "subtotal": { "amount": 750000, "currency": "THB" },
       "nights": [{ "date": "2026-08-12", "amount": { "amount": 250000, "currency": "THB" } }],
     },

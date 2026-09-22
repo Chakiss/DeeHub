@@ -37,6 +37,8 @@ describeIfDb('booking transaction', () => {
   const otherRoomTypeId = crypto.randomUUID();
   const ratePlanId = crypto.randomUUID();
   const otherRatePlanId = crypto.randomUUID();
+  const room101 = crypto.randomUUID();
+  const room102 = crypto.randomUUID();
 
   const CHECK_IN = toIsoDate('2026-08-12');
   const CHECK_OUT = toIsoDate('2026-08-15');
@@ -101,6 +103,12 @@ describeIfDb('booking transaction', () => {
               ($5, $2, $3, $6, 'BAR-STD', 'BAR Standard')`,
       [ratePlanId, orgId, propertyId, roomTypeId, otherRatePlanId, otherRoomTypeId],
     );
+
+    await pool.query(
+      `INSERT INTO physical_rooms (id, organization_id, property_id, room_type_id, room_number)
+       VALUES ($1, $2, $3, $4, '101'), ($5, $2, $3, $4, '102')`,
+      [room101, orgId, propertyId, roomTypeId, room102],
+    );
   });
 
   afterAll(async () => {
@@ -115,6 +123,7 @@ describeIfDb('booking transaction', () => {
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_plans WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM physical_rooms WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM room_types WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM properties WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM organizations WHERE id = ANY($1)', [[orgId, otherOrgId]]);
@@ -135,6 +144,11 @@ describeIfDb('booking transaction', () => {
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM outbox_events WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM audit_logs WHERE organization_id = $1', [orgId]);
+    await pool.query(
+      `UPDATE physical_rooms SET housekeeping_status = 'CLEAN', is_active = true
+       WHERE organization_id = $1`,
+      [orgId],
+    );
 
     for (const rt of [roomTypeId, otherRoomTypeId]) {
       for (const date of HORIZON) {
@@ -442,6 +456,182 @@ describeIfDb('booking transaction', () => {
       await expect(
         runWithTenant(tenant(), () => createReservation.execute(oneStay({ stays: [] }), actor)),
       ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    });
+  });
+
+  /**
+   * A booking may name its room up front — the desk pointing at 101 for a
+   * walk-in. It is the same assignment the front desk makes later, made inside
+   * the booking's own transaction, so a room that turns out to be taken costs
+   * the whole booking rather than leaving one without a room.
+   */
+  describe('a room named at creation', () => {
+    async function assignedRoomOf(reservationId: string): Promise<string | null> {
+      const result = await pool.query<{ assigned_room_id: string | null }>(
+        'SELECT assigned_room_id FROM reservation_stays WHERE reservation_id = $1',
+        [reservationId],
+      );
+      return result.rows[0]?.assigned_room_id ?? null;
+    }
+
+    it('puts the stay in the room and says so in the audit trail', async () => {
+      const result = await runWithTenant(tenant(), () =>
+        createReservation.execute(
+          oneStay({
+            stays: [
+              { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+            ],
+          }),
+          actor,
+        ),
+      );
+
+      expect(result.stays[0]?.assignedRoomId).toBe(room101);
+      expect(await assignedRoomOf(result.id)).toBe(room101);
+
+      const audit = await pool.query<{ after: { stays: { roomNumber?: string }[] } }>(
+        "SELECT after FROM audit_logs WHERE action = 'reservation.created' AND entity_id = $1",
+        [result.id],
+      );
+      expect(audit.rows[0]?.after.stays[0]?.roomNumber).toBe('101');
+    });
+
+    it('leaves the stay without a room when none was named', async () => {
+      const result = await runWithTenant(tenant(), () =>
+        createReservation.execute(oneStay(), actor),
+      );
+      expect(result.stays[0]?.assignedRoomId).toBeNull();
+      expect(await assignedRoomOf(result.id)).toBeNull();
+    });
+
+    it('refuses a room already taken on any of the nights, and writes nothing', async () => {
+      await runWithTenant(tenant(), () =>
+        createReservation.execute(
+          oneStay({
+            stays: [
+              { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+            ],
+          }),
+          actor,
+        ),
+      );
+
+      await expect(
+        runWithTenant(tenant(), () =>
+          createReservation.execute(
+            oneStay({
+              stays: [
+                {
+                  roomTypeId,
+                  ratePlanId,
+                  checkIn: toIsoDate('2026-08-14'),
+                  checkOut: toIsoDate('2026-08-16'),
+                  adults: 2,
+                  roomId: room101,
+                },
+              ],
+            }),
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: 'CONFLICT', message: expect.stringContaining('101') });
+
+      // Only the first booking exists, and only its nights are held.
+      const count = await pool.query('SELECT 1 FROM reservations WHERE organization_id = $1', [
+        orgId,
+      ]);
+      expect(count.rowCount).toBe(1);
+      expect(await bookedOn('2026-08-15')).toBe(0);
+    });
+
+    // Half-open nights: leaving on the 15th and arriving on the 15th share a
+    // room without sharing a night.
+    it('allows a same-day turnover into the room', async () => {
+      await runWithTenant(tenant(), () =>
+        createReservation.execute(
+          oneStay({
+            stays: [
+              { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+            ],
+          }),
+          actor,
+        ),
+      );
+      const result = await runWithTenant(tenant(), () =>
+        createReservation.execute(
+          oneStay({
+            stays: [
+              {
+                roomTypeId,
+                ratePlanId,
+                checkIn: CHECK_OUT,
+                checkOut: toIsoDate('2026-08-16'),
+                adults: 2,
+                roomId: room101,
+              },
+            ],
+          }),
+          actor,
+        ),
+      );
+      expect(await assignedRoomOf(result.id)).toBe(room101);
+    });
+
+    it('refuses the same room for two stays in one booking, naming it', async () => {
+      await expect(
+        runWithTenant(tenant(), () =>
+          createReservation.execute(
+            oneStay({
+              stays: [
+                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+              ],
+            }),
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+        message: expect.stringContaining('101'),
+      });
+
+      for (const night of NIGHTS) {
+        expect(await bookedOn(night)).toBe(0);
+      }
+    });
+
+    it('refuses a room that is out of order', async () => {
+      await pool.query(
+        "UPDATE physical_rooms SET housekeeping_status = 'OUT_OF_ORDER' WHERE id = $1",
+        [room102],
+      );
+      await expect(
+        runWithTenant(tenant(), () =>
+          createReservation.execute(
+            oneStay({
+              stays: [
+                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room102 },
+              ],
+            }),
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', message: expect.stringMatching(/out of order/i) });
+    });
+
+    it('does not know a room from another tenant', async () => {
+      await expect(
+        runWithTenant(tenant(otherOrgId), () =>
+          createReservation.execute(
+            oneStay({
+              stays: [
+                { roomTypeId, ratePlanId, checkIn: CHECK_IN, checkOut: CHECK_OUT, adults: 2, roomId: room101 },
+              ],
+            }),
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
   });
 

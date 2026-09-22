@@ -31,6 +31,9 @@ const staySchema = z
     adults: z.number().int().min(1).max(20),
     children: z.number().int().min(0).max(20).optional(),
     guestName: z.string().max(200).optional(),
+    // The room to put this stay in, when the desk already knows. Optional: a
+    // booking can wait for a room until the guest arrives.
+    roomId: z.string().uuid().optional(),
   })
   .strict()
   // A stay must occupy at least one night. Caught here so the client gets a
@@ -223,6 +226,7 @@ export class ReservationsController {
           adults: stay.adults,
           ...(stay.children === undefined ? {} : { children: stay.children }),
           ...(stay.guestName === undefined ? {} : { guestName: stay.guestName }),
+          ...(stay.roomId === undefined ? {} : { roomId: stay.roomId }),
         })),
         ...(body.specialRequests ? { specialRequests: body.specialRequests } : {}),
         ...(body.channelId ? { channelId: body.channelId } : {}),
@@ -251,6 +255,7 @@ export class ReservationsController {
         adults: stay.adults,
         children: stay.children,
         guestName: stay.guestName,
+        assignedRoomId: stay.assignedRoomId,
         subtotal: { amount: stay.subtotalMinor, currency: result.currency },
         nights: stay.nights.map((night) => ({
           date: night.date,

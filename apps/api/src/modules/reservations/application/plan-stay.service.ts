@@ -265,6 +265,9 @@ export class PlanStayService {
         adults: input.adults,
         children,
         guestName: input.guestName ?? null,
+        // Planning prices and holds inventory; which room is a separate
+        // decision the caller makes, so it starts empty.
+        assignedRoomId: null,
         subtotalMinor: sum(nightPrices, property.currency).amount,
         nights: nightRecords,
       },

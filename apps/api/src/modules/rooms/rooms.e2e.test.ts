@@ -680,6 +680,108 @@ describeIfDb('Rooms and stay view', () => {
     });
   });
 
+  /**
+   * The list the booking form and the assignment dialog choose from. Advisory
+   * — the constraint still decides at the write — but it must never offer a
+   * room that cannot be taken, or hide one that can.
+   */
+  describe('assignable rooms', () => {
+    const assignable = (checkIn: string, checkOut: string) =>
+      request(app.getHttpServer())
+        .get(
+          `/api/v1/properties/${propertyId}/rooms/assignable?checkIn=${checkIn}&checkOut=${checkOut}`,
+        )
+        .set(auth());
+
+    const numbersIn = (body: { items: { roomNumber: string }[] }) =>
+      body.items.map((room) => room.roomNumber);
+
+    it('offers free rooms and hides one held on an overlapping night', async () => {
+      await createRoom({ roomNumber: '501' });
+      const taken = await createRoom({ roomNumber: '502' });
+      const { stayId } = await createStay('2028-01-03', '2028-01-06');
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId: taken })
+        .expect(200);
+
+      const overlapping = await assignable('2028-01-01', '2028-01-04').expect(200);
+      expect(numbersIn(overlapping.body)).toEqual(['501']);
+
+      // Half-open: the guest leaves on the 6th, so a 6th arrival can have it.
+      const turnover = await assignable('2028-01-06', '2028-01-08').expect(200);
+      expect(numbersIn(turnover.body)).toEqual(['501', '502']);
+
+      expect(overlapping.body.items[0]).toMatchObject({
+        roomTypeId: deluxeId,
+        roomTypeName: 'Deluxe',
+        housekeepingStatus: 'CLEAN',
+      });
+    });
+
+    it('hides rooms out of service or out of order', async () => {
+      await createRoom({ roomNumber: '601' });
+      const broken = await createRoom({ roomNumber: '602' });
+      const retired = await createRoom({ roomNumber: '603' });
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/rooms/${broken}`)
+        .set(auth())
+        .send({ housekeepingStatus: 'OUT_OF_ORDER' })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/rooms/${retired}`)
+        .set(auth())
+        .send({ isActive: false })
+        .expect(200);
+
+      const response = await assignable('2028-02-01', '2028-02-03').expect(200);
+      expect(numbersIn(response.body)).toEqual(['601']);
+    });
+
+    // Dirty is not a reason to hide a room: it will be cleaned before the
+    // guest arrives, and hiding it would block every same-day turnover.
+    it('still offers a dirty room', async () => {
+      const dirty = await createRoom({ roomNumber: '701' });
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/rooms/${dirty}`)
+        .set(auth())
+        .send({ housekeepingStatus: 'DIRTY' })
+        .expect(200);
+
+      const response = await assignable('2028-03-01', '2028-03-03').expect(200);
+      expect(numbersIn(response.body)).toEqual(['701']);
+    });
+
+    it('offers a room again once the booking holding it is cancelled', async () => {
+      const roomId = await createRoom({ roomNumber: '801' });
+      const { reservationId, stayId } = await createStay('2028-04-01', '2028-04-05');
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}/stays/${stayId}/room`)
+        .set(auth())
+        .send({ roomId })
+        .expect(200);
+
+      expect(numbersIn((await assignable('2028-04-02', '2028-04-03').expect(200)).body)).toEqual(
+        [],
+      );
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations/${reservationId}/cancel`)
+        .set(auth())
+        .send({ version: 0 })
+        .expect(200);
+
+      expect(numbersIn((await assignable('2028-04-02', '2028-04-03').expect(200)).body)).toEqual(
+        ['801'],
+      );
+    });
+
+    it('rejects an inverted range', async () => {
+      await assignable('2028-05-05', '2028-05-01').expect(422);
+    });
+  });
+
   describe('stay view', () => {
     it('shows who is in which room, and what still needs one', async () => {
       const roomId = await createRoom({ roomNumber: '401' });

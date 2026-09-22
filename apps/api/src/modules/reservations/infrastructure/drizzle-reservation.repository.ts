@@ -54,6 +54,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
         adults: stay.adults,
         children: stay.children,
         guestName: stay.guestName,
+        assignedRoomId: stay.assignedRoomId,
         subtotalMinor: stay.subtotalMinor,
       })),
     );

@@ -19,6 +19,8 @@ export interface StayRecord {
   readonly adults: number;
   readonly children: number;
   readonly guestName: string | null;
+  /** Set when the booking named its room; null is "no room yet". */
+  readonly assignedRoomId: string | null;
   readonly subtotalMinor: number;
   readonly nights: readonly StayNightRecord[];
 }
