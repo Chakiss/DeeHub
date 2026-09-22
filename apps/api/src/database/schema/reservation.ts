@@ -20,6 +20,7 @@ import { organizations } from './identity';
 import { physicalRooms, properties, ratePlans, roomTypes } from './property';
 import { guests } from './guest';
 import { channels } from './channel';
+import { bookingSources } from './booking-source';
 
 /** See docs/database.md §8. */
 
@@ -37,7 +38,14 @@ export const reservations = pgTable(
     code: text('code').notNull(),
     status: text('status').notNull(),
     channelId: uuid('channel_id').references(() => channels.id, { onDelete: 'restrict' }),
+    /**
+     * How the booking arrived — the category. OTA and TRAVEL_AGENT bookings
+     * also say WHICH one through booking_source_id; the rest stand alone.
+     */
     source: text('source').notNull().default('DIRECT'),
+    bookingSourceId: uuid('booking_source_id').references(() => bookingSources.id, {
+      onDelete: 'restrict',
+    }),
     guestId: uuid('guest_id').references(() => guests.id, { onDelete: 'set null' }),
     /** Contact exactly as received. OTA-masked addresses must survive verbatim. */
     bookerName: text('booker_name').notNull(),
@@ -71,7 +79,10 @@ export const reservations = pgTable(
       'reservations_status_ck',
       sql`${t.status} IN ('PENDING','CONFIRMED','CHECKED_IN','CHECKED_OUT','CANCELLED','NO_SHOW','EXPIRED')`,
     ),
-    check('reservations_source_ck', sql`${t.source} IN ('DIRECT','OTA','WALK_IN','PHONE','EMAIL')`),
+    check(
+      'reservations_source_ck',
+      sql`${t.source} IN ('DIRECT','OTA','WALK_IN','PHONE','EMAIL','TRAVEL_AGENT')`,
+    ),
     check('reservations_hold_ck', sql`${t.status} <> 'PENDING' OR ${t.holdExpiresAt} IS NOT NULL`),
     check('reservations_subtotal_ck', sql`${t.subtotalMinor} >= 0`),
     check('reservations_total_ck', sql`${t.totalMinor} >= 0`),

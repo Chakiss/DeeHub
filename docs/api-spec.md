@@ -211,6 +211,20 @@ arrival on the same day are not a conflict. Cancelling a reservation releases
 any room it held; the constraint cannot see reservation status, so without that
 the room would stay blocked for those nights forever.
 
+### Booking sources
+
+| Method  | Path                                                | Purpose                                                    |
+| ------- | --------------------------------------------------- | ---------------------------------------------------------- |
+| `GET`   | `/properties/{id}/booking-sources`                  | the OTAs and agents this property takes bookings from      |
+| `POST`  | `/properties/{id}/booking-sources`                  | add one: `{ name, kind: OTA \| TRAVEL_AGENT }`               |
+| `POST`  | `/properties/{id}/booking-sources/defaults`         | add whichever of the usual OTAs are not listed yet         |
+| `PATCH` | `/properties/{id}/booking-sources/{sourceId}`       | rename, or retire with `isActive: false`                    |
+
+Reading rides on `property:read`; writing is setup work and rides on
+`property:update`. No delete and no changing a kind: reservations point at
+these and report by them (ADR-0009). Names are unique per property ignoring
+case; a duplicate is a 409.
+
 ### Guests (Phase 4)
 
 | Method  | Path                                           | Purpose                                 |
@@ -779,7 +793,17 @@ audit entry records `earlyDepartureFeeMinor: 0`, so a fee posted afterwards is
 visibly a separate human decision.
 
 List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
-`q` (code, guest name, email, phone), `createdFrom/To`, plus `cursor`/`limit`.
+`source` (one of `WALK_IN`, `PHONE`, `EMAIL`, `DIRECT`, `OTA`, `TRAVEL_AGENT`;
+anything else is a 422), `q` (code, guest name, email, phone),
+`createdFrom/To`, plus `cursor`/`limit`. Each list row and the detail carry
+`bookingSource: { id, name } | null` — which OTA or agent, when one was named.
+
+**Where a booking came from** is two fields. `source` is the category. An
+`OTA` or `TRAVEL_AGENT` booking keyed in by hand must also send
+`bookingSourceId` — one of the property's booking sources (below) of the
+matching kind — and any other category must not; both are 422s that say so.
+A booking a connector delivers carries `channelId` instead and gets the
+matching source by connector type when the property still has one.
 
 ```jsonc
 // POST /properties/{pid}/reservations   Idempotency-Key: 0192...
@@ -800,6 +824,7 @@ List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
   ],
   "specialRequests": "High floor",
   "status": "CONFIRMED", // or PENDING to hold; default CONFIRMED
+  // "bookingSourceId": "0192f...", // required when source is OTA or TRAVEL_AGENT
 }
 ```
 

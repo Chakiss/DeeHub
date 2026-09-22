@@ -3,6 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { errors, isIsoDate, toIsoDate, type Money } from '@deehub/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
+import { RESERVATION_SOURCES } from '../domain/reservation.repository';
 import { RequireCapability, type AuthenticatedRequest } from '../../../common/guards/auth.guard';
 import type { AuditActor } from '../../../common/audit/audit.service';
 import { CreateReservationUseCase } from '../application/create-reservation.usecase';
@@ -45,7 +46,7 @@ const staySchema = z
 
 const createReservationSchema = z
   .object({
-    source: z.enum(['DIRECT', 'OTA', 'WALK_IN', 'PHONE', 'EMAIL']),
+    source: z.enum(RESERVATION_SOURCES),
     status: z.enum(['PENDING', 'CONFIRMED']).optional(),
     booker: z
       .object({
@@ -58,6 +59,9 @@ const createReservationSchema = z
     stays: z.array(staySchema).min(1).max(20),
     specialRequests: z.string().max(2000).optional(),
     channelId: z.string().uuid().optional(),
+    // Which OTA or agent — required by the use case for OTA and TRAVEL_AGENT
+    // bookings keyed by hand, refused on any other category.
+    bookingSourceId: z.string().uuid().optional(),
     guestId: z.string().uuid().optional(),
     holdTtlSeconds: z.number().int().min(60).max(3600).optional(),
   })
@@ -230,6 +234,7 @@ export class ReservationsController {
         })),
         ...(body.specialRequests ? { specialRequests: body.specialRequests } : {}),
         ...(body.channelId ? { channelId: body.channelId } : {}),
+        ...(body.bookingSourceId ? { bookingSourceId: body.bookingSourceId } : {}),
         ...(body.guestId ? { guestId: body.guestId } : {}),
         ...(body.holdTtlSeconds ? { holdTtlSeconds: body.holdTtlSeconds } : {}),
       },

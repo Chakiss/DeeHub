@@ -26,6 +26,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
       status: record.status,
       source: record.source,
       channelId: record.channelId,
+      bookingSourceId: record.bookingSourceId,
       guestId: record.guestId,
       bookerName: record.bookerName,
       bookerEmail: record.bookerEmail,

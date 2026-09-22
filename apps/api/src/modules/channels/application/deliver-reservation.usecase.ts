@@ -15,6 +15,10 @@ import {
   type PricingSource,
 } from '../../reservations/application/create-reservation.usecase';
 import { CHANNEL_REPOSITORY, type ChannelRepository } from '../domain/channel.repository';
+import {
+  BOOKING_SOURCE_REPOSITORY,
+  type BookingSourceRepository,
+} from '../../booking-sources/domain/booking-source.repository';
 import type { InboundReservation } from '../domain/channel-connector';
 
 export interface DeliverReservationInput {
@@ -47,6 +51,7 @@ export class DeliverReservationUseCase {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(CHANNEL_REPOSITORY) private readonly channels: ChannelRepository,
+    @Inject(BOOKING_SOURCE_REPOSITORY) private readonly bookingSources: BookingSourceRepository,
     private readonly createReservation: CreateReservationUseCase,
     private readonly audit: AuditService,
   ) {}
@@ -144,7 +149,7 @@ export class DeliverReservationUseCase {
   }
 
   private async map(
-    channel: { id: string; organizationId: string; propertyId: string },
+    channel: { id: string; organizationId: string; propertyId: string; type: string },
     booking: InboundReservation,
   ): Promise<{ reservationId: string; overbooked: boolean; pricedFrom: PricingSource }> {
     const roomTypeRows = await this.db
@@ -166,12 +171,22 @@ export class DeliverReservationUseCase {
     const ratePlanId = await this.resolveRatePlan(channel.id, roomTypeId, booking.externalRateId);
     const channelTotal = this.channelTotal(booking);
 
+    // The label the desk has been using by hand for this OTA, so its bookings
+    // and the connector's report as one line. None is not an error: the hotel
+    // may have retired it, and the channel itself still says which OTA.
+    const bookingSource = await this.bookingSources.findByChannelType(
+      this.db,
+      channel.propertyId,
+      channel.type,
+    );
+
     const result = await this.createReservation.execute(
       {
         propertyId: channel.propertyId,
         source: 'OTA',
         status: 'CONFIRMED',
         channelId: channel.id,
+        ...(bookingSource ? { bookingSourceId: bookingSource.id } : {}),
         booker: {
           name: booking.guestName,
           ...(booking.guestEmail ? { email: booking.guestEmail } : {}),

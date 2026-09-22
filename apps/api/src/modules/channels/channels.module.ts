@@ -16,6 +16,7 @@ import { MockOtaConnector } from './infrastructure/connectors/mock-ota.connector
 import { WebhooksController } from './interface/webhooks.controller';
 import { ChannelsController } from './interface/channels.controller';
 import { ReservationsModule } from '../reservations/reservations.module';
+import { BookingSourcesModule } from '../booking-sources/booking-sources.module';
 
 /**
  * Channel bounded context: connector framework and the sync engine's
@@ -26,7 +27,9 @@ import { ReservationsModule } from '../reservations/reservations.module';
  * of the port (architecture.md §6).
  */
 @Module({
-  imports: [InventoryModule, RatesModule, ReservationsModule],
+  // BookingSourcesModule so a delivered booking lands under the label the
+  // desk has been using by hand for that OTA.
+  imports: [InventoryModule, RatesModule, ReservationsModule, BookingSourcesModule],
   controllers: [WebhooksController, ChannelsController],
   providers: [
     { provide: CREDENTIAL_CIPHER, useClass: AesCredentialCipher },

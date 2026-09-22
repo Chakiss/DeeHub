@@ -14,6 +14,11 @@ import {
   type RoomRepository,
 } from '../../rooms/domain/room.repository';
 import {
+  BOOKING_SOURCE_REPOSITORY,
+  type BookingSourceRecord,
+  type BookingSourceRepository,
+} from '../../booking-sources/domain/booking-source.repository';
+import {
   PROPERTY_REPOSITORY,
   type PropertyRepository,
   type PropertySettings,
@@ -74,6 +79,13 @@ export interface CreateReservationInput {
   readonly stays: readonly CreateStayInput[];
   readonly specialRequests?: string;
   readonly channelId?: string;
+  /**
+   * Which OTA or agent, for an OTA or TRAVEL_AGENT booking keyed in by hand.
+   * Required for those unless a channel delivered the booking — a connector
+   * knows which OTA it is, and must not fail because the hotel retired the
+   * matching label.
+   */
+  readonly bookingSourceId?: string;
   readonly guestId?: string;
   /** Hold lifetime for PENDING reservations. Defaults to 15 minutes. */
   readonly holdTtlSeconds?: number;
@@ -126,6 +138,7 @@ export class CreateReservationUseCase {
     private readonly outbox: OutboxService,
     private readonly guests: LinkGuestUseCase,
     @Inject(ROOM_REPOSITORY) private readonly rooms: RoomRepository,
+    @Inject(BOOKING_SOURCE_REPOSITORY) private readonly bookingSources: BookingSourceRepository,
   ) {}
 
   async execute(
@@ -194,6 +207,7 @@ export class CreateReservationUseCase {
     return this.db.transaction(async (tx) => {
       const property = await this.loadProperty(tx, input.propertyId);
       const reservationId = newId();
+      const bookingSource = await this.bookingSourceFor(tx, property.id, input);
 
       /*
        * Attach a guest profile inside this transaction.
@@ -263,6 +277,7 @@ export class CreateReservationUseCase {
         status,
         source: input.source,
         channelId: input.channelId ?? null,
+        bookingSourceId: bookingSource?.id ?? null,
         guestId,
         bookerName: input.booker.name,
         bookerEmail: input.booker.email ?? null,
@@ -288,6 +303,9 @@ export class CreateReservationUseCase {
           code,
           status,
           source: input.source,
+          ...(bookingSource
+            ? { bookingSourceId: bookingSource.id, bookingSource: bookingSource.name }
+            : {}),
           total: breakdown.total.amount,
           currency: property.currency,
           stays: stays.map((stay) => ({
@@ -375,6 +393,54 @@ export class CreateReservationUseCase {
         pricedFrom,
       };
     });
+  }
+
+  /**
+   * The OTA or agent this booking names, checked against its category.
+   *
+   * "OTA" alone is not an answer the desk can report on; "OTA · Agoda" is. So
+   * an OTA or TRAVEL_AGENT booking keyed by hand must say which — unless a
+   * channel delivered it, in which case the channel is the answer and the
+   * label is a courtesy. A walk-in naming an OTA is a mistake, and a source
+   * of the wrong kind — an agent on an OTA booking — is a worse one, because
+   * it would count under the wrong heading forever.
+   */
+  private async bookingSourceFor(
+    tx: Executor,
+    propertyId: string,
+    input: CreateReservationInput,
+  ): Promise<BookingSourceRecord | null> {
+    const named = input.source === 'OTA' || input.source === 'TRAVEL_AGENT';
+    if (!input.bookingSourceId) {
+      if (named && !input.channelId) {
+        throw errors.validation(
+          input.source === 'OTA'
+            ? 'Say which OTA this booking came through'
+            : 'Say which travel agent this booking came through',
+          { field: 'bookingSourceId' },
+        );
+      }
+      return null;
+    }
+    if (!named) {
+      throw errors.validation('Only OTA and travel-agent bookings name a booking source', {
+        field: 'bookingSourceId',
+      });
+    }
+    const source = await this.bookingSources.findById(tx, propertyId, input.bookingSourceId);
+    if (!source) throw errors.notFound('Booking source', input.bookingSourceId);
+    if (!source.isActive) {
+      throw errors.validation(`${source.name} is no longer in use at this property`);
+    }
+    if (source.kind !== input.source) {
+      throw errors.validation(
+        source.kind === 'OTA'
+          ? `${source.name} is an OTA, not a travel agent`
+          : `${source.name} is a travel agent, not an OTA`,
+        { field: 'bookingSourceId' },
+      );
+    }
+    return source;
   }
 
   /**

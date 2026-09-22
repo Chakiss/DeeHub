@@ -2,7 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, gte, ilike, lte, or, sql, type SQL } from 'drizzle-orm';
 import { errors, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
-import { reservationStays, reservations } from '../../../database/schema';
+import { bookingSources, reservationStays, reservations } from '../../../database/schema';
+import { RESERVATION_SOURCES } from '../domain/reservation.repository';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 
 export interface ListReservationsFilter {
@@ -23,6 +24,7 @@ export interface ReservationListItem {
   readonly code: string;
   readonly status: string;
   readonly source: string;
+  readonly bookingSource: { readonly id: string; readonly name: string } | null;
   readonly bookerName: string;
   readonly checkIn: string | null;
   readonly checkOut: string | null;
@@ -70,7 +72,15 @@ export class ListReservationsQuery {
       );
     }
     if (filter.channelId) conditions.push(eq(reservations.channelId, filter.channelId));
-    if (filter.source) conditions.push(eq(reservations.source, filter.source));
+    if (filter.source) {
+      // A value outside the list would be a silently empty page.
+      if (!(RESERVATION_SOURCES as readonly string[]).includes(filter.source)) {
+        throw errors.validation(`Unknown source: ${filter.source}`, {
+          allowed: [...RESERVATION_SOURCES],
+        });
+      }
+      conditions.push(eq(reservations.source, filter.source));
+    }
 
     if (filter.q) {
       const term = `%${filter.q}%`;
@@ -115,6 +125,8 @@ export class ListReservationsQuery {
         code: reservations.code,
         status: reservations.status,
         source: reservations.source,
+        bookingSourceId: reservations.bookingSourceId,
+        bookingSourceName: bookingSources.name,
         bookerName: reservations.bookerName,
         totalMinor: reservations.totalMinor,
         currency: reservations.currency,
@@ -142,6 +154,7 @@ export class ListReservationsQuery {
         )`,
       })
       .from(reservations)
+      .leftJoin(bookingSources, eq(bookingSources.id, reservations.bookingSourceId))
       .where(and(...conditions))
       .orderBy(desc(reservations.createdAt), desc(reservations.id))
       .limit(limit + 1);
@@ -156,6 +169,10 @@ export class ListReservationsQuery {
         code: row.code,
         status: row.status,
         source: row.source,
+        bookingSource:
+          row.bookingSourceId && row.bookingSourceName
+            ? { id: row.bookingSourceId, name: row.bookingSourceName }
+            : null,
         bookerName: row.bookerName,
         checkIn: row.checkIn,
         checkOut: row.checkOut,
