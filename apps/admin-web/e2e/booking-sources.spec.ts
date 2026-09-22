@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login, testData } from './helpers';
+import { apiToken, login, openForSale, testData } from './helpers';
 
 /**
  * Where a booking came through: the list a property keeps, and the booking
@@ -34,13 +34,17 @@ test.describe('booking sources', () => {
     await expect(row).toContainText('In use');
   });
 
-  test('a hand-keyed OTA booking says which OTA, and the list shows it', async ({ page }) => {
+  test('a hand-keyed OTA booking says which OTA, and the list shows it', async ({
+    page,
+    request,
+  }) => {
     const data = testData();
+    await openForSale(request, await apiToken(request), '2030-07-01', '2030-07-04');
     await login(page, data.managerEmail);
     await page.goto(`/properties/${data.propertyId}/reservations/new`);
 
-    await page.getByLabel('Check-in').fill('2030-04-02');
-    await page.getByLabel('Check-out').fill('2030-04-04');
+    await page.getByLabel('Check-in').fill('2030-07-01');
+    await page.getByLabel('Check-out').fill('2030-07-03');
     await page.getByLabel('Name', { exact: true }).fill('Agoda Guest');
 
     // One select, three groups: plain categories, OTAs, agents.

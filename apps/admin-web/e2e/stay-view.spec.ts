@@ -191,12 +191,36 @@ test.describe('rooms and stay view', () => {
   }) => {
     const data = testData();
     const token = await apiToken(request);
+    // Two bookings on the shared window would sell a night out for the specs
+    // after this one, so these get nights of their own.
+    await openForSale(request, token, '2030-09-01', '2030-09-06');
     const guest = `Clash ${Date.now().toString(36)}`;
-    await book(request, token, guest, data.dates[1]!, data.dates[3]!);
-    const rival = await book(request, token, `Rival ${Date.now().toString(36)}`, data.dates[1]!, data.dates[3]!);
+    await book(request, token, guest, '2030-09-02', '2030-09-04');
+    const rival = await book(request, token, `Rival ${Date.now().toString(36)}`, '2030-09-02', '2030-09-04');
+
+    const rooms = (await (
+      await request.get(`${API}/properties/${data.propertyId}/rooms`, {
+        headers: { authorization: `Bearer ${token}` },
+      })
+    ).json()) as { items: { id: string; roomNumber: string }[] };
+    const roomId = (roomNumber: string) =>
+      rooms.items.find((room) => room.roomNumber === roomNumber)!.id;
+    const moveRival = async (roomNumber: string) => {
+      const moved = await request.patch(
+        `${API}/properties/${data.propertyId}/stays/${rival.stayId}/room`,
+        {
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          data: { roomId: roomId(roomNumber) },
+        },
+      );
+      expect(moved.ok(), await moved.text()).toBeTruthy();
+    };
+
+    // The rival is in 201 before the dialog opens: 201 must not be offered.
+    await moveRival('201');
 
     await login(page, data.managerEmail);
-    await page.goto(`/properties/${data.propertyId}/stay-view?from=${data.dates[0]}`);
+    await page.goto(`/properties/${data.propertyId}/stay-view?from=2030-09-01`);
 
     const worklist = page.getByRole('listitem').filter({ hasText: guest }).first();
     await worklist.getByRole('button', { name: 'Assign' }).click();
@@ -204,18 +228,8 @@ test.describe('rooms and stay view', () => {
     await expect(dialog.locator('option', { hasText: '202' })).toHaveCount(1);
     await expect(dialog.locator('option', { hasText: '201' })).toHaveCount(0);
 
-    // Another desk gets there first, after this dialog loaded its list.
-    const rooms = (await (
-      await request.get(`${API}/properties/${data.propertyId}/rooms`, {
-        headers: { authorization: `Bearer ${token}` },
-      })
-    ).json()) as { items: { id: string; roomNumber: string }[] };
-    const room202 = rooms.items.find((room) => room.roomNumber === '202')!;
-    const taken = await request.patch(`${API}/properties/${data.propertyId}/stays/${rival.stayId}/room`, {
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      data: { roomId: room202.id },
-    });
-    expect(taken.ok(), await taken.text()).toBeTruthy();
+    // Another desk moves the rival into 202 after this dialog loaded its list.
+    await moveRival('202');
 
     await selectRoom(dialog, '202');
     await dialog.getByRole('button', { name: 'Assign' }).click();
