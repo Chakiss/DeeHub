@@ -302,7 +302,14 @@
     "mismatch": "The two new passwords do not match.",
     "tooShort": "Use at least 12 characters.",
     "failed": "Could not change the password.",
-    "success": "Password changed. Other devices have been signed out."
+    "success": "Password changed. Other devices have been signed out.",
+    "languageTitle": "Language",
+    "languageSubtitle": "Saved on your account: every browser you sign in on will use it.",
+    "language": "Language",
+    "languageSave": "Save language",
+    "languageSaving": "Saving…",
+    "languageSaved": "Saved. The dashboard will use this language from now on.",
+    "languageFailed": "Could not save the language."
   },
   "roomTypes": {
     "title": "Room types",

@@ -75,7 +75,8 @@ rotating) in an httpOnly cookie for the dashboard.
 | `POST`  | `/auth/login`           | email + password → access token + refresh cookie                         |
 | `POST`  | `/auth/refresh`         | rotate refresh token → new access token                                  |
 | `POST`  | `/auth/logout`          | revoke the current refresh token                                         |
-| `GET`   | `/auth/me`              | current user, memberships, accessible properties                         |
+| `GET`   | `/auth/me`              | current user, memberships, accessible properties, `preferredLocale`      |
+| `PATCH` | `/auth/me/preferences`  | save `{ preferredLocale: "en" \| "th" }`; login and `/auth/me` return it |
 | `POST`  | `/auth/change-password` | change your own password; revokes every other session                    |
 | `GET`   | `/users`                | people in the organization and their roles                               |
 | `POST`  | `/users`                | create an account; returns a one-time password (no outbound email yet)   |

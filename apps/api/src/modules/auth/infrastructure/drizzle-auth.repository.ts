@@ -22,6 +22,7 @@ export class DrizzleAuthRepository implements AuthRepository {
         email: users.email,
         fullName: users.fullName,
         status: users.status,
+        preferredLocale: users.preferredLocale,
         passwordHash: users.passwordHash,
       })
       .from(users)
@@ -48,6 +49,7 @@ export class DrizzleAuthRepository implements AuthRepository {
         email: users.email,
         fullName: users.fullName,
         status: users.status,
+        preferredLocale: users.preferredLocale,
         passwordHash: users.passwordHash,
       })
       .from(users)
@@ -70,6 +72,7 @@ export class DrizzleAuthRepository implements AuthRepository {
         email: users.email,
         fullName: users.fullName,
         status: users.status,
+        preferredLocale: users.preferredLocale,
       })
       .from(users)
       .innerJoin(organizations, eq(organizations.id, users.organizationId))
@@ -86,6 +89,7 @@ export class DrizzleAuthRepository implements AuthRepository {
       organizationId: user.organizationId,
       email: user.email,
       fullName: user.fullName,
+      preferredLocale: user.preferredLocale,
       memberships: await this.findMemberships(tx, userId),
     };
   }
@@ -100,6 +104,13 @@ export class DrizzleAuthRepository implements AuthRepository {
       .where(eq(memberships.userId, userId));
 
     return rows.map((row) => ({ role: row.role as Role, propertyId: row.propertyId }));
+  }
+
+  async updatePreferredLocale(tx: Executor, userId: string, locale: string): Promise<void> {
+    await tx
+      .update(users)
+      .set({ preferredLocale: locale, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   async updatePasswordHash(tx: Executor, userId: string, passwordHash: string): Promise<void> {

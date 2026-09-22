@@ -92,6 +92,9 @@ CREATE TABLE users (
   full_name       text NOT NULL,
   status          text NOT NULL DEFAULT 'ACTIVE'
                   CHECK (status IN ('ACTIVE','INVITED','DISABLED')),
+  -- The dashboard language this person chose, applied at sign-in on any
+  -- machine. NULL: never chose; the browser's own choice or English stands.
+  preferred_locale text CHECK (preferred_locale IS NULL OR preferred_locale IN ('en','th')),
   last_login_at   timestamptz,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()

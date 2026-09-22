@@ -1021,9 +1021,17 @@ export const api = {
       email: string;
       fullName: string;
       organizationId: string;
+      /** 'en' | 'th', or null when this person never chose. */
+      preferredLocale: string | null;
       memberships: { role: string; propertyId: string | null }[];
       capabilities: string[];
     }>('/auth/me'),
+
+  setPreferredLocale: (preferredLocale: 'en' | 'th') =>
+    request<{ preferredLocale: string }>('/auth/me/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ preferredLocale }),
+    }),
 
   users: () => request<{ items: OrganizationUser[] }>('/users').then((body) => body.items),
 
