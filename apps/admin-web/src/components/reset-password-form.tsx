@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import { Wordmark } from '@/components/wordmark';
+import { PasswordInput } from '@/components/password-input';
 
 /** Matches the API. A recovery path must not accept a weaker password. */
 const MIN_LENGTH = 12;
@@ -85,30 +86,26 @@ export function ResetPasswordForm() {
             <h1 className="text-lg font-medium text-ink-900">{t('title')}</h1>
 
             <Field id="new-password" label={t('newPassword')} hint={t('hint', { min: MIN_LENGTH })}>
-              <input
+              <PasswordInput
                 id="new-password"
                 aria-describedby="new-password-hint"
-                type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="new-password"
                 minLength={MIN_LENGTH}
                 required
                 autoFocus
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
             <Field id="confirm-password" label={t('confirm')}>
-              <input
+              <PasswordInput
                 id="confirm-password"
-                type="password"
                 value={confirmation}
                 onChange={(event) => setConfirmation(event.target.value)}
                 autoComplete="new-password"
                 minLength={MIN_LENGTH}
                 required
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 

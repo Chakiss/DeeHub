@@ -3,6 +3,10 @@
     "name": "DeeHub",
     "tagline": "One Hub. Every Booking."
   },
+  "common": {
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
   "nav": {
     "inventory": "Inventory",
     "reservations": "Reservations",

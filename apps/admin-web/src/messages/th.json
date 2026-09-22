@@ -3,6 +3,10 @@
     "name": "DeeHub",
     "tagline": "One Hub. Every Booking."
   },
+  "common": {
+    "showPassword": "แสดงรหัสผ่าน",
+    "hidePassword": "ซ่อนรหัสผ่าน"
+  },
   "nav": {
     "inventory": "ห้องว่าง",
     "reservations": "การจอง",

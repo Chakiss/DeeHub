@@ -26,7 +26,7 @@ export async function login(page: Page, email: string): Promise<void> {
 
   await page.getByLabel('Organization').fill(data.organizationSlug);
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(TEST_PASSWORD);
+  await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL(/\/properties\/.+\/inventory/);
 }
