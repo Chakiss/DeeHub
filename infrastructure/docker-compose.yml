@@ -48,7 +48,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: deehub-minio
     restart: unless-stopped
     command: ['server', '/data', '--console-address', ':9001']
@@ -69,7 +69,7 @@ services:
   # One-shot: creates the photo bucket and makes it world-readable, the same
   # shape production has (main.tf: allUsers objectViewer). Exits when done.
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     container_name: deehub-minio-init
     depends_on:
       minio:
