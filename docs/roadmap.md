@@ -90,6 +90,14 @@ Phase 4 with it. Delivered:
   on the provider's own word (a webhook is a prompt, never a fact), exactly
   once, onto the folio, with the confirmation email owed by the same
   transaction.
+- **The guest booking site** (2026-09-23): `book.deehubhotel.com/{org}/{code}`
+  — the hotel's page with its photos, description and a two-week "from"
+  strip; rooms for a stay with every price all-in; a details form that
+  holds the room; card (Omise.js, 3-D Secure) or PromptPay checkout that
+  polls until the provider says paid; and a confirmation readable by code +
+  email. Thai by default, English by `?lang=en`, which is what Google's
+  landing template sends. Mobile-first; the final price carries the
+  microdata Google's price-accuracy crawler reads.
 - **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking
   forward — what has been taken for the nights ahead since a week ago.
 - **Direct bookings**: a public API a guest can search, hold a room through,

@@ -138,10 +138,15 @@ jobs:
       - name: Dashboard end-to-end tests
         run: pnpm --filter @deehub/admin-web test:e2e
 
+      - name: Booking site end-to-end tests
+        run: pnpm --filter @deehub/booking-web test:e2e
+
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: apps/admin-web/playwright-report/
+          path: |
+            apps/admin-web/playwright-report/
+            apps/booking-web/playwright-report/
           retention-days: 7

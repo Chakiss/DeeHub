@@ -1,0 +1,7 @@
+.next
+node_modules
+e2e/.test-data.json
+playwright-report/
+test-results/
+tsconfig.tsbuildinfo
+next-env.d.ts

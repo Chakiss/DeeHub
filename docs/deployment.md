@@ -200,6 +200,26 @@ The API refuses to boot in production if it detects a development secret — a
 guard that has already fired once during container testing, which is exactly
 when you want it to.
 
+### The guest booking site
+
+`apps/booking-web` is a third Cloud Run service (`deehub-book-*`) with its
+own service account, served at `book.<domain>` through the load balancer
+behind a **Cloud Armor** policy (`loadbalancer.tf`): 120 requests a minute
+per address, 429 beyond. It holds no credentials — every API call is made
+server-side over the public API's URL, and the API's own cap on unpaid holds
+per email is the other half of the rate limiting (api-spec.md §6.8b).
+
+Two settings: `omise_public_key` (Omise's publishable key, not a secret — it
+is in the page source) enables the card form; the API's `BOOKING_WEB_URL` is
+derived from `custom_domain` so a 3-D Secure return address must be on the
+site. Adding `book.` to the certificate replaces it (create_before_destroy),
+so expect the usual 15–60 minutes after the A record for `book` goes live at
+Cloudflare, DNS-only.
+
+Order on first setup: `terraform apply`, add the `book` A record, then any
+push to `main` deploys the image (the deploy step skips the service while it
+does not exist).
+
 ### Photo storage
 
 The media bucket (`main.tf`, `google_storage_bucket.media`) is world-readable

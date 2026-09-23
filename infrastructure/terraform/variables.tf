@@ -111,6 +111,23 @@ variable "web_image" {
   type        = string
 }
 
+variable "book_image" {
+  description = "Fully qualified guest booking site image. Set by CI on each deploy."
+  type        = string
+  # A placeholder rather than required, so an apply made before the first CI
+  # build of the site still succeeds; CI replaces it on the next push.
+  default = "gcr.io/cloudrun/placeholder"
+}
+
+# Omise's PUBLISHABLE key — the one the browser uses to tokenise a card. Not a
+# secret by design (it appears in page source), which is why it is a variable
+# and the secret key is in Secret Manager.
+variable "omise_public_key" {
+  description = "Omise public key (pkey_…) for the booking site's card form. Empty disables card entry."
+  type        = string
+  default     = ""
+}
+
 variable "cors_origins" {
   description = "Origins allowed to call the API directly."
   type        = string

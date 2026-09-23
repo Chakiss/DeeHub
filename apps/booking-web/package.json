@@ -1,0 +1,32 @@
+{
+  "name": "@deehub/booking-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3200",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "start:standalone": "cp -r .next/static .next/standalone/apps/booking-web/.next/static && cp -r public .next/standalone/apps/booking-web/public && node .next/standalone/apps/booking-web/server.js",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@deehub/shared": "workspace:*",
+    "next": "16.2.12",
+    "next-intl": "^4.13.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.1.2",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "pg": "^8.22.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

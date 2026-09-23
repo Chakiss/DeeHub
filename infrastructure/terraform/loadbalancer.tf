@@ -42,6 +42,7 @@ locals {
     "dashboard.${var.custom_domain}",
     var.custom_domain,
     "www.${var.custom_domain}",
+    "book.${var.custom_domain}",
   ]
 }
 
@@ -153,6 +154,79 @@ resource "google_compute_backend_service" "web" {
   }
 }
 
+# --- The guest booking site, through a serverless NEG, behind Cloud Armor -----
+#
+# The one host a stranger reaches. Cloud Armor's rate-based ban is the per-IP
+# limit the API cannot do itself (an in-memory counter sees one instance);
+# the API's own cap on unpaid holds per email is the other half
+# (api-spec.md §6.8b). Generous: a family on hotel Wi-Fi shares an address.
+
+resource "google_compute_region_network_endpoint_group" "book" {
+  count                 = local.lb_enabled
+  name                  = "deehub-book-neg-${local.suffix}"
+  region                = var.region
+  network_endpoint_type = "SERVERLESS"
+
+  cloud_run {
+    service = google_cloud_run_v2_service.book.name
+  }
+}
+
+resource "google_compute_security_policy" "book" {
+  count = local.lb_enabled
+  name  = "deehub-book-armor-${local.suffix}"
+
+  rule {
+    priority = 1000
+    action   = "throttle"
+    match {
+      versioned_expr = "SRC_IPS_V1"
+      config {
+        src_ip_ranges = ["*"]
+      }
+    }
+    rate_limit_options {
+      conform_action = "allow"
+      exceed_action  = "deny(429)"
+      enforce_on_key = "IP"
+      rate_limit_threshold {
+        count        = 120
+        interval_sec = 60
+      }
+    }
+    description = "At most 120 requests a minute from one address"
+  }
+
+  rule {
+    priority = 2147483647
+    action   = "allow"
+    match {
+      versioned_expr = "SRC_IPS_V1"
+      config {
+        src_ip_ranges = ["*"]
+      }
+    }
+    description = "Default"
+  }
+}
+
+resource "google_compute_backend_service" "book" {
+  count                 = local.lb_enabled
+  name                  = "deehub-book-${local.suffix}"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  protocol              = "HTTPS"
+  security_policy       = google_compute_security_policy.book[0].id
+
+  backend {
+    group = google_compute_region_network_endpoint_group.book[0].id
+  }
+
+  log_config {
+    enable      = true
+    sample_rate = 1.0
+  }
+}
+
 # --- Certificate --------------------------------------------------------------
 #
 # Google-managed, one certificate covering all three hosts. It stays
@@ -197,6 +271,16 @@ resource "google_compute_url_map" "main" {
   path_matcher {
     name            = "dashboard"
     default_service = google_compute_backend_service.web[0].id
+  }
+
+  host_rule {
+    hosts        = ["book.${var.custom_domain}"]
+    path_matcher = "book"
+  }
+
+  path_matcher {
+    name            = "book"
+    default_service = google_compute_backend_service.book[0].id
   }
 
   host_rule {

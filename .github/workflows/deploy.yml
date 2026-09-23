@@ -60,6 +60,7 @@ jobs:
           # the exact image that was running.
           echo "api=${REGISTRY}/api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           echo "web=${REGISTRY}/web:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "book=${REGISTRY}/book:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       # --provenance/--sbom off: either one makes BuildKit publish an OCI index
       # instead of a plain manifest, which writes the tag twice. Artifact
@@ -76,6 +77,12 @@ jobs:
           docker build --provenance=false --sbom=false \
             -f apps/admin-web/Dockerfile -t "${{ steps.images.outputs.web }}" .
           docker push "${{ steps.images.outputs.web }}"
+
+      - name: Build and push booking site image
+        run: |
+          docker build --provenance=false --sbom=false \
+            -f apps/booking-web/Dockerfile -t "${{ steps.images.outputs.book }}" .
+          docker push "${{ steps.images.outputs.book }}"
 
       # Migrations run BEFORE any traffic shifts. Expand/contract means the old
       # code keeps working against the new schema (docs/database.md §12); if this
@@ -133,6 +140,21 @@ jobs:
             --image "${{ steps.images.outputs.web }}" \
             --quiet
 
+      # Only once Terraform has created the service (applied by hand, like the
+      # worker). Deploying a service that does not exist would stand one up with
+      # no service account and no load-balancer backend.
+      - name: Deploy booking site
+        run: |
+          if gcloud run services describe "deehub-book-${ENVIRONMENT}" \
+               --region "${REGION}" --format 'value(name)' >/dev/null 2>&1; then
+            gcloud run deploy "deehub-book-${ENVIRONMENT}" \
+              --region "${REGION}" \
+              --image "${{ steps.images.outputs.book }}" \
+              --quiet
+          else
+            echo "No booking site service yet — terraform apply has not created it. Skipping."
+          fi
+
       # The marketing site is static files in a bucket behind the load
       # balancer, not a container, so it ships by sync rather than by deploy.
       #
@@ -181,6 +203,11 @@ jobs:
           # actually reach the database before we call the deploy good.
           curl -fsS --retry 5 --retry-delay 3 "${API_URL}/health/ready"
           curl -fsS --retry 5 --retry-delay 3 -o /dev/null "${WEB_URL}/login"
+          if BOOK_URL=$(gcloud run services describe "deehub-book-${ENVIRONMENT}" \
+               --region "${REGION}" --format 'value(status.url)' 2>/dev/null); then
+            # The root answers with a redirect to the company site; -f accepts a 3xx.
+            curl -fsS --retry 5 --retry-delay 3 -o /dev/null "${BOOK_URL}/"
+          fi
           echo "Deployed ${GITHUB_SHA} — API ${API_URL}, dashboard ${WEB_URL}"
 
       - name: Report rollback command on failure

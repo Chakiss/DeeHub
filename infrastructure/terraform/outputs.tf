@@ -8,6 +8,11 @@ output "dashboard_url" {
   description = "Admin dashboard."
 }
 
+output "booking_site_url" {
+  value       = google_cloud_run_v2_service.book.uri
+  description = "Guest booking site. Hotels live at /{organization slug}/{property code}."
+}
+
 output "custom_domain_dns_records" {
   description = <<-EOT
     Every record to create at the registrar, in one list.
