@@ -92,6 +92,9 @@ CREATE TABLE users (
   full_name       text NOT NULL,
   status          text NOT NULL DEFAULT 'ACTIVE'
                   CHECK (status IN ('ACTIVE','INVITED','DISABLED')),
+  -- The dashboard language this person chose, applied at sign-in on any
+  -- machine. NULL: never chose; the browser's own choice or English stands.
+  preferred_locale text CHECK (preferred_locale IS NULL OR preferred_locale IN ('en','th')),
   last_login_at   timestamptz,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
@@ -420,6 +423,45 @@ page load. If a group's guest count ever makes that hurt, the fix is an index on
 
 ---
 
+## 8a. Booking sources
+
+Where a booking came through — Agoda, Booking.com, a travel agent the hotel
+has a contract with — as a list each property keeps (ADR-0009). Not a channel:
+a `channels` row is a connector with credentials and a sync queue; this is a
+label the front desk picks when it keys in a booking that arrived by extranet
+or by phone from an agent, and the thing reports group revenue by.
+
+```sql
+CREATE TABLE booking_sources (
+  id                uuid PRIMARY KEY,
+  organization_id   uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  property_id       uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
+  name              text NOT NULL,
+  kind              text NOT NULL CHECK (kind IN ('OTA','TRAVEL_AGENT')),
+  -- Ties the label to a connector type, so a connector's bookings land under
+  -- the same label the desk used by hand. NULL for agents and for OTAs we
+  -- have no connector type for yet.
+  channel_type      text CHECK (channel_type IS NULL OR channel_type IN
+                      ('MOCK_OTA','AGODA','BOOKING_COM','EXPEDIA','TRIP_COM','AIRBNB','DIRECT')),
+  is_active         boolean NOT NULL DEFAULT true,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX booking_sources_property_name_uq
+  ON booking_sources (property_id, lower(name));
+CREATE UNIQUE INDEX booking_sources_property_channel_type_uq
+  ON booking_sources (property_id, channel_type) WHERE channel_type IS NOT NULL;
+```
+
+No delete: reservations reference these, and "how much did Agoda bring in
+last year" must keep working after the hotel stops selling there. `is_active`
+takes one off the form. The kind never changes either — every booking that
+named the source recorded its category from it. Every property starts with
+the usual OTAs (migration 0013 backfills, the seed and `POST
+booking-sources/defaults` cover the rest).
+
+---
+
 ## 8. Reservations
 
 ```sql
@@ -432,8 +474,10 @@ CREATE TABLE reservations (
                         CHECK (status IN ('PENDING','CONFIRMED','CHECKED_IN','CHECKED_OUT',
                                           'CANCELLED','NO_SHOW','EXPIRED')),
   channel_id            uuid REFERENCES channels(id) ON DELETE RESTRICT,
+  -- The category. OTA and TRAVEL_AGENT bookings also say WHICH one (§8a).
   source                text NOT NULL DEFAULT 'DIRECT'
-                        CHECK (source IN ('DIRECT','OTA','WALK_IN','PHONE','EMAIL')),
+                        CHECK (source IN ('DIRECT','OTA','WALK_IN','PHONE','EMAIL','TRAVEL_AGENT')),
+  booking_source_id     uuid REFERENCES booking_sources(id) ON DELETE RESTRICT,
   guest_id              uuid REFERENCES guests(id) ON DELETE SET NULL,
   -- Contact as received. Kept raw because OTA-masked addresses must survive verbatim.
   booker_name           text NOT NULL,

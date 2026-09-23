@@ -11,6 +11,7 @@ export * from './access';
 export * from './inventory';
 export * from './guest';
 export * from './channel';
+export * from './booking-source';
 export * from './reservation';
 export * from './platform';
 export * from './notification';

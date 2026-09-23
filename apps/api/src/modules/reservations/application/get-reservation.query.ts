@@ -3,6 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import {
+  bookingSources,
   physicalRooms,
   reservationStayNights,
   reservationStays,
@@ -18,6 +19,11 @@ export interface ReservationView {
   readonly version: number;
   readonly currency: string;
   readonly source: string;
+  readonly bookingSource: {
+    readonly id: string;
+    readonly name: string;
+    readonly kind: string;
+  } | null;
   readonly bookerName: string;
   readonly bookerEmail: string | null;
   readonly bookerPhone: string | null;
@@ -119,6 +125,17 @@ export class GetReservationQuery {
       nightsByStay.set(night.stayId, list);
     }
 
+    // The OTA or agent this booking named, when it did. A second small read
+    // rather than a join on the aggregate select above, which returns every
+    // column by name and would have to be rewritten to alias one more.
+    const bookingSourceRows = reservation.bookingSourceId
+      ? await this.db
+          .select({ id: bookingSources.id, name: bookingSources.name, kind: bookingSources.kind })
+          .from(bookingSources)
+          .where(eq(bookingSources.id, reservation.bookingSourceId))
+          .limit(1)
+      : [];
+
     const currency = reservation.currency;
 
     return {
@@ -130,6 +147,7 @@ export class GetReservationQuery {
       version: reservation.version,
       currency,
       source: reservation.source,
+      bookingSource: bookingSourceRows[0] ?? null,
       // Who made the booking. The detail screen exists to answer "who is this
       // and what did they book", and the list only carries a name.
       bookerName: reservation.bookerName,

@@ -7,6 +7,7 @@ import { useState, type FormEvent } from 'react';
 import type { LastAccount } from '@/lib/session-config';
 import { Wordmark } from '@/components/wordmark';
 import { LocaleSwitcher } from '@/components/locale-switcher';
+import { PasswordInput } from '@/components/password-input';
 
 /**
  * Sign in, with the last account on this browser offered back.
@@ -145,16 +146,15 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
               </button>
             </div>
 
-            <Field label={t('password')}>
-              <input
-                type="password"
+            <Field id="password" label={t('password')}>
+              <PasswordInput
+                id="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 // The only field on this path, so it should be ready to type in.
                 autoFocus
                 required
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
@@ -203,8 +203,9 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
               </p>
             )}
 
-            <Field label={t('organization')} hint={t('organizationHint')}>
+            <Field id="organization" label={t('organization')} hint={t('organizationHint')}>
               <input
+                id="organization"
                 value={organizationSlug}
                 onChange={(event) => setOrganizationSlug(event.target.value)}
                 autoComplete="organization"
@@ -214,8 +215,9 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
               />
             </Field>
 
-            <Field label={t('email')}>
+            <Field id="email" label={t('email')}>
               <input
+                id="email"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -225,14 +227,13 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
               />
             </Field>
 
-            <Field label={t('password')}>
-              <input
-                type="password"
+            <Field id="password" label={t('password')}>
+              <PasswordInput
+                id="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 required
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </Field>
 
@@ -264,19 +265,25 @@ export function LoginForm({ lastAccount }: { lastAccount: LastAccount | null }) 
 }
 
 function Field({
+  id,
   label,
   hint,
   children,
 }: {
+  id: string;
   label: string;
   hint?: string;
   children: React.ReactNode;
 }) {
+  // A real htmlFor rather than an implicit wrapper: the password field carries
+  // a show/hide button beside it, which must not sit inside the label.
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-ink-700">{label}</span>
+    <div>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink-700">
+        {label}
+      </label>
       {children}
       {hint && <span className="mt-1 block text-xs text-stone-400">{hint}</span>}
-    </label>
+    </div>
   );
 }

@@ -8,6 +8,7 @@ import { actorFrom } from '../../inventory/interface/inventory.controller';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { AssignRoomUseCase } from '../application/assign-room.usecase';
 import { GetStayViewQuery } from '../application/get-stay-view.query';
+import { ListAssignableRoomsQuery } from '../application/list-assignable-rooms.query';
 import { ManageRoomsUseCase } from '../application/manage-rooms.usecase';
 import {
   HOUSEKEEPING_STATUSES,
@@ -65,6 +66,7 @@ export class RoomsController {
     private readonly manage: ManageRoomsUseCase,
     private readonly assign: AssignRoomUseCase,
     private readonly stayView: GetStayViewQuery,
+    private readonly assignable: ListAssignableRoomsQuery,
   ) {}
 
   @Get('rooms')
@@ -84,6 +86,23 @@ export class RoomsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return present(await this.manage.create({ propertyId, ...body }, actorFrom(request)));
+  }
+
+  /**
+   * Which rooms could take a guest on these nights. Read by the booking form
+   * and the assignment dialog, so it rides on `reservation:read` like the stay
+   * view does. Advisory: the write is where a clash is actually refused.
+   */
+  @Get('rooms/assignable')
+  @RequireCapability('reservation:read')
+  @ApiOperation({ summary: 'Rooms free to assign for a range of nights' })
+  async getAssignableRooms(
+    @Param('propertyId') propertyId: string,
+    @Query('checkIn') checkIn: string,
+    @Query('checkOut') checkOut: string,
+  ) {
+    const items = await this.assignable.execute(propertyId, ...this.parseRange(checkIn, checkOut));
+    return { items };
   }
 
   // No DELETE: past assignments point at the room. isActive: false takes it out
@@ -132,7 +151,7 @@ export class RoomsController {
 
   private parseRange(from: string, to: string): [IsoDate, IsoDate] {
     if (!isIsoDate(from) || !isIsoDate(to)) {
-      throw errors.validation('from and to must be calendar dates in YYYY-MM-DD form');
+      throw errors.validation('Both dates must be calendar dates in YYYY-MM-DD form');
     }
     const start = toIsoDate(from);
     const end = toIsoDate(to);

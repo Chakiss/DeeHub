@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { DomainError } from '@deehub/shared';
@@ -35,6 +35,15 @@ const changePasswordSchema = z
   .strict();
 
 type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
+
+/** The dashboard's two languages. Kept in step with admin-web/src/i18n/locale.ts. */
+const preferencesSchema = z
+  .object({
+    preferredLocale: z.enum(['en', 'th']),
+  })
+  .strict();
+
+type PreferencesBody = z.infer<typeof preferencesSchema>;
 
 /**
  * The locale comes from the client because the client is the only one who
@@ -213,11 +222,28 @@ export class AuthController {
     return this.presentUser(principal);
   }
 
+  /**
+   * The language this person reads the dashboard in. Saved on the account so
+   * it follows them to the next machine; the dashboard applies it at sign-in.
+   */
+  @Patch('me/preferences')
+  @ApiOperation({ summary: 'Save the language the current user reads the dashboard in' })
+  async updatePreferences(
+    @Body(new ZodValidationPipe(preferencesSchema)) body: PreferencesBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const principal = request.principal;
+    if (!principal) throw new DomainError('UNAUTHENTICATED', 'Not authenticated');
+    await this.auth.setPreferredLocale(principal.id, body.preferredLocale);
+    return { preferredLocale: body.preferredLocale };
+  }
+
   private presentUser(principal: {
     id: string;
     email: string;
     fullName: string;
     organizationId: string;
+    preferredLocale: string | null;
     memberships: readonly Membership[];
   }) {
     // Explicit response shape: never serialize an entity directly, or a future
@@ -227,6 +253,7 @@ export class AuthController {
       email: principal.email,
       fullName: principal.fullName,
       organizationId: principal.organizationId,
+      preferredLocale: principal.preferredLocale,
       memberships: principal.memberships.map((membership) => ({
         role: membership.role,
         propertyId: membership.propertyId,

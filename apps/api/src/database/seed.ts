@@ -13,6 +13,7 @@ import { addDays, businessDate, toIsoDate } from '@deehub/shared';
 import { v7 as uuidv7 } from 'uuid';
 import { ScryptPasswordHasher } from '../modules/auth/domain/password-hasher';
 import * as schema from './schema';
+import { DEFAULT_BOOKING_SOURCES } from '../modules/booking-sources/domain/booking-source.repository';
 
 const DEMO_SLUG = 'deehub-demo';
 const DEMO_PASSWORD = 'deehub-dev-password';
@@ -194,6 +195,19 @@ async function main(): Promise<void> {
         name: 'Mock OTA (development)',
         status: 'INACTIVE',
       });
+
+      // The OTAs the desk can say a booking came through, before any of them
+      // is connected. The same list every property starts with.
+      await tx.insert(schema.bookingSources).values(
+        DEFAULT_BOOKING_SOURCES.map((source) => ({
+          id: uuidv7(),
+          organizationId,
+          propertyId,
+          name: source.name,
+          kind: 'OTA',
+          channelType: source.channelType,
+        })),
+      );
     });
 
     process.stdout.write(

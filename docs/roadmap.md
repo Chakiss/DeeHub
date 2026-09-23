@@ -67,6 +67,12 @@ Phase 4 with it. Delivered:
   (manual booking), an unstarted stay can have its dates, room type, rate plan
   or occupancy changed, and a stay already under way can have its departure
   moved in either direction — extended, or cut short when a guest leaves early.
+  Since 2026-09-22, after a pilot hotel's first week: the booking form asks
+  for the room number, the booking page can change it, the stay view is
+  grouped by room type and its dialog offers only rooms free on those
+  nights, and a hand-keyed booking says which OTA or agent it came through
+  (a per-property list, ADR-0009) — so what Agoda brings in is reportable
+  before any connector exists, and stays one line after one does.
 - **Guests**: profiles and stay history, and a way to fold two profiles into
   one when the same person booked twice under different details.
 - **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking

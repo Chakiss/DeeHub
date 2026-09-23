@@ -598,4 +598,31 @@ records, and deployment.md §2 has the full runbook:
    not moved or is still proxied.
 4. Sync the marketing bucket once by hand; CI does it from then on.
 
+## 23. What a pilot hotel's first week changed, and three calls in it
+
+A hotel used the dashboard on a phone next to the PMS it already has and sent
+back four complaints: no room number on the booking form, "assigning rooms is
+very hard", no way to say which OTA a booking came through, and no eye on the
+password field. All four are addressed (ADR-0009 covers the third). Three
+decisions inside that work are yours to overturn.
+
+**A room chosen on the booking form fails the whole booking if it is taken.**
+The alternative — save the booking and drop the room — leaves the desk with a
+booking that has no room and no message saying so. The refusal names the room;
+the desk picks another and saves again. The room list the form offers is
+advisory; the database decides at the write, as it always did.
+
+**Booking sources are a per-property list that starts with six OTAs**, and a
+manager (`channel:update`) edits it, not a receptionist. An OTA or agent
+booking keyed by hand must name one; a walk-in must not. A hand-keyed OTA
+booking is still priced from your own rate plans, not at what the OTA sold the
+room for — `channel-markup-plan.md` §5 applies only to connector deliveries.
+If the desk needs to type the OTA's figure, that is a price-override field on
+the form, and a separate decision.
+
+**Categories stay as they were, plus TRAVEL_AGENT.** `DIRECT` is now labelled
+"Hotel website" in the form, because that is what it means (the public booking
+engine sets it); phone and email bookings keep their own categories rather
+than folding into "direct", since they are the ones a receptionist takes.
+
 _(Updated as the session continues.)_

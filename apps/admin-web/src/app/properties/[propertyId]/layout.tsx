@@ -28,6 +28,7 @@ export default async function PropertyLayout({
     { href: `/properties/${propertyId}/rooms`, label: t('rooms') },
     { href: `/properties/${propertyId}/guests`, label: t('guests') },
     { href: `/properties/${propertyId}/channels`, label: t('channels') },
+    { href: `/properties/${propertyId}/booking-sources`, label: t('bookingSources') },
     { href: `/properties/${propertyId}/reports`, label: t('reports') },
     { href: `/properties/${propertyId}/accounting`, label: t('accounting') },
     { href: `/properties/${propertyId}/notifications`, label: t('notifications') },

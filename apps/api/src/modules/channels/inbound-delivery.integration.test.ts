@@ -41,6 +41,7 @@ describeIfDb('inbound reservation delivery', () => {
   const roomTypeId = crypto.randomUUID();
   const ratePlanId = crypto.randomUUID();
   const channelId = crypto.randomUUID();
+  const bookingSourceId = crypto.randomUUID();
 
   const WEBHOOK_SECRET = 'inbound-test-secret';
   const EXTERNAL_ROOM = 'OTA-ROOM-1';
@@ -114,6 +115,12 @@ describeIfDb('inbound reservation delivery', () => {
       [ratePlanId, orgId, propertyId, roomTypeId],
     );
 
+    await pool.query(
+      `INSERT INTO booking_sources (id, organization_id, property_id, name, kind, channel_type)
+       VALUES ($1, $2, $3, 'Mock OTA (label)', 'OTA', 'MOCK_OTA')`,
+      [bookingSourceId, orgId, propertyId],
+    );
+
     const cipher = moduleRef.get<CredentialCipher>(CREDENTIAL_CIPHER);
     await pool.query(
       `INSERT INTO channels (id, organization_id, property_id, type, name, status, credentials_encrypted)
@@ -150,6 +157,7 @@ describeIfDb('inbound reservation delivery', () => {
       'audit_logs',
       'channel_reservations',
       'reservations',
+      'booking_sources',
       'guests',
       'inventory_days',
       'rate_days',
@@ -297,14 +305,21 @@ describeIfDb('inbound reservation delivery', () => {
       // The departure date is not a night.
       expect(await bookedOn('2026-12-03')).toBe(0);
 
-      const reservation = await pool.query<{ status: string; source: string; booker_name: string }>(
-        'SELECT status, source, booker_name FROM reservations WHERE organization_id = $1',
+      const reservation = await pool.query<{
+        status: string;
+        source: string;
+        booker_name: string;
+        booking_source_id: string | null;
+      }>(
+        'SELECT status, source, booker_name, booking_source_id FROM reservations WHERE organization_id = $1',
         [orgId],
       );
       expect(reservation.rows[0]).toMatchObject({
         status: 'CONFIRMED',
         source: 'OTA',
         booker_name: 'Inbound Guest',
+        // Under the label the desk uses by hand for this OTA (ADR-0009).
+        booking_source_id: bookingSourceId,
       });
     });
 

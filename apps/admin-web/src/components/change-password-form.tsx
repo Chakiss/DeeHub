@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
+import { PasswordInput } from '@/components/password-input';
 
 const MIN_LENGTH = 12;
 
@@ -72,40 +73,34 @@ export function ChangePasswordForm() {
       </div>
 
       <Field id="current-password" label={t('currentPassword')}>
-        <input
+        <PasswordInput
           id="current-password"
-          type="password"
           value={currentPassword}
           onChange={(event) => setCurrentPassword(event.target.value)}
           autoComplete="current-password"
           required
-          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
       <Field id="new-password" label={t('newPassword')} hint={t('hint')}>
-        <input
+        <PasswordInput
           id="new-password"
           aria-describedby="new-password-hint"
-          type="password"
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
           autoComplete="new-password"
           minLength={MIN_LENGTH}
           required
-          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 
       <Field id="confirm-password" label={t('confirmPassword')}>
-        <input
+        <PasswordInput
           id="confirm-password"
-          type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
           autoComplete="new-password"
           required
-          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
       </Field>
 

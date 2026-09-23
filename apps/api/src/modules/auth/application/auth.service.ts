@@ -244,6 +244,11 @@ export class AuthService {
     });
   }
 
+  /** A display preference, not a credential: no session is touched. */
+  async setPreferredLocale(userId: string, locale: 'en' | 'th'): Promise<void> {
+    await this.repo.updatePreferredLocale(this.db, userId, locale);
+  }
+
   async logout(refreshToken: string | undefined): Promise<void> {
     if (!refreshToken) return;
     const stored = await this.repo.findRefreshTokenByHash(this.db, this.hashToken(refreshToken));

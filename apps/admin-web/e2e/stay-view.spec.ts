@@ -22,7 +22,7 @@ async function book(
   guestName: string,
   checkIn: string,
   checkOut: string,
-): Promise<void> {
+): Promise<{ stayId: string }> {
   const data = testData();
   const response = await request.post(`${API}/properties/${data.propertyId}/reservations`, {
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
@@ -41,6 +41,8 @@ async function book(
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
+  const body = (await response.json()) as { stays: { id: string }[] };
+  return { stayId: body.stays[0]!.id };
 }
 
 /**
@@ -165,30 +167,79 @@ test.describe('rooms and stay view', () => {
     await selectRoom(dialog, '201');
     await dialog.getByRole('button', { name: 'Assign' }).click();
 
-    // It leaves the worklist and appears on the room's row.
+    // It leaves the worklist and appears on the room's row — under its room
+    // type's heading, which is how the grid is now read.
     await expect(worklist).toHaveCount(0);
     await expect(page.getByRole('row', { name: /201/ })).toContainText(guest);
+    const heading = page.locator('tbody th[colspan]').first().getByRole('button');
+    await expect(heading).toHaveAttribute('aria-expanded', 'true');
+    await heading.click();
+    await expect(page.getByRole('row', { name: /201/ })).toHaveCount(0);
+    await heading.click();
+    await expect(page.getByRole('row', { name: /201/ })).toBeVisible();
   });
 
   /**
-   * The database refuses two bookings in one room on overlapping nights, and
-   * the message has to name the room rather than surface a constraint.
+   * The dialog offers only rooms free on the stay's nights — 201 is held by
+   * the previous test's guest — and when two desks are offered the same room
+   * at once, the database refuses the second with a message naming the room
+   * rather than surfacing a constraint.
    */
-  test('refuses to put a second guest in an occupied room', async ({ page, request }) => {
+  test('offers only free rooms, and refuses a room taken while the dialog was open', async ({
+    page,
+    request,
+  }) => {
     const data = testData();
+    const token = await apiToken(request);
+    // Two bookings on the shared window would sell a night out for the specs
+    // after this one, so these get nights of their own.
+    await openForSale(request, token, '2030-09-01', '2030-09-06');
     const guest = `Clash ${Date.now().toString(36)}`;
-    await book(request, await apiToken(request), guest, data.dates[1]!, data.dates[3]!);
+    await book(request, token, guest, '2030-09-02', '2030-09-04');
+    const rival = await book(
+      request,
+      token,
+      `Rival ${Date.now().toString(36)}`,
+      '2030-09-02',
+      '2030-09-04',
+    );
+
+    const rooms = (await (
+      await request.get(`${API}/properties/${data.propertyId}/rooms`, {
+        headers: { authorization: `Bearer ${token}` },
+      })
+    ).json()) as { items: { id: string; roomNumber: string }[] };
+    const roomId = (roomNumber: string) =>
+      rooms.items.find((room) => room.roomNumber === roomNumber)!.id;
+    const moveRival = async (roomNumber: string) => {
+      const moved = await request.patch(
+        `${API}/properties/${data.propertyId}/stays/${rival.stayId}/room`,
+        {
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          data: { roomId: roomId(roomNumber) },
+        },
+      );
+      expect(moved.ok(), await moved.text()).toBeTruthy();
+    };
+
+    // The rival is in 201 before the dialog opens: 201 must not be offered.
+    await moveRival('201');
 
     await login(page, data.managerEmail);
-    await page.goto(`/properties/${data.propertyId}/stay-view?from=${data.dates[0]}`);
+    await page.goto(`/properties/${data.propertyId}/stay-view?from=2030-09-01`);
 
-    const worklist = page.getByRole('listitem').filter({ hasText: guest });
+    const worklist = page.getByRole('listitem').filter({ hasText: guest }).first();
     await worklist.getByRole('button', { name: 'Assign' }).click();
     const dialog = page.getByRole('dialog', { name: new RegExp(guest) });
-    await selectRoom(dialog, '201');
-    await dialog.getByRole('button', { name: 'Assign' }).click();
+    await expect(dialog.locator('option', { hasText: '202' })).toHaveCount(1);
+    await expect(dialog.locator('option', { hasText: '201' })).toHaveCount(0);
 
-    await expect(dialog.getByRole('alert')).toContainText('201');
+    // Another desk moves the rival into 202 after this dialog loaded its list.
+    await moveRival('202');
+
+    await selectRoom(dialog, '202');
+    await dialog.getByRole('button', { name: 'Assign' }).click();
+    await expect(dialog.getByRole('alert')).toContainText('202');
   });
 
   /**

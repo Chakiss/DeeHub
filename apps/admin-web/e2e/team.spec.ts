@@ -17,7 +17,7 @@ async function signInAsOwner(page: import('@playwright/test').Page): Promise<voi
   await page.goto('/login');
   await page.getByLabel('Organization').fill(data.organizationSlug);
   await page.getByLabel('Email').fill(data.ownerEmail);
-  await page.getByLabel('Password').fill(TEST_PASSWORD);
+  await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'));
 }
@@ -86,12 +86,12 @@ test.describe('team', () => {
     await page.goto('/login');
     await page.getByLabel('Organization').fill(data.organizationSlug);
     await page.getByLabel('Email').fill(data.frontDeskEmail);
-    await page.getByLabel('Password').fill(TEST_PASSWORD);
+    await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('form').getByRole('alert')).toBeVisible();
 
     // The new one does.
-    await page.getByLabel('Password').fill(shown!.trim());
+    await page.getByLabel('Password', { exact: true }).fill(shown!.trim());
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForURL((url) => !url.pathname.startsWith('/login'));
   });

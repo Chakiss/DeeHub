@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import type { ChannelDetail, MappingInput, RatePlanMappingInput } from '@/lib/api';
+import { PasswordInput } from '@/components/password-input';
 import {
   replaceMappings,
   syncChannel,
@@ -328,8 +329,8 @@ export function ChannelEditor({
                   read an OTA password off the screen. It is write-only anyway:
                   nothing stored is ever loaded back into this field.
                 */}
-                <input
-                  type="password"
+                <PasswordInput
+                  aria-label={t('credentialValue')}
                   placeholder={t('credentialValue')}
                   value={row.value}
                   onChange={(event) =>
