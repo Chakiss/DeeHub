@@ -49,6 +49,9 @@ interface StayDraft {
   guestName: string;
   /** A room chosen now; empty is "assign later". */
   roomId: string;
+  /** A price per night typed instead of the plan's, in major units as typed. */
+  nightlyRate: string;
+  priceNote: string;
 }
 
 /**
@@ -70,6 +73,7 @@ export function BookingForm({
   ratePlans,
   hasRooms,
   bookingSources,
+  canOverridePrice,
 }: {
   propertyId: string;
   currency: string;
@@ -83,6 +87,8 @@ export function BookingForm({
    * picker saying "none free" would be a lie about the wrong thing.
    */
   hasRooms: boolean;
+  /** reservation:price_override — managers and above. */
+  canOverridePrice: boolean;
 }) {
   const t = useTranslations('reservations');
   const router = useRouter();
@@ -245,6 +251,12 @@ export function BookingForm({
         ...(stay.children > 0 ? { children: stay.children } : {}),
         ...(stay.guestName.trim() ? { guestName: stay.guestName.trim() } : {}),
         ...(stay.roomId ? { roomId: stay.roomId } : {}),
+        ...(canOverridePrice && stay.nightlyRate.trim()
+          ? {
+              nightlyRate: toMinor(stay.nightlyRate),
+              ...(stay.priceNote.trim() ? { priceNote: stay.priceNote.trim() } : {}),
+            }
+          : {}),
       })),
       ...(specialRequests.trim() ? { specialRequests: specialRequests.trim() } : {}),
     };
@@ -409,6 +421,49 @@ export function BookingForm({
                         className={inputClass}
                       />
                     </Labelled>
+                    {canOverridePrice && (
+                      <Labelled label={t('nightlyRateOptional', { currency })}>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          inputMode="decimal"
+                          value={stay.nightlyRate}
+                          onChange={(event) =>
+                            updateStay(stay.key, { nightlyRate: event.target.value })
+                          }
+                          placeholder={
+                            availability.get(stay.roomTypeId)?.lowestRate != null && nights > 0
+                              ? t('planPriceHint', {
+                                  price: formatMoney(
+                                    Math.round(
+                                      (availability.get(stay.roomTypeId)?.lowestRate ?? 0) / nights,
+                                    ),
+                                    currency,
+                                  ),
+                                })
+                              : ''
+                          }
+                          className={inputClass}
+                        />
+                      </Labelled>
+                    )}
+                    {canOverridePrice &&
+                      stay.nightlyRate.trim() &&
+                      sourceValue(sourceChoice, bookingSources).source !== 'OTA' && (
+                        <Labelled label={t('priceNote')}>
+                          <input
+                            type="text"
+                            maxLength={500}
+                            value={stay.priceNote}
+                            onChange={(event) =>
+                              updateStay(stay.key, { priceNote: event.target.value })
+                            }
+                            placeholder={t('priceNoteHint')}
+                            className={inputClass}
+                          />
+                        </Labelled>
+                      )}
                     {hasRooms && (
                       <Labelled label={t('roomNumberOptional')}>
                         <RoomSelect
@@ -607,7 +662,14 @@ function newStay(roomTypes: RoomType[], plansFor: Map<string, RatePlan[]>): Stay
     children: 0,
     guestName: '',
     roomId: '',
+    nightlyRate: '',
+    priceNote: '',
   };
+}
+
+/** "1,250.50" typed at the desk → 125050 satang. Two minor digits, as THB has. */
+function toMinor(typed: string): number {
+  return Math.round(Number(typed.replace(/,/g, '')) * 100);
 }
 
 /**

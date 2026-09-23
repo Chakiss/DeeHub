@@ -181,6 +181,9 @@ export interface ReservationDetail {
     guestName: string | null;
     assignedRoomId: string | null;
     assignedRoomNumber: string | null;
+    /** Where the frozen prices came from: the plan, the channel, or a typed price. */
+    pricedFrom: 'PROPERTY_RATES' | 'CHANNEL' | 'MANUAL';
+    priceNote: string | null;
     subtotal: Money;
     /** Frozen prices — what the guest was quoted, not today's rate. */
     nights: { date: string; amount: number }[];
@@ -204,6 +207,10 @@ export interface CreateReservationInput {
     guestName?: string;
     /** Put this stay in a room now. The API refuses if it is taken. */
     roomId?: string;
+    /** A price per night instead of the plan's, in minor units. Needs reservation:price_override. */
+    nightlyRate?: number;
+    /** Required when nightlyRate is below the plan on a non-OTA booking. */
+    priceNote?: string;
   }[];
   specialRequests?: string;
   guestId?: string;

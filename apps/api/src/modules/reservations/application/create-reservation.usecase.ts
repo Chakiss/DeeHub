@@ -59,6 +59,14 @@ export interface CreateStayInput {
    */
   readonly roomId?: string;
   /**
+   * A price per night typed at the desk, in the property's currency's minor
+   * unit. Needs `reservation:price_override`, which the controller checks.
+   * On an OTA booking it is recorded as the channel's price; on any other it
+   * is a manual price, and one below the plan needs `priceNote`.
+   */
+  readonly nightlyRateMinor?: number;
+  readonly priceNote?: string;
+  /**
    * The price a CHANNEL sold this stay at. Only the channel delivery path may
    * set it; every public and staff-facing schema is strict, so an amount in a
    * request body is rejected rather than ignored.
@@ -245,7 +253,21 @@ export class CreateReservationUseCase {
         : 'PROPERTY_RATES';
 
       for (const stayInput of input.stays) {
-        const stay = await this.planStay.plan(tx, property, stayInput, policy);
+        const stay = await this.planStay.plan(
+          tx,
+          property,
+          stayInput.nightlyRateMinor === undefined
+            ? stayInput
+            : {
+                ...stayInput,
+                nightlyRate: {
+                  amount: { amount: stayInput.nightlyRateMinor, currency: property.currency },
+                  as: input.source === 'OTA' ? 'CHANNEL' : 'MANUAL',
+                },
+                priceNote: stayInput.priceNote ?? null,
+              },
+          policy,
+        );
         const room = stayInput.roomId
           ? await this.roomFor(tx, property.id, stayInput.roomId, chosenRooms)
           : null;
@@ -254,6 +276,16 @@ export class CreateReservationUseCase {
         overbookings.push(...stay.overbookings);
         if (stayInput.channelTotal && stay.pricedFrom === 'PROPERTY_RATES') {
           pricedFrom = 'PROPERTY_RATES';
+        }
+        // A typed price on any stay is the thing worth seeing about the
+        // booking, whichever label the other stays carry.
+        if (stay.pricedFrom === 'MANUAL') pricedFrom = 'MANUAL';
+        else if (
+          stay.pricedFrom === 'CHANNEL' &&
+          pricedFrom === 'PROPERTY_RATES' &&
+          !input.stays.some((s) => s.channelTotal)
+        ) {
+          pricedFrom = 'CHANNEL';
         }
 
         const existing = touchedRoomTypes.get(stay.record.roomTypeId);
@@ -322,6 +354,12 @@ export class CreateReservationUseCase {
             roomTypeId: stay.roomTypeId,
             checkIn: stay.checkIn,
             checkOut: stay.checkOut,
+            // Which prices the nights froze at, and the reason when a person
+            // chose them: the audit trail is where "why was this room ฿900"
+            // gets answered.
+            pricedFrom: stay.pricedFrom,
+            ...(stay.priceNote ? { priceNote: stay.priceNote } : {}),
+            subtotal: stay.subtotalMinor,
             assignedRoomId: stay.assignedRoomId,
             ...(stay.assignedRoomId
               ? { roomNumber: chosenRooms.get(stay.assignedRoomId)?.roomNumber }

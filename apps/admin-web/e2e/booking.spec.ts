@@ -119,6 +119,28 @@ test.describe('taking a booking', () => {
     await expect(page.getByText('confirmed')).toBeVisible();
   });
 
+  test('a manager types a price below the plan, gives a reason, and it is frozen on the booking', async ({
+    page,
+  }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/new`);
+
+    await page.getByLabel('Check-in').fill('2031-06-03');
+    await page.getByLabel('Check-out').fill('2031-06-05');
+    await page.getByLabel('Room type').selectOption(room.roomTypeId);
+    await page.getByLabel(/Price per night/).fill('750');
+    await page.getByLabel('Reason for this price').fill('Regular guest');
+    await page.getByLabel('Name', { exact: true }).fill('Discount Guest');
+    await page.getByRole('button', { name: 'Create booking' }).click();
+
+    await page.waitForURL(/\/reservations\/[0-9a-f-]{36}$/);
+    await expect(page.getByText('Price set at the desk')).toBeVisible();
+    await expect(page.getByText('Regular guest')).toBeVisible();
+    // Two nights at the typed price, not the plan's.
+    await expect(page.getByText('THB 1,500.00').first()).toBeVisible();
+  });
+
   /**
    * The form shows what is sellable but takes NO hold. A room type with no
    * inventory rows at all cannot be sold, and saying so before the clerk types

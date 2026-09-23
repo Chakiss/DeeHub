@@ -202,6 +202,17 @@ export default async function ReservationDetailPage({
                   <p className="tabular mt-2 text-right text-sm font-medium text-ink-800">
                     {formatMoney(stay.subtotal.amount, stay.subtotal.currency)}
                   </p>
+                  {/* Where the money came from, when not the plan: a typed
+                      price and its reason are the answer to "why was this
+                      room ฿900" without opening the audit trail. */}
+                  {stay.pricedFrom !== 'PROPERTY_RATES' && (
+                    <p className="mt-1 text-right text-xs text-stone-500">
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800">
+                        {t(`pricedFrom${stay.pricedFrom}`)}
+                      </span>
+                      {stay.priceNote && <span className="ml-2">{stay.priceNote}</span>}
+                    </p>
+                  )}
 
                   {/*
                    * One editor or the other, never both. A stay that has begun

@@ -56,6 +56,8 @@ export class DrizzleReservationRepository implements ReservationRepository {
         children: stay.children,
         guestName: stay.guestName,
         assignedRoomId: stay.assignedRoomId,
+        pricedFrom: stay.pricedFrom,
+        priceNote: stay.priceNote,
         subtotalMinor: stay.subtotalMinor,
       })),
     );
@@ -231,6 +233,11 @@ export class DrizzleReservationRepository implements ReservationRepository {
         adults: record.adults,
         children: record.children,
         guestName: record.guestName,
+        // A modification re-quotes from the plan, so a typed price does not
+        // survive it; the label says so rather than claiming a price that is
+        // no longer the one on the nights.
+        pricedFrom: record.pricedFrom,
+        priceNote: record.priceNote,
         subtotalMinor: record.subtotalMinor,
         ...(options.clearAssignment ? { assignedRoomId: null } : {}),
         updatedAt: new Date(),

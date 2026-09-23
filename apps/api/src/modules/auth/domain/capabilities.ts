@@ -40,6 +40,13 @@ export const CAPABILITIES = [
   'reservation:cancel',
   'reservation:checkin',
   'reservation:checkout',
+  /*
+   * Typing a price on a booking instead of taking the rate plan's. A discount
+   * is revenue given away, so it is a capability of its own rather than part
+   * of taking bookings: a receptionist takes bookings, a manager decides
+   * what a room is worth tonight.
+   */
+  'reservation:price_override',
   'guest:read',
   'guest:update',
   'channel:read',
@@ -145,6 +152,7 @@ const MANAGER_CAPABILITIES: readonly Capability[] = [
   'rateplan:update',
   'channel:update',
   'channel:sync',
+  'reservation:price_override',
   'folio:void',
   // Buying the property's electricity is the job. Seeing what the owner keeps
   // after it is not — `accounting:read` stops at ADMIN.

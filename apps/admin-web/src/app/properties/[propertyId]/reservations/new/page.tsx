@@ -12,7 +12,7 @@ export default async function NewReservationPage({
   const { propertyId } = await params;
   const t = await getTranslations('reservations');
 
-  const [properties, roomTypes, ratePlans, bookingSources, rooms] = await Promise.all([
+  const [properties, roomTypes, ratePlans, bookingSources, rooms, me] = await Promise.all([
     api.properties(),
     api.roomTypes(propertyId),
     api.ratePlans(propertyId),
@@ -20,6 +20,7 @@ export default async function NewReservationPage({
     // Only to know whether a room picker makes sense here. Someone who may
     // take bookings but not read the room list simply gets no picker.
     api.rooms(propertyId).catch(() => []),
+    api.me(),
   ]);
   const property = properties.find((candidate) => candidate.id === propertyId);
 
@@ -46,6 +47,7 @@ export default async function NewReservationPage({
         ratePlans={ratePlans}
         hasRooms={rooms.some((room) => room.isActive)}
         bookingSources={bookingSources.filter((source) => source.isActive)}
+        canOverridePrice={me.capabilities.includes('reservation:price_override')}
       />
     </div>
   );

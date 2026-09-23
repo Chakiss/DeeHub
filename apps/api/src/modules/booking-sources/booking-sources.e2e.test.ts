@@ -410,6 +410,51 @@ describeIfDb('Booking sources', () => {
       ]);
     });
 
+    it('lets a manager type a price, and not the front desk', async () => {
+      const refused = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations`)
+        .set(asDesk())
+        .send({
+          ...booking('WALK_IN'),
+          stays: [
+            {
+              roomTypeId,
+              ratePlanId,
+              checkIn: '2029-03-01',
+              checkOut: '2029-03-03',
+              adults: 2,
+              nightlyRate: 120000,
+            },
+          ],
+        })
+        .expect(403);
+      expect(refused.body.error.details.capability).toBe('reservation:price_override');
+
+      const created = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations`)
+        .set(asOwner())
+        .send({
+          ...booking('WALK_IN'),
+          stays: [
+            {
+              roomTypeId,
+              ratePlanId,
+              checkIn: '2029-03-01',
+              checkOut: '2029-03-03',
+              adults: 2,
+              nightlyRate: 120000,
+              priceNote: 'Walked in at midnight',
+            },
+          ],
+        })
+        .expect(201);
+      expect(created.body.stays[0]).toMatchObject({
+        pricedFrom: 'MANUAL',
+        priceNote: 'Walked in at midnight',
+      });
+      expect(created.body.subtotal.amount).toBe(240000);
+    });
+
     it('rejects a list filter outside the known categories', async () => {
       await request(app.getHttpServer())
         .get(`/api/v1/properties/${propertyId}/reservations?source=CARRIER_PIGEON`)

@@ -39,6 +39,7 @@ describeIfDb('booking transaction', () => {
   const otherRatePlanId = crypto.randomUUID();
   const room101 = crypto.randomUUID();
   const room102 = crypto.randomUUID();
+  const agodaSource = crypto.randomUUID();
 
   const CHECK_IN = toIsoDate('2026-08-12');
   const CHECK_OUT = toIsoDate('2026-08-15');
@@ -123,6 +124,7 @@ describeIfDb('booking transaction', () => {
     await pool.query('DELETE FROM inventory_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM rate_plans WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM booking_sources WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM physical_rooms WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM room_types WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM properties WHERE organization_id = $1', [orgId]);
@@ -144,6 +146,7 @@ describeIfDb('booking transaction', () => {
     await pool.query('DELETE FROM rate_days WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM outbox_events WHERE organization_id = $1', [orgId]);
     await pool.query('DELETE FROM audit_logs WHERE organization_id = $1', [orgId]);
+    await pool.query('DELETE FROM booking_sources WHERE organization_id = $1', [orgId]);
     await pool.query(
       `UPDATE physical_rooms SET housekeeping_status = 'CLEAN', is_active = true
        WHERE organization_id = $1`,
@@ -684,6 +687,165 @@ describeIfDb('booking transaction', () => {
           ),
         ),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+  });
+
+  /**
+   * A price typed at the desk replaces the plan's on every night. Below the
+   * plan it needs a reason; on an OTA booking it is the channel's price and
+   * needs none. Either way the label on the stay says where the money came
+   * from, so a report can keep a discount apart from list price.
+   */
+  describe('a price typed by hand', () => {
+    async function stayPricing(reservationId: string) {
+      const stay = await pool.query<{ priced_from: string; price_note: string | null }>(
+        'SELECT priced_from, price_note FROM reservation_stays WHERE reservation_id = $1',
+        [reservationId],
+      );
+      const nights = await pool.query<{ amount_minor: string }>(
+        'SELECT amount_minor FROM reservation_stay_nights WHERE reservation_id = $1 ORDER BY date',
+        [reservationId],
+      );
+      return { ...stay.rows[0]!, nights: nights.rows.map((row) => Number(row.amount_minor)) };
+    }
+
+    it('freezes the typed price on every night and labels the stay MANUAL', async () => {
+      const result = await runWithTenant(tenant(), () =>
+        createReservation.execute(
+          oneStay({
+            stays: [
+              {
+                roomTypeId,
+                ratePlanId,
+                checkIn: CHECK_IN,
+                checkOut: CHECK_OUT,
+                adults: 2,
+                nightlyRateMinor: 300000,
+              },
+            ],
+          }),
+          actor,
+        ),
+      );
+      // Above the plan: no reason needed.
+      expect(result.pricedFrom).toBe('MANUAL');
+      expect(result.subtotal.amount).toBe(900000);
+      expect(await stayPricing(result.id)).toEqual({
+        priced_from: 'MANUAL',
+        price_note: null,
+        nights: [300000, 300000, 300000],
+      });
+    });
+
+    it('refuses a price below the plan without a reason, and keeps it with one', async () => {
+      await expect(
+        runWithTenant(tenant(), () =>
+          createReservation.execute(
+            oneStay({
+              stays: [
+                {
+                  roomTypeId,
+                  ratePlanId,
+                  checkIn: CHECK_IN,
+                  checkOut: CHECK_OUT,
+                  adults: 2,
+                  nightlyRateMinor: 200000,
+                },
+              ],
+            }),
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+        message: expect.stringMatching(/reason/i),
+      });
+      for (const night of NIGHTS) expect(await bookedOn(night)).toBe(0);
+
+      const result = await runWithTenant(tenant(), () =>
+        createReservation.execute(
+          oneStay({
+            stays: [
+              {
+                roomTypeId,
+                ratePlanId,
+                checkIn: CHECK_IN,
+                checkOut: CHECK_OUT,
+                adults: 2,
+                nightlyRateMinor: 200000,
+                priceNote: 'Regular guest, agreed with the owner',
+              },
+            ],
+          }),
+          actor,
+        ),
+      );
+      expect(await stayPricing(result.id)).toMatchObject({
+        priced_from: 'MANUAL',
+        price_note: 'Regular guest, agreed with the owner',
+        nights: [200000, 200000, 200000],
+      });
+
+      const audit = await pool.query<{
+        after: { pricedFrom: string; stays: { priceNote?: string }[] };
+      }>("SELECT after FROM audit_logs WHERE action = 'reservation.created' AND entity_id = $1", [
+        result.id,
+      ]);
+      expect(audit.rows[0]?.after.stays[0]?.priceNote).toBe('Regular guest, agreed with the owner');
+    });
+
+    it("records an OTA booking's typed price as the channel's, no reason needed", async () => {
+      await pool.query(
+        `INSERT INTO booking_sources (id, organization_id, property_id, name, kind)
+         VALUES ($1, $2, $3, 'Agoda', 'OTA')`,
+        [agodaSource, orgId, propertyId],
+      );
+      const result = await runWithTenant(tenant(), () =>
+        createReservation.execute(
+          oneStay({
+            source: 'OTA' as const,
+            bookingSourceId: agodaSource,
+            stays: [
+              {
+                roomTypeId,
+                ratePlanId,
+                checkIn: CHECK_IN,
+                checkOut: CHECK_OUT,
+                adults: 2,
+                nightlyRateMinor: 180000,
+              },
+            ],
+          }),
+          actor,
+        ),
+      );
+      expect(result.pricedFrom).toBe('CHANNEL');
+      expect(await stayPricing(result.id)).toMatchObject({
+        priced_from: 'CHANNEL',
+        nights: [180000, 180000, 180000],
+      });
+    });
+
+    it('refuses a negative price', async () => {
+      await expect(
+        runWithTenant(tenant(), () =>
+          createReservation.execute(
+            oneStay({
+              stays: [
+                {
+                  roomTypeId,
+                  ratePlanId,
+                  checkIn: CHECK_IN,
+                  checkOut: CHECK_OUT,
+                  adults: 2,
+                  nightlyRateMinor: -1,
+                },
+              ],
+            }),
+            actor,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
     });
   });
 
