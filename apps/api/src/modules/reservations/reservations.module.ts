@@ -3,6 +3,8 @@ import { GuestsModule } from '../guests/guests.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { PropertiesModule } from '../properties/properties.module';
 import { RatesModule } from '../rates/rates.module';
+import { RoomsModule } from '../rooms/rooms.module';
+import { BookingSourcesModule } from '../booking-sources/booking-sources.module';
 import { CancelReservationUseCase } from './application/cancel-reservation.usecase';
 import { CheckInUseCase } from './application/check-in.usecase';
 import { CheckOutUseCase } from './application/check-out.usecase';
@@ -28,7 +30,19 @@ import { ReservationsController } from './interface/reservations.controller';
 @Module({
   // FolioModule for the outstanding balance at check-out: letting a guest walk
   // out is the last moment anybody can ask them for money.
-  imports: [InventoryModule, PropertiesModule, RatesModule, GuestsModule, FolioModule],
+  // RoomsModule for the room a booking may name at creation — read through
+  // its port and checked by its rule, never by reaching into its tables.
+  // BookingSourcesModule for the OTA or agent a booking names: read through
+  // its port to check it is this property's and matches the category.
+  imports: [
+    InventoryModule,
+    PropertiesModule,
+    RatesModule,
+    GuestsModule,
+    FolioModule,
+    RoomsModule,
+    BookingSourcesModule,
+  ],
   controllers: [ReservationsController],
   providers: [
     { provide: RESERVATION_REPOSITORY, useClass: DrizzleReservationRepository },

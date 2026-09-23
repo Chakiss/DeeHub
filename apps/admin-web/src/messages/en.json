@@ -3,6 +3,10 @@
     "name": "DeeHub",
     "tagline": "One Hub. Every Booking."
   },
+  "common": {
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
   "nav": {
     "inventory": "Inventory",
     "reservations": "Reservations",
@@ -19,7 +23,8 @@
     "audit": "Activity",
     "notifications": "Notifications",
     "channels": "Channels",
-    "accounting": "Accounting"
+    "accounting": "Accounting",
+    "bookingSources": "Booking sources"
   },
   "login": {
     "title": "Sign in",
@@ -175,8 +180,8 @@
     "bookerName": "Name",
     "bookerEmail": "Email (optional)",
     "bookerPhone": "Phone (optional)",
-    "sourceLabel": "Source",
-    "sourceDIRECT": "Direct",
+    "sourceLabel": "Booked through",
+    "sourceDIRECT": "Hotel website",
     "sourceWALK_IN": "Walk-in",
     "sourcePHONE": "Phone",
     "sourceEMAIL": "Email",
@@ -217,7 +222,23 @@
     "earlyWarning": "Putting them back offers the room on every channel within seconds. Take the key back first.",
     "earlyRelease": "Check out and put the room back on sale",
     "earlyKeep": "Check out and hold the room",
-    "earlyDismiss": "Not yet"
+    "earlyDismiss": "Not yet",
+    "roomNumberOptional": "Room number (optional)",
+    "assignLater": "Assign later",
+    "upgradeGroup": "Other room types (upgrade)",
+    "noRoomsFree": "No room is free for these nights",
+    "roomDirty": "not yet cleaned",
+    "changeRoom": "Change room",
+    "assignRoom": "Assign room",
+    "releaseRoom": "Release room",
+    "saveRoom": "Save",
+    "keepRoom": "Keep",
+    "currentRoom": "Current room",
+    "roomLocked": "The room can no longer be changed for a {status} booking.",
+    "sourceTRAVEL_AGENT": "Travel agent",
+    "sourceGroupOta": "OTA",
+    "sourceGroupAgent": "Travel agents",
+    "allSources": "All sources"
   },
   "folio": {
     "title": "Guest account",
@@ -281,7 +302,14 @@
     "mismatch": "The two new passwords do not match.",
     "tooShort": "Use at least 12 characters.",
     "failed": "Could not change the password.",
-    "success": "Password changed. Other devices have been signed out."
+    "success": "Password changed. Other devices have been signed out.",
+    "languageTitle": "Language",
+    "languageSubtitle": "Saved on your account: every browser you sign in on will use it.",
+    "language": "Language",
+    "languageSave": "Save language",
+    "languageSaving": "Saving…",
+    "languageSaved": "Saved. The dashboard will use this language from now on.",
+    "languageFailed": "Could not save the language."
   },
   "roomTypes": {
     "title": "Room types",
@@ -488,7 +516,13 @@
     "arrivingToday": "Arriving today",
     "arrivals": "Arrivals",
     "departures": "Departures",
-    "nothingToday": "Nothing arriving or leaving today."
+    "nothingToday": "Nothing arriving or leaving today.",
+    "roomsInType": "{count, plural, one {# room} other {# rooms}}",
+    "needRoomInType": "{count, plural, one {# needs a room} other {# need a room}}",
+    "loadingRooms": "Finding free rooms…",
+    "noRoomsFree": "No room is free for these nights. Release one, or change the dates.",
+    "upgradeGroup": "Other room types (upgrade)",
+    "dirty": "not yet cleaned"
   },
   "reports": {
     "title": "Performance",
@@ -772,5 +806,33 @@
     "withholdingEnabled": "This hotel withholds tax when paying suppliers",
     "withholdingHint": "Pay the supplier {paid}, remit {wht} to the Revenue Department.",
     "worksheetNotice": "These figures help you fill in a return. They are not a filing — have your accountant check them before you submit anything."
+  },
+  "bookingSources": {
+    "title": "Booking sources",
+    "subtitle": "The OTAs you sell through and the agents you take bookings from — what the booking form offers.",
+    "notChannels": "These are labels for bookings keyed in by hand, and what reports group by. Connecting an OTA so bookings arrive on their own happens under Channels; its bookings land under the matching label here.",
+    "add": "Add booking source",
+    "addDefaults": "Add the usual OTAs",
+    "name": "Name",
+    "namePlaceholder": "Bangkok Tours Co.",
+    "kind": "Kind",
+    "kindHint": "Cannot be changed later: every booking that names this source records its category from it.",
+    "kindOTA": "OTA",
+    "kindTRAVEL_AGENT": "Travel agent",
+    "status": "Status",
+    "inUse": "In use",
+    "retired": "Retired",
+    "retire": "Retire",
+    "reinstate": "Reinstate",
+    "connector": "connector",
+    "linkedToConnector": "Bookings a connected channel of this type delivers land under this label.",
+    "empty": "No booking sources yet.",
+    "emptyHint": "Add the usual OTAs, or an agent by name. Walk-in, phone, email and website bookings need nothing here.",
+    "noDelete": "A source is retired rather than deleted: bookings point at it, and reports group by it.",
+    "nameTaken": "A booking source with that name already exists.",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "failed": "Could not save the booking source."
   }
 }

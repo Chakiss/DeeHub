@@ -9,11 +9,12 @@ import {
   cookieOptions,
   encodeLastAccount,
 } from '@/lib/session';
+import { LOCALE_COOKIE, LOCALE_MAX_AGE, LOCALES, type Locale } from '@/i18n/locale';
 
 interface LoginResponse {
   accessToken?: string;
   expiresIn?: number;
-  user?: { email?: string; fullName?: string };
+  user?: { email?: string; fullName?: string; preferredLocale?: string | null };
   error?: { code?: string; message?: string };
 }
 
@@ -68,6 +69,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       }),
       cookieOptions(LAST_ACCOUNT_MAX_AGE),
     );
+  }
+
+  // The language saved on the account wins over whatever this browser had:
+  // the person chose it once, and it should follow them to this machine. A
+  // browser-only choice (no account preference) is left alone.
+  const preferred = payload.user?.preferredLocale;
+  if (preferred && LOCALES.includes(preferred as Locale)) {
+    response.cookies.set(LOCALE_COOKIE, preferred, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: LOCALE_MAX_AGE,
+    });
   }
 
   // The API returns its refresh token in a Set-Cookie for its own origin, which

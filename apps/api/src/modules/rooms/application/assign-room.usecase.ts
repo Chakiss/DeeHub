@@ -6,6 +6,7 @@ import { AuditService, type AuditActor } from '../../../common/audit/audit.servi
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import { physicalRooms, reservationStays, reservations } from '../../../database/schema';
 import { isExclusionViolation, ROOM_OVERLAP_CONSTRAINT } from '../../../database/postgres-errors';
+import { assertRoomAssignable } from '../domain/assignable';
 import { ROOM_REPOSITORY, type RoomRepository } from '../domain/room.repository';
 
 export interface AssignRoomInput {
@@ -49,12 +50,7 @@ export class AssignRoomUseCase {
       room = await this.rooms.findById(this.db, input.propertyId, input.roomId);
       if (!room) throw errors.notFound('Room', input.roomId);
 
-      if (!room.isActive) {
-        throw errors.validation(`Room ${room.roomNumber} is not in service`);
-      }
-      if (room.housekeepingStatus === 'OUT_OF_ORDER') {
-        throw errors.validation(`Room ${room.roomNumber} is out of order`);
-      }
+      assertRoomAssignable(room);
       // Cross-type assignment is allowed on purpose — an upgrade is a normal
       // front-desk decision — but it is worth recording, so the audit entry
       // below carries both types.

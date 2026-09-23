@@ -3,14 +3,42 @@
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import type { CreateReservationInput, InventoryGrid, RatePlan, RoomType } from '@/lib/api';
+import type {
+  AssignableRoom,
+  BookingSource,
+  CreateReservationInput,
+  InventoryGrid,
+  RatePlan,
+  RoomType,
+} from '@/lib/api';
 import {
   checkAvailability,
   createReservation,
+  listAssignableRooms,
 } from '@/app/properties/[propertyId]/reservations/actions';
 import { formatMoney } from '@/lib/dates';
 
-const SOURCES = ['WALK_IN', 'PHONE', 'EMAIL', 'DIRECT'] as const;
+/** The categories that stand alone. OTAs and agents come from the property's list. */
+const PLAIN_SOURCES = ['WALK_IN', 'PHONE', 'EMAIL', 'DIRECT'] as const;
+
+/**
+ * One select for "how did this booking arrive". A plain category is its own
+ * value; an OTA or agent is `src:<id>` and sets both the category and which
+ * one. Two questions in one control, because on a phone one control is what
+ * fits, and because the desk thinks "Agoda", not "OTA, then Agoda".
+ */
+function sourceValue(choice: string, sources: BookingSource[]) {
+  if (choice.startsWith('src:')) {
+    const source = sources.find((candidate) => candidate.id === choice.slice(4));
+    if (source) {
+      return {
+        source: source.kind as CreateReservationInput['source'],
+        bookingSourceId: source.id,
+      };
+    }
+  }
+  return { source: choice as CreateReservationInput['source'] };
+}
 
 interface StayDraft {
   key: string;
@@ -19,6 +47,8 @@ interface StayDraft {
   adults: number;
   children: number;
   guestName: string;
+  /** A room chosen now; empty is "assign later". */
+  roomId: string;
 }
 
 /**
@@ -38,12 +68,21 @@ export function BookingForm({
   today,
   roomTypes,
   ratePlans,
+  hasRooms,
+  bookingSources,
 }: {
   propertyId: string;
   currency: string;
   today: string;
   roomTypes: RoomType[];
   ratePlans: RatePlan[];
+  /** The property's OTAs and agents, active ones only. */
+  bookingSources: BookingSource[];
+  /**
+   * Whether the property has physical rooms at all. Without any, a room
+   * picker saying "none free" would be a lie about the wrong thing.
+   */
+  hasRooms: boolean;
 }) {
   const t = useTranslations('reservations');
   const router = useRouter();
@@ -64,11 +103,12 @@ export function BookingForm({
 
   const [stays, setStays] = useState<StayDraft[]>(() => [newStay(roomTypes, plansFor)]);
   const [booker, setBooker] = useState({ name: '', email: '', phone: '' });
-  const [source, setSource] = useState<(typeof SOURCES)[number]>('WALK_IN');
+  const [sourceChoice, setSourceChoice] = useState<string>('WALK_IN');
   const [specialRequests, setSpecialRequests] = useState('');
 
   const [grid, setGrid] = useState<InventoryGrid | null>(null);
   const [loadingGrid, setLoadingGrid] = useState(false);
+  const [freeRooms, setFreeRooms] = useState<AssignableRoom[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -93,6 +133,34 @@ export function BookingForm({
       cancelled = true;
     };
   }, [propertyId, checkIn, checkOut, datesValid]);
+
+  // Which rooms could be handed a key for these nights. Advisory like the
+  // grid: the API refuses at save time if another desk got there first.
+  useEffect(() => {
+    if (!datesValid || !hasRooms) {
+      setFreeRooms([]);
+      return;
+    }
+    let cancelled = false;
+    void listAssignableRooms(propertyId, checkIn, checkOut).then((result) => {
+      if (cancelled) return;
+      setFreeRooms(result.ok && result.rooms ? result.rooms : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, checkIn, checkOut, datesValid, hasRooms]);
+
+  // A room that no longer qualifies — the dates moved and it is taken now —
+  // must not ride along silently into the request.
+  useEffect(() => {
+    const free = new Set(freeRooms.map((room) => room.roomId));
+    setStays((current) =>
+      current.some((stay) => stay.roomId && !free.has(stay.roomId))
+        ? current.map((stay) => (free.has(stay.roomId) ? stay : { ...stay, roomId: '' }))
+        : current,
+    );
+  }, [freeRooms]);
 
   /**
    * Worst night wins. A stay spans every night it covers, so a room type with
@@ -128,8 +196,11 @@ export function BookingForm({
         if (stay.key !== key) return stay;
         const next = { ...stay, ...patch };
         // Changing the room type invalidates the plan: plans belong to a type.
+        // The room too, unless it was an upgrade into exactly this type.
         if (patch.roomTypeId && patch.roomTypeId !== stay.roomTypeId) {
           next.ratePlanId = plansFor.get(patch.roomTypeId)?.[0]?.id ?? '';
+          const room = freeRooms.find((candidate) => candidate.roomId === stay.roomId);
+          if (room && room.roomTypeId !== patch.roomTypeId) next.roomId = '';
         }
         return next;
       }),
@@ -152,7 +223,7 @@ export function BookingForm({
     }
 
     const input: CreateReservationInput = {
-      source,
+      ...sourceValue(sourceChoice, bookingSources),
       status: 'CONFIRMED',
       booker: {
         name: booker.name.trim(),
@@ -167,6 +238,7 @@ export function BookingForm({
         adults: stay.adults,
         ...(stay.children > 0 ? { children: stay.children } : {}),
         ...(stay.guestName.trim() ? { guestName: stay.guestName.trim() } : {}),
+        ...(stay.roomId ? { roomId: stay.roomId } : {}),
       })),
       ...(specialRequests.trim() ? { specialRequests: specialRequests.trim() } : {}),
     };
@@ -328,6 +400,21 @@ export function BookingForm({
                         className={inputClass}
                       />
                     </Labelled>
+                    {hasRooms && (
+                      <Labelled label={t('roomNumberOptional')}>
+                        <RoomSelect
+                          rooms={freeRooms}
+                          roomTypeId={stay.roomTypeId}
+                          value={stay.roomId}
+                          // A room picked on another line of this booking is
+                          // not on offer twice; the API would refuse it anyway.
+                          takenElsewhere={stays
+                            .filter((other) => other.key !== stay.key && other.roomId)
+                            .map((other) => other.roomId)}
+                          onChange={(roomId) => updateStay(stay.key, { roomId })}
+                        />
+                      </Labelled>
+                    )}
                   </div>
                 </li>
               );
@@ -354,15 +441,37 @@ export function BookingForm({
             </Labelled>
             <Labelled label={t('sourceLabel')}>
               <select
-                value={source}
-                onChange={(event) => setSource(event.target.value as (typeof SOURCES)[number])}
+                value={sourceChoice}
+                onChange={(event) => setSourceChoice(event.target.value)}
                 className={inputClass}
               >
-                {SOURCES.map((option) => (
+                {PLAIN_SOURCES.map((option) => (
                   <option key={option} value={option}>
                     {t(`source${option}`)}
                   </option>
                 ))}
+                {bookingSources.some((source) => source.kind === 'OTA') && (
+                  <optgroup label={t('sourceGroupOta')}>
+                    {bookingSources
+                      .filter((source) => source.kind === 'OTA')
+                      .map((source) => (
+                        <option key={source.id} value={`src:${source.id}`}>
+                          {source.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+                {bookingSources.some((source) => source.kind === 'TRAVEL_AGENT') && (
+                  <optgroup label={t('sourceGroupAgent')}>
+                    {bookingSources
+                      .filter((source) => source.kind === 'TRAVEL_AGENT')
+                      .map((source) => (
+                        <option key={source.id} value={`src:${source.id}`}>
+                          {source.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
               </select>
             </Labelled>
             <Labelled label={t('bookerEmail')}>
@@ -475,7 +584,63 @@ function newStay(roomTypes: RoomType[], plansFor: Map<string, RatePlan[]>): Stay
     adults: roomType?.standardOccupancy ?? 2,
     children: 0,
     guestName: '',
+    roomId: '',
   };
+}
+
+/**
+ * The rooms free on the chosen nights, this stay's own type first. Another
+ * type is an upgrade — a normal desk decision, but one to make on purpose,
+ * so those sit in their own group rather than mixed into the list.
+ */
+function RoomSelect({
+  rooms,
+  roomTypeId,
+  value,
+  takenElsewhere,
+  onChange,
+}: {
+  rooms: AssignableRoom[];
+  roomTypeId: string;
+  value: string;
+  takenElsewhere: string[];
+  onChange: (roomId: string) => void;
+}) {
+  const t = useTranslations('reservations');
+  const sameType = rooms.filter((room) => room.roomTypeId === roomTypeId);
+  const otherType = rooms.filter((room) => room.roomTypeId !== roomTypeId);
+  const label = (room: AssignableRoom) =>
+    room.housekeepingStatus === 'DIRTY'
+      ? `${room.roomNumber} (${t('roomDirty')})`
+      : room.roomNumber;
+
+  return (
+    <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
+      <option value="">{rooms.length === 0 ? t('noRoomsFree') : t('assignLater')}</option>
+      {sameType.map((room) => (
+        <option
+          key={room.roomId}
+          value={room.roomId}
+          disabled={takenElsewhere.includes(room.roomId)}
+        >
+          {label(room)}
+        </option>
+      ))}
+      {otherType.length > 0 && (
+        <optgroup label={t('upgradeGroup')}>
+          {otherType.map((room) => (
+            <option
+              key={room.roomId}
+              value={room.roomId}
+              disabled={takenElsewhere.includes(room.roomId)}
+            >
+              {label(room)} · {room.roomTypeName}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  );
 }
 
 /** Calendar arithmetic in UTC: these are business dates, not instants. */

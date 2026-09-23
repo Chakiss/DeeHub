@@ -9,6 +9,7 @@ export interface AuthUser {
   readonly email: string;
   readonly fullName: string;
   readonly status: string;
+  readonly preferredLocale: string | null;
   readonly passwordHash: string;
 }
 
@@ -17,6 +18,8 @@ export interface UserPrincipal {
   readonly organizationId: string;
   readonly email: string;
   readonly fullName: string;
+  /** 'en' | 'th', or null when this person never chose. */
+  readonly preferredLocale: string | null;
   readonly memberships: readonly Membership[];
 }
 
@@ -47,6 +50,7 @@ export interface AuthRepository {
    */
   findAuthUserById(tx: Executor, userId: string): Promise<AuthUser | null>;
   updatePasswordHash(tx: Executor, userId: string, passwordHash: string): Promise<void>;
+  updatePreferredLocale(tx: Executor, userId: string, locale: string): Promise<void>;
 
   /**
    * The tenant identifier a person types to sign in. Read after a completed

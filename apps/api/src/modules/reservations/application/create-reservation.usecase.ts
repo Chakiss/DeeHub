@@ -6,6 +6,18 @@ import { newId } from '../../../common/ids';
 import { requireTenant } from '../../../common/tenant/tenant-context';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { OutboxService, type OutboxEventInput } from '../../../common/outbox/outbox.service';
+import { isExclusionViolation, ROOM_OVERLAP_CONSTRAINT } from '../../../database/postgres-errors';
+import { assertRoomAssignable } from '../../rooms/domain/assignable';
+import {
+  ROOM_REPOSITORY,
+  type RoomRecord,
+  type RoomRepository,
+} from '../../rooms/domain/room.repository';
+import {
+  BOOKING_SOURCE_REPOSITORY,
+  type BookingSourceRecord,
+  type BookingSourceRepository,
+} from '../../booking-sources/domain/booking-source.repository';
 import {
   PROPERTY_REPOSITORY,
   type PropertyRepository,
@@ -39,6 +51,14 @@ export interface CreateStayInput {
   readonly children?: number;
   readonly guestName?: string;
   /**
+   * The physical room to put this stay in, when the desk already knows —
+   * a walk-in pointing at 101, a regular who always takes 305. Optional: a
+   * booking can wait for a room until the guest arrives. Checked by the same
+   * rule as a later assignment, and refused by the same constraint if the
+   * room is taken on any of these nights.
+   */
+  readonly roomId?: string;
+  /**
    * The price a CHANNEL sold this stay at. Only the channel delivery path may
    * set it; every public and staff-facing schema is strict, so an amount in a
    * request body is rejected rather than ignored.
@@ -59,6 +79,13 @@ export interface CreateReservationInput {
   readonly stays: readonly CreateStayInput[];
   readonly specialRequests?: string;
   readonly channelId?: string;
+  /**
+   * Which OTA or agent, for an OTA or TRAVEL_AGENT booking keyed in by hand.
+   * Required for those unless a channel delivered the booking — a connector
+   * knows which OTA it is, and must not fail because the hotel retired the
+   * matching label.
+   */
+  readonly bookingSourceId?: string;
   readonly guestId?: string;
   /** Hold lifetime for PENDING reservations. Defaults to 15 minutes. */
   readonly holdTtlSeconds?: number;
@@ -110,6 +137,8 @@ export class CreateReservationUseCase {
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
     private readonly guests: LinkGuestUseCase,
+    @Inject(ROOM_REPOSITORY) private readonly rooms: RoomRepository,
+    @Inject(BOOKING_SOURCE_REPOSITORY) private readonly bookingSources: BookingSourceRepository,
   ) {}
 
   async execute(
@@ -143,10 +172,42 @@ export class CreateReservationUseCase {
   ): Promise<CreateReservationResult> {
     const tenant = requireTenant();
     const status: ReservationStatus = input.status ?? 'CONFIRMED';
+    // Rooms named by the request, kept outside the transaction so a refusal
+    // from the overlap constraint can say which one — the aggregate is gone
+    // by then.
+    const chosenRooms = new Map<string, RoomRecord>();
 
+    try {
+      return await this.createInTransaction(input, actor, status, tenant, chosenRooms);
+    } catch (error) {
+      // The database is the authority on whether a room is free for these
+      // nights; a check before the write could not be made atomic with it.
+      // Nothing was written — the transaction rolled back — so the guest is
+      // told the room is taken rather than left with half a booking.
+      if (isExclusionViolation(error, ROOM_OVERLAP_CONSTRAINT)) {
+        const room = this.roomNamedBy(error, chosenRooms);
+        throw errors.conflict(
+          room
+            ? `Room ${room.roomNumber} is already taken on some of these nights`
+            : 'A chosen room is already taken on some of these nights',
+          room ? { roomId: room.id, roomNumber: room.roomNumber } : undefined,
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async createInTransaction(
+    input: CreateReservationInput,
+    actor: AuditActor,
+    status: ReservationStatus,
+    tenant: ReturnType<typeof requireTenant>,
+    chosenRooms: Map<string, RoomRecord>,
+  ): Promise<CreateReservationResult> {
     return this.db.transaction(async (tx) => {
       const property = await this.loadProperty(tx, input.propertyId);
       const reservationId = newId();
+      const bookingSource = await this.bookingSourceFor(tx, property.id, input);
 
       /*
        * Attach a guest profile inside this transaction.
@@ -178,7 +239,10 @@ export class CreateReservationUseCase {
 
       for (const stayInput of input.stays) {
         const stay = await this.planStay.plan(tx, property, stayInput, policy);
-        stays.push(stay.record);
+        const room = stayInput.roomId
+          ? await this.roomFor(tx, property.id, stayInput.roomId, chosenRooms)
+          : null;
+        stays.push(room ? { ...stay.record, assignedRoomId: room.id } : stay.record);
         nightPrices.push(...stay.nightPrices);
         overbookings.push(...stay.overbookings);
         if (stayInput.channelTotal && stay.pricedFrom === 'PROPERTY_RATES') {
@@ -213,6 +277,7 @@ export class CreateReservationUseCase {
         status,
         source: input.source,
         channelId: input.channelId ?? null,
+        bookingSourceId: bookingSource?.id ?? null,
         guestId,
         bookerName: input.booker.name,
         bookerEmail: input.booker.email ?? null,
@@ -238,12 +303,19 @@ export class CreateReservationUseCase {
           code,
           status,
           source: input.source,
+          ...(bookingSource
+            ? { bookingSourceId: bookingSource.id, bookingSource: bookingSource.name }
+            : {}),
           total: breakdown.total.amount,
           currency: property.currency,
           stays: stays.map((stay) => ({
             roomTypeId: stay.roomTypeId,
             checkIn: stay.checkIn,
             checkOut: stay.checkOut,
+            assignedRoomId: stay.assignedRoomId,
+            ...(stay.assignedRoomId
+              ? { roomNumber: chosenRooms.get(stay.assignedRoomId)?.roomNumber }
+              : {}),
           })),
         },
       });
@@ -321,6 +393,100 @@ export class CreateReservationUseCase {
         pricedFrom,
       };
     });
+  }
+
+  /**
+   * The OTA or agent this booking names, checked against its category.
+   *
+   * "OTA" alone is not an answer the desk can report on; "OTA · Agoda" is. So
+   * an OTA or TRAVEL_AGENT booking keyed by hand must say which — unless a
+   * channel delivered it, in which case the channel is the answer and the
+   * label is a courtesy. A walk-in naming an OTA is a mistake, and a source
+   * of the wrong kind — an agent on an OTA booking — is a worse one, because
+   * it would count under the wrong heading forever.
+   */
+  private async bookingSourceFor(
+    tx: Executor,
+    propertyId: string,
+    input: CreateReservationInput,
+  ): Promise<BookingSourceRecord | null> {
+    const named = input.source === 'OTA' || input.source === 'TRAVEL_AGENT';
+    if (!input.bookingSourceId) {
+      if (named && !input.channelId) {
+        throw errors.validation(
+          input.source === 'OTA'
+            ? 'Say which OTA this booking came through'
+            : 'Say which travel agent this booking came through',
+          { field: 'bookingSourceId' },
+        );
+      }
+      return null;
+    }
+    if (!named) {
+      throw errors.validation('Only OTA and travel-agent bookings name a booking source', {
+        field: 'bookingSourceId',
+      });
+    }
+    const source = await this.bookingSources.findById(tx, propertyId, input.bookingSourceId);
+    if (!source) throw errors.notFound('Booking source', input.bookingSourceId);
+    if (!source.isActive) {
+      throw errors.validation(`${source.name} is no longer in use at this property`);
+    }
+    if (source.kind !== input.source) {
+      throw errors.validation(
+        source.kind === 'OTA'
+          ? `${source.name} is an OTA, not a travel agent`
+          : `${source.name} is a travel agent, not an OTA`,
+        { field: 'bookingSourceId' },
+      );
+    }
+    return source;
+  }
+
+  /**
+   * The room a stay asked for, checked the way the front desk's assignment
+   * is. A room in another property is indistinguishable from one that does
+   * not exist. The same room twice in one booking is refused here with a
+   * message that says so; the constraint would refuse it too, but as a
+   * clash with "another" booking, which is the wrong story.
+   */
+  private async roomFor(
+    tx: Executor,
+    propertyId: string,
+    roomId: string,
+    chosenRooms: Map<string, RoomRecord>,
+  ): Promise<RoomRecord> {
+    const room = await this.rooms.findById(tx, propertyId, roomId);
+    if (!room) throw errors.notFound('Room', roomId);
+    assertRoomAssignable(room);
+    if (chosenRooms.has(room.id)) {
+      throw errors.validation(
+        `Room ${room.roomNumber} was chosen for more than one stay in this booking`,
+        { roomId: room.id },
+      );
+    }
+    chosenRooms.set(room.id, room);
+    return room;
+  }
+
+  /**
+   * Postgres names the offending key in the error detail — the room id and
+   * the date range — which is enough to say which of the chosen rooms it was.
+   */
+  private roomNamedBy(error: unknown, chosenRooms: Map<string, RoomRecord>): RoomRecord | null {
+    if (chosenRooms.size === 1) return [...chosenRooms.values()][0] ?? null;
+    let current: unknown = error;
+    for (let depth = 0; depth < 5 && current; depth += 1) {
+      const candidate = current as { detail?: unknown; cause?: unknown };
+      if (typeof candidate.detail === 'string') {
+        for (const room of chosenRooms.values()) {
+          if (candidate.detail.includes(room.id)) return room;
+        }
+        return null;
+      }
+      current = candidate.cause;
+    }
+    return null;
   }
 
   private async loadProperty(tx: Executor, propertyId: string): Promise<PropertySettings> {

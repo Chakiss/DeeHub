@@ -41,6 +41,12 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     fullName: text('full_name').notNull(),
     status: text('status').notNull().default('ACTIVE'),
+    /**
+     * The language this person reads the dashboard in, applied at sign-in on
+     * whatever machine they sign in from. NULL means "never chose": the
+     * browser's earlier choice, or English, stands.
+     */
+    preferredLocale: text('preferred_locale'),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -49,6 +55,10 @@ export const users = pgTable(
     // Unique per tenant, not globally: the same person may work for two organizations.
     uniqueIndex('users_org_email_uq').on(t.organizationId, sql`lower(${t.email})`),
     check('users_status_ck', sql`${t.status} IN ('ACTIVE','INVITED','DISABLED')`),
+    check(
+      'users_preferred_locale_ck',
+      sql`${t.preferredLocale} IS NULL OR ${t.preferredLocale} IN ('en','th')`,
+    ),
   ],
 );
 

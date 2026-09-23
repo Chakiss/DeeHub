@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useState, useTransition } from 'react';
-import type { StayView, StayViewOccupancy } from '@/lib/api';
+import { useEffect, useMemo, useState, useTransition } from 'react';
+import type { AssignableRoom, StayView, StayViewOccupancy } from '@/lib/api';
 import { assignRoom, checkIn, checkOut } from '@/app/properties/[propertyId]/rooms/actions';
+import { listAssignableRooms } from '@/app/properties/[propertyId]/reservations/actions';
 import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
 
 const HOUSEKEEPING_DOT: Record<string, string> = {
@@ -43,6 +44,60 @@ export function StayViewGrid({
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  /*
+   * Rooms grouped by type, the way a hotel thinks of its floors: "the
+   * Deluxes" are one thing to look at, and a booking needing a Deluxe is
+   * found under that heading rather than by scanning every row. Groups fold
+   * per browser, remembered locally — a 40-room hotel on a phone wants the
+   * Standards out of the way while it deals with a Suite.
+   */
+  const groups = useMemo(() => {
+    const byType = new Map<
+      string,
+      { roomTypeId: string; roomTypeName: string; rooms: StayView['rooms']; needing: number }
+    >();
+    for (const room of view.rooms) {
+      const group = byType.get(room.roomTypeId) ?? {
+        roomTypeId: room.roomTypeId,
+        roomTypeName: room.roomTypeName,
+        rooms: [],
+        needing: 0,
+      };
+      group.rooms.push(room);
+      byType.set(room.roomTypeId, group);
+    }
+    for (const stay of view.unassigned) {
+      const group = byType.get(stay.roomTypeId);
+      if (group) group.needing += 1;
+    }
+    return [...byType.values()].sort((a, b) => a.roomTypeName.localeCompare(b.roomTypeName));
+  }, [view]);
+
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const storageKey = `deehub.stayView.collapsed.${propertyId}`;
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (stored) setCollapsed(new Set(JSON.parse(stored) as string[]));
+    } catch {
+      // Private mode or blocked storage: every group simply starts open.
+    }
+  }, [storageKey]);
+
+  function toggleGroup(roomTypeId: string) {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(roomTypeId)) next.delete(roomTypeId);
+      else next.add(roomTypeId);
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify([...next]));
+      } catch {
+        // Not remembering is fine.
+      }
+      return next;
+    });
+  }
 
   function arrive(stay: StayViewOccupancy) {
     setError(null);
@@ -128,9 +183,12 @@ export function StayViewGrid({
                 key={stay.stayId}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-amber-50/60 px-3 py-2 text-sm"
               >
-                <span className="font-medium text-ink-800">
+                <Link
+                  href={`/properties/${propertyId}/reservations/${stay.reservationId}`}
+                  className="font-medium text-ink-800 underline-offset-2 hover:underline"
+                >
                   {stay.guestName ?? stay.reservationCode}
-                </span>
+                </Link>
                 <span className="text-xs text-stone-500">{stay.roomTypeName}</span>
                 <span className="tabular text-xs text-stone-500">
                   {stay.checkIn} → {stay.checkOut}
@@ -174,133 +232,161 @@ export function StayViewGrid({
             </tr>
           </thead>
           <tbody>
-            {view.rooms.map((room) => (
-              <tr key={room.roomId} className="group">
-                <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-3 py-2 text-left font-medium text-ink-800 group-hover:bg-sunk/70">
-                  <span className="flex items-center gap-2">
-                    <span
-                      aria-label={housekeeping(room.housekeepingStatus)}
-                      title={housekeeping(room.housekeepingStatus)}
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-stone-300'
-                      }`}
-                    />
-                    <span className="min-w-0">
-                      <span className="block truncate">
-                        {room.roomNumber}
-                        {!room.isActive && (
-                          <span className="ml-1 text-xs font-normal text-rose-600">
-                            {t('outOfService')}
-                          </span>
-                        )}
+            {groups.map((group) => [
+              <tr key={`type-${group.roomTypeId}`}>
+                <th
+                  colSpan={view.dates.length + 1}
+                  className="border-b border-stone-200 bg-sunk/80 px-3 py-1.5 text-left"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.roomTypeId)}
+                    aria-expanded={!collapsed.has(group.roomTypeId)}
+                    className="flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-700"
+                  >
+                    <span aria-hidden className="w-3 text-stone-400">
+                      {collapsed.has(group.roomTypeId) ? '▸' : '▾'}
+                    </span>
+                    <span>{group.roomTypeName}</span>
+                    <span className="font-normal normal-case tracking-normal text-stone-500">
+                      {t('roomsInType', { count: group.rooms.length })}
+                    </span>
+                    {group.needing > 0 && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-amber-800">
+                        {t('needRoomInType', { count: group.needing })}
                       </span>
-                      <span className="block truncate text-xs font-normal text-stone-400">
-                        {room.roomTypeName}
+                    )}
+                  </button>
+                </th>
+              </tr>,
+              ...(collapsed.has(group.roomTypeId) ? [] : group.rooms).map((room) => (
+                <tr key={room.roomId} className="group">
+                  <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-3 py-2 text-left font-medium text-ink-800 group-hover:bg-sunk/70">
+                    <span className="flex items-center gap-2">
+                      <span
+                        aria-label={housekeeping(room.housekeepingStatus)}
+                        title={housekeeping(room.housekeepingStatus)}
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-stone-300'
+                        }`}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate">
+                          {room.roomNumber}
+                          {!room.isActive && (
+                            <span className="ml-1 text-xs font-normal text-rose-600">
+                              {t('outOfService')}
+                            </span>
+                          )}
+                        </span>
+                        <span className="block truncate text-xs font-normal text-stone-400">
+                          {room.roomTypeName}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </th>
+                  </th>
 
-                {/* One cell per night, with the bar drawn on its first night.
+                  {/* One cell per night, with the bar drawn on its first night.
                     A table keeps the columns aligned with the header without
                     measuring anything in JavaScript. */}
-                {view.dates.map((date) => {
-                  const starting = room.stays.find((stay) => stay.checkIn === date);
-                  const covered = room.stays.find(
-                    (stay) => stay.checkIn < date && stay.checkOut > date,
-                  );
+                  {view.dates.map((date) => {
+                    const starting = room.stays.find((stay) => stay.checkIn === date);
+                    const covered = room.stays.find(
+                      (stay) => stay.checkIn < date && stay.checkOut > date,
+                    );
 
-                  if (covered) return null;
+                    if (covered) return null;
 
-                  if (!starting) {
+                    if (!starting) {
+                      return (
+                        <td
+                          key={date}
+                          className={`border-b border-stone-100 px-1 py-2 ${
+                            isWeekend(date) ? 'bg-sunk/60' : ''
+                          }`}
+                        />
+                      );
+                    }
+
+                    // Clamp to the window: a stay running past the edge draws to
+                    // the edge rather than off it.
+                    const start = index.get(date) ?? 0;
+                    const end = index.get(starting.checkOut) ?? view.dates.length;
+                    const span = Math.max(1, end - start);
+
                     return (
                       <td
                         key={date}
-                        className={`border-b border-stone-100 px-1 py-2 ${
-                          isWeekend(date) ? 'bg-sunk/60' : ''
-                        }`}
-                      />
-                    );
-                  }
-
-                  // Clamp to the window: a stay running past the edge draws to
-                  // the edge rather than off it.
-                  const start = index.get(date) ?? 0;
-                  const end = index.get(starting.checkOut) ?? view.dates.length;
-                  const span = Math.max(1, end - start);
-
-                  return (
-                    <td
-                      key={date}
-                      colSpan={span}
-                      className="border-b border-stone-100 px-0.5 py-1.5"
-                    >
-                      <span
-                        title={`${starting.reservationCode} · ${starting.checkIn} → ${starting.checkOut}`}
-                        className={`flex items-center gap-1 truncate rounded px-2 py-1 text-xs font-medium ${
-                          starting.status === 'CHECKED_OUT'
-                            ? 'bg-sunk text-stone-500'
-                            : starting.status === 'CHECKED_IN'
-                              ? 'bg-emerald-100 text-emerald-900'
-                              : starting.upgraded
-                                ? 'bg-violet-100 text-violet-800'
-                                : 'bg-brand-100 text-brand-800'
-                        }`}
+                        colSpan={span}
+                        className="border-b border-stone-100 px-0.5 py-1.5"
                       >
-                        <span className="truncate">
-                          {starting.guestName ?? starting.reservationCode}
-                        </span>
-                        {starting.upgraded && (
-                          <span className="shrink-0 text-[10px] uppercase">{t('upgraded')}</span>
-                        )}
-                        {canAssign && (
-                          <span className="ml-auto flex shrink-0 items-center gap-1">
-                            {/* The action the front desk needs on this row,
-                                driven by where the booking actually is. */}
-                            {starting.status === 'CONFIRMED' && (
-                              <button
-                                type="button"
-                                disabled={pending}
-                                onClick={() => arrive(starting)}
-                                className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-white disabled:opacity-60"
-                              >
-                                {t('checkIn')}
-                              </button>
-                            )}
-                            {starting.status === 'CHECKED_IN' && (
-                              <button
-                                type="button"
-                                disabled={pending}
-                                onClick={() => depart(starting)}
-                                className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-white disabled:opacity-60"
-                              >
-                                {t('checkOut')}
-                              </button>
-                            )}
-                            {starting.status === 'CHECKED_OUT' && (
-                              <span className="text-[10px] text-stone-500">{t('departed')}</span>
-                            )}
-                            {/* Releasing a room only makes sense before arrival;
-                                afterwards the assignment is history. */}
-                            {starting.status === 'CONFIRMED' && (
-                              <button
-                                type="button"
-                                disabled={pending}
-                                onClick={() => release(starting.stayId)}
-                                aria-label={`${t('release')} ${starting.reservationCode}`}
-                                className="rounded px-1 text-[10px] text-stone-500 hover:bg-white/60 disabled:opacity-60"
-                              >
-                                ✕
-                              </button>
-                            )}
+                        <span
+                          title={`${starting.reservationCode} · ${starting.checkIn} → ${starting.checkOut}`}
+                          className={`flex items-center gap-1 truncate rounded px-2 py-1 text-xs font-medium ${
+                            starting.status === 'CHECKED_OUT'
+                              ? 'bg-sunk text-stone-500'
+                              : starting.status === 'CHECKED_IN'
+                                ? 'bg-emerald-100 text-emerald-900'
+                                : starting.upgraded
+                                  ? 'bg-violet-100 text-violet-800'
+                                  : 'bg-brand-100 text-brand-800'
+                          }`}
+                        >
+                          <span className="truncate">
+                            {starting.guestName ?? starting.reservationCode}
                           </span>
-                        )}
-                      </span>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                          {starting.upgraded && (
+                            <span className="shrink-0 text-[10px] uppercase">{t('upgraded')}</span>
+                          )}
+                          {canAssign && (
+                            <span className="ml-auto flex shrink-0 items-center gap-1">
+                              {/* The action the front desk needs on this row,
+                                driven by where the booking actually is. */}
+                              {starting.status === 'CONFIRMED' && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => arrive(starting)}
+                                  className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-white disabled:opacity-60"
+                                >
+                                  {t('checkIn')}
+                                </button>
+                              )}
+                              {starting.status === 'CHECKED_IN' && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => depart(starting)}
+                                  className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-white disabled:opacity-60"
+                                >
+                                  {t('checkOut')}
+                                </button>
+                              )}
+                              {starting.status === 'CHECKED_OUT' && (
+                                <span className="text-[10px] text-stone-500">{t('departed')}</span>
+                              )}
+                              {/* Releasing a room only makes sense before arrival;
+                                afterwards the assignment is history. */}
+                              {starting.status === 'CONFIRMED' && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => release(starting.stayId)}
+                                  aria-label={`${t('release')} ${starting.reservationCode}`}
+                                  className="rounded px-1 text-[10px] text-stone-500 hover:bg-white/60 disabled:opacity-60"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              )),
+            ])}
           </tbody>
         </table>
       </div>
@@ -329,20 +415,40 @@ function AssignDialog({
   onClose: () => void;
 }) {
   const t = useTranslations('stayView');
+  void view;
 
-  // Matching type first — an upgrade should be a deliberate choice, not the
-  // top of the list. Out-of-service rooms are left out; the API refuses them.
-  const candidates = view.rooms
-    .filter((room) => room.isActive && room.housekeepingStatus !== 'OUT_OF_ORDER')
-    .sort((a, b) => {
-      const aMatches = a.roomTypeId === stay.roomTypeId ? 0 : 1;
-      const bMatches = b.roomTypeId === stay.roomTypeId ? 0 : 1;
-      return aMatches - bMatches;
-    });
-
-  const [roomId, setRoomId] = useState(candidates[0]?.roomId ?? '');
+  /*
+   * Only rooms free on this stay's own nights, from the API rather than
+   * filtered here from the window: a stay can run past the window's edge,
+   * and a room that looks empty in a fortnight can be taken the night after.
+   * Matching type first — an upgrade should be a deliberate choice, not the
+   * top of the list. Advisory still: the write is where a clash is refused.
+   */
+  const [rooms, setRooms] = useState<AssignableRoom[] | null>(null);
+  const [roomId, setRoomId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listAssignableRooms(propertyId, stay.checkIn, stay.checkOut).then((result) => {
+      if (cancelled) return;
+      const free = result.ok && result.rooms ? result.rooms : [];
+      if (!result.ok) setError(result.error?.message ?? t('failed'));
+      setRooms(free);
+      setRoomId(
+        free.find((room) => room.roomTypeId === stay.roomTypeId)?.roomId ?? free[0]?.roomId ?? '',
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, stay.checkIn, stay.checkOut, stay.roomTypeId, t]);
+
+  const sameType = (rooms ?? []).filter((room) => room.roomTypeId === stay.roomTypeId);
+  const otherType = (rooms ?? []).filter((room) => room.roomTypeId !== stay.roomTypeId);
+  const label = (room: AssignableRoom) =>
+    room.housekeepingStatus === 'DIRTY' ? `${room.roomNumber} (${t('dirty')})` : room.roomNumber;
 
   return (
     <div
@@ -384,15 +490,28 @@ function AssignDialog({
             value={roomId}
             onChange={(event) => setRoomId(event.target.value)}
             required
-            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            disabled={rooms === null}
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-sunk"
           >
-            {candidates.map((room) => (
+            {rooms === null && <option value="">{t('loadingRooms')}</option>}
+            {sameType.map((room) => (
               <option key={room.roomId} value={room.roomId}>
-                {room.roomNumber} — {room.roomTypeName}
-                {room.roomTypeId === stay.roomTypeId ? '' : ` (${t('upgraded')})`}
+                {label(room)}
               </option>
             ))}
+            {otherType.length > 0 && (
+              <optgroup label={t('upgradeGroup')}>
+                {otherType.map((room) => (
+                  <option key={room.roomId} value={room.roomId}>
+                    {label(room)} — {room.roomTypeName}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
+          {rooms !== null && rooms.length === 0 && (
+            <p className="mt-2 text-sm text-rose-700">{t('noRoomsFree')}</p>
+          )}
         </div>
 
         {error && (
@@ -411,7 +530,7 @@ function AssignDialog({
           </button>
           <button
             type="submit"
-            disabled={saving || candidates.length === 0}
+            disabled={saving || rooms === null || rooms.length === 0}
             className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {t('assign')}

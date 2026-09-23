@@ -13,7 +13,7 @@ test.describe('authentication', () => {
 
     await page.getByLabel('Organization').fill(data.organizationSlug);
     await page.getByLabel('Email').fill(data.managerEmail);
-    await page.getByLabel('Password').fill(TEST_PASSWORD);
+    await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     // Returned to where they were going, not dumped on the home page.
@@ -27,7 +27,7 @@ test.describe('authentication', () => {
     await page.goto('/login');
     await page.getByLabel('Organization').fill(data.organizationSlug);
     await page.getByLabel('Email').fill(data.managerEmail);
-    await page.getByLabel('Password').fill('definitely-not-the-password');
+    await page.getByLabel('Password', { exact: true }).fill('definitely-not-the-password');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     // Scoped to the form: Next always renders a route announcer with
@@ -66,7 +66,7 @@ test.describe('authentication', () => {
     await expect(page.getByLabel('Email')).toHaveCount(0);
 
     await page.context().clearCookies({ name: 'deehub_at' });
-    await page.getByLabel('Password').fill(TEST_PASSWORD);
+    await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForURL(/\/properties\/.+\/inventory/);
   });
@@ -78,7 +78,7 @@ test.describe('authentication', () => {
     await page.goto('/login');
     await page.getByLabel('Organization').fill(data.organizationSlug);
     await page.getByLabel('Email').fill(data.managerEmail);
-    await page.getByLabel('Password').fill('definitely-not-the-password');
+    await page.getByLabel('Password', { exact: true }).fill('definitely-not-the-password');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('form').getByRole('alert')).toBeVisible();
 
@@ -168,5 +168,19 @@ test.describe('authentication', () => {
     // The old page must no longer be reachable by going back.
     await page.goto(`/properties/${data.propertyId}/inventory`);
     await expect(page).toHaveURL(/\/login/);
+  });
+  test('lets the person see the password they typed, then hide it again', async ({ page }) => {
+    await page.goto('/login');
+    const password = page.getByLabel('Password', { exact: true });
+    await password.fill('typo-in-here');
+    await expect(password).toHaveAttribute('type', 'password');
+
+    // Revealing keeps what was typed — the point is to proofread it.
+    await page.getByRole('button', { name: 'Show password' }).click();
+    await expect(password).toHaveAttribute('type', 'text');
+    await expect(password).toHaveValue('typo-in-here');
+
+    await page.getByRole('button', { name: 'Hide password' }).click();
+    await expect(password).toHaveAttribute('type', 'password');
   });
 });

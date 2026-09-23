@@ -216,6 +216,8 @@ export async function teardown(data: TestData): Promise<void> {
       'expense_categories',
       'accounting_settings',
       'reservations',
+      // Bookings point at these, and they point at the property.
+      'booking_sources',
       'guests',
       'inventory_days',
       'physical_rooms',

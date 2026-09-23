@@ -515,6 +515,39 @@ describeIfDb('HTTP API', () => {
     });
   });
 
+  describe('PATCH /auth/me/preferences', () => {
+    it('saves the language and hands it back from /auth/me and from login', async () => {
+      const { accessToken } = await login('owner@e2e.test');
+      const auth = { Authorization: `Bearer ${accessToken}` };
+
+      await request(app.getHttpServer())
+        .patch('/api/v1/auth/me/preferences')
+        .set(auth)
+        .send({ preferredLocale: 'th' })
+        .expect(200)
+        .expect({ preferredLocale: 'th' });
+
+      const me = await request(app.getHttpServer()).get('/api/v1/auth/me').set(auth).expect(200);
+      expect(me.body.preferredLocale).toBe('th');
+
+      // Sign-in is where the dashboard applies it, so login must carry it too.
+      const again = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ organizationSlug: orgSlug, email: 'owner@e2e.test', password: PASSWORD })
+        .expect(200);
+      expect(again.body.user.preferredLocale).toBe('th');
+    });
+
+    it('refuses a language the dashboard does not have', async () => {
+      const { accessToken } = await login('owner@e2e.test');
+      await request(app.getHttpServer())
+        .patch('/api/v1/auth/me/preferences')
+        .set({ Authorization: `Bearer ${accessToken}` })
+        .send({ preferredLocale: 'fr' })
+        .expect(422);
+    });
+  });
+
   describe('POST /properties/:propertyId/reservations', () => {
     it('creates a reservation and returns the full breakdown', async () => {
       const { accessToken } = await login('frontdesk@e2e.test');

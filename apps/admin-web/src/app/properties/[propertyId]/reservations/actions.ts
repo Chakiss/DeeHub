@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import {
   ApiError,
   api,
+  type AssignableRoom,
   type CreateReservationInput,
   type CreatedReservation,
   type ExtendedStay,
@@ -148,6 +149,29 @@ export async function checkAvailability(
 ): Promise<AvailabilityResult> {
   try {
     return { ok: true, grid: await api.inventoryGrid(propertyId, from, to) };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export interface AssignableRoomsResult extends ReservationActionResult {
+  readonly rooms?: AssignableRoom[];
+}
+
+/**
+ * Which rooms could take a guest on these nights, for a room picker.
+ *
+ * Advisory in the same way availability is: nothing is held, and two desks
+ * can be offered the same room. The API refuses the second one at the write.
+ */
+export async function listAssignableRooms(
+  propertyId: string,
+  checkIn: string,
+  checkOut: string,
+): Promise<AssignableRoomsResult> {
+  try {
+    const { items } = await api.assignableRooms(propertyId, checkIn, checkOut);
+    return { ok: true, rooms: items };
   } catch (error) {
     return failure(error);
   }

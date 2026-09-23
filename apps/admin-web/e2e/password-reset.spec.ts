@@ -75,7 +75,7 @@ test.describe('password reset', () => {
     expect(cookies.some((cookie) => cookie.name === 'deehub_at')).toBe(false);
 
     await page.getByLabel('Email').fill(data.recoveryUserEmail);
-    await page.getByLabel('Password').fill(NEW_PASSWORD);
+    await page.getByLabel('Password', { exact: true }).fill(NEW_PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForURL(/\/properties\/.+\/inventory/);
   });
@@ -87,7 +87,7 @@ test.describe('password reset', () => {
     await page.goto('/login');
     await page.getByLabel('Organization').fill(data.organizationSlug);
     await page.getByLabel('Email').fill(data.recoveryUserEmail);
-    await page.getByLabel('Password').fill(TEST_PASSWORD);
+    await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page.locator('form').getByRole('alert')).toBeVisible();

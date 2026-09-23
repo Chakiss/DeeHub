@@ -41,6 +41,36 @@ test.describe('language', () => {
     await expect(page.getByRole('heading', { name: 'ห้องว่าง' })).toBeVisible();
   });
 
+  /**
+   * The header switch is per browser. A language saved on the account
+   * follows the person: a fresh browser signing in as them gets Thai without
+   * touching the switch.
+   */
+  test('a language saved on the account follows the person to a fresh browser', async ({
+    page,
+  }) => {
+    const data = testData();
+    await page.context().clearCookies();
+    await login(page, data.managerEmail);
+
+    await page.goto('/account');
+    await page.getByLabel('Language', { exact: true }).nth(1).selectOption('th');
+    await page.getByRole('button', { name: 'Save language' }).click();
+    await expect(page.getByRole('status')).toContainText('บันทึกแล้ว');
+
+    // Fresh browser: no cookie says Thai. Signing in must bring it back.
+    await page.context().clearCookies();
+    await login(page, data.managerEmail);
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await expect(nav.getByRole('link', { name: 'ห้องว่าง' })).toBeVisible();
+
+    // Put it back so the specs after this one read English.
+    await page.goto('/account');
+    await page.getByLabel('ภาษา', { exact: true }).selectOption('en');
+    await page.getByRole('button', { name: 'บันทึกภาษา' }).click();
+    await expect(page.getByRole('status')).toContainText('Saved');
+  });
+
   test('goes back to English', async ({ page }) => {
     await page.context().clearCookies();
     await page.goto('/login');

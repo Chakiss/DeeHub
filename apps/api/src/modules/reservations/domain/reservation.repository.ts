@@ -2,7 +2,20 @@ import type { IsoDate } from '@deehub/shared';
 import type { Executor } from '../../../database/executor';
 import type { ReservationStatus } from './reservation-status';
 
-export type ReservationSource = 'DIRECT' | 'OTA' | 'WALK_IN' | 'PHONE' | 'EMAIL';
+/**
+ * How a booking arrived. A category: OTA and TRAVEL_AGENT bookings also name
+ * WHICH one through `bookingSourceId`. Kept as a value list so the API
+ * schema and the list filter validate against the same thing.
+ */
+export const RESERVATION_SOURCES = [
+  'DIRECT',
+  'OTA',
+  'WALK_IN',
+  'PHONE',
+  'EMAIL',
+  'TRAVEL_AGENT',
+] as const;
+export type ReservationSource = (typeof RESERVATION_SOURCES)[number];
 
 export interface StayNightRecord {
   readonly date: IsoDate;
@@ -19,6 +32,8 @@ export interface StayRecord {
   readonly adults: number;
   readonly children: number;
   readonly guestName: string | null;
+  /** Set when the booking named its room; null is "no room yet". */
+  readonly assignedRoomId: string | null;
   readonly subtotalMinor: number;
   readonly nights: readonly StayNightRecord[];
 }
@@ -31,6 +46,7 @@ export interface ReservationRecord {
   readonly status: ReservationStatus;
   readonly source: ReservationSource;
   readonly channelId: string | null;
+  readonly bookingSourceId: string | null;
   readonly guestId: string | null;
   readonly bookerName: string;
   readonly bookerEmail: string | null;

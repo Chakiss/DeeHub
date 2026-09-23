@@ -75,7 +75,8 @@ rotating) in an httpOnly cookie for the dashboard.
 | `POST`  | `/auth/login`           | email + password → access token + refresh cookie                         |
 | `POST`  | `/auth/refresh`         | rotate refresh token → new access token                                  |
 | `POST`  | `/auth/logout`          | revoke the current refresh token                                         |
-| `GET`   | `/auth/me`              | current user, memberships, accessible properties                         |
+| `GET`   | `/auth/me`              | current user, memberships, accessible properties, `preferredLocale`      |
+| `PATCH` | `/auth/me/preferences`  | save `{ preferredLocale: "en" \| "th" }`; login and `/auth/me` return it |
 | `POST`  | `/auth/change-password` | change your own password; revokes every other session                    |
 | `GET`   | `/users`                | people in the organization and their roles                               |
 | `POST`  | `/users`                | create an account; returns a one-time password (no outbound email yet)   |
@@ -166,6 +167,7 @@ takes effect immediately rather than after token expiry.
 | Method  | Path                                   | Purpose                                               |
 | ------- | -------------------------------------- | ----------------------------------------------------- |
 | `GET`   | `/properties/{id}/rooms`               | physical rooms, by floor then number                  |
+| `GET`   | `/properties/{id}/rooms/assignable`    | rooms free to assign for `?checkIn&checkOut`          |
 | `POST`  | `/properties/{id}/rooms`               | add a room                                            |
 | `PATCH` | `/properties/{id}/rooms/{roomId}`      | rename, take out of service, set housekeeping status  |
 | `PATCH` | `/properties/{id}/stays/{stayId}/room` | assign a booking to a room, or release it with `null` |
@@ -188,12 +190,41 @@ the guest occupied those nights, and giving them back would make historical
 occupancy lie — and it does NOT clear the room assignment, because "who was in
 302 last Tuesday" is a question hotels ask.
 
+A booking can name its room when it is created — `roomId` on a stay in
+`POST /reservations` (§6.5) — which is the same assignment made inside the
+booking's own transaction. A room that turns out to be taken fails the whole
+booking with a 409 that names the room; nothing is half-written. The same room
+twice in one booking is a 422 that says so, rather than a clash with "another"
+booking.
+
+`GET rooms/assignable` lists the rooms that could take a guest for those
+nights: in service, not out of order, and not held by a live booking on any
+night in `[checkIn, checkOut)`. Dirty rooms are offered — they will be clean by
+arrival, and hiding them would block every same-day turnover. The list is
+advisory; two desks can be offered the same room and the write decides. It is
+NOT availability: it says which keys could be handed over, not how many rooms
+the property will sell (ADR-0002), and nothing in inventory reads it.
+
 Two bookings cannot hold the same room on overlapping nights, and that is
 enforced by an `EXCLUDE` constraint rather than a read-then-write — so it holds
 when two people assign at once. Nights are half-open, so a departure and an
 arrival on the same day are not a conflict. Cancelling a reservation releases
 any room it held; the constraint cannot see reservation status, so without that
 the room would stay blocked for those nights forever.
+
+### Booking sources
+
+| Method  | Path                                          | Purpose                                               |
+| ------- | --------------------------------------------- | ----------------------------------------------------- |
+| `GET`   | `/properties/{id}/booking-sources`            | the OTAs and agents this property takes bookings from |
+| `POST`  | `/properties/{id}/booking-sources`            | add one: `{ name, kind: OTA \| TRAVEL_AGENT }`        |
+| `POST`  | `/properties/{id}/booking-sources/defaults`   | add whichever of the usual OTAs are not listed yet    |
+| `PATCH` | `/properties/{id}/booking-sources/{sourceId}` | rename, or retire with `isActive: false`              |
+
+Reading rides on `property:read`; writing is commercial setup and rides on
+`channel:update`, which a manager holds and a receptionist does not. No delete and no changing a kind: reservations point at
+these and report by them (ADR-0009). Names are unique per property ignoring
+case; a duplicate is a 409.
 
 ### Guests (Phase 4)
 
@@ -763,7 +794,17 @@ audit entry records `earlyDepartureFeeMinor: 0`, so a fee posted afterwards is
 visibly a separate human decision.
 
 List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
-`q` (code, guest name, email, phone), `createdFrom/To`, plus `cursor`/`limit`.
+`source` (one of `WALK_IN`, `PHONE`, `EMAIL`, `DIRECT`, `OTA`, `TRAVEL_AGENT`;
+anything else is a 422), `q` (code, guest name, email, phone),
+`createdFrom/To`, plus `cursor`/`limit`. Each list row and the detail carry
+`bookingSource: { id, name } | null` — which OTA or agent, when one was named.
+
+**Where a booking came from** is two fields. `source` is the category. An
+`OTA` or `TRAVEL_AGENT` booking keyed in by hand must also send
+`bookingSourceId` — one of the property's booking sources (below) of the
+matching kind — and any other category must not; both are 422s that say so.
+A booking a connector delivers carries `channelId` instead and gets the
+matching source by connector type when the property still has one.
 
 ```jsonc
 // POST /properties/{pid}/reservations   Idempotency-Key: 0192...
@@ -779,10 +820,12 @@ List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
       "adults": 2,
       "children": 0,
       "guestName": "Somchai Prasert",
+      "roomId": "0192c...", // optional: put this stay in a room now (Phase 4)
     },
   ],
   "specialRequests": "High floor",
   "status": "CONFIRMED", // or PENDING to hold; default CONFIRMED
+  // "bookingSourceId": "0192f...", // required when source is OTA or TRAVEL_AGENT
 }
 ```
 
@@ -806,7 +849,7 @@ List filters: `status`, `checkInFrom/To`, `checkOutFrom/To`, `channelId`,
       "checkOut": "2026-08-15",
       "adults": 2,
       "children": 0,
-      "assignedRoomId": null,
+      "assignedRoomId": "0192c...", // null when no room was named
       "subtotal": { "amount": 750000, "currency": "THB" },
       "nights": [{ "date": "2026-08-12", "amount": { "amount": 250000, "currency": "THB" } }],
     },

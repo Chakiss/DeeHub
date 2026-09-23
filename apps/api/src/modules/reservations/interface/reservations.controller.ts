@@ -3,6 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { errors, isIsoDate, toIsoDate, type Money } from '@deehub/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
+import { RESERVATION_SOURCES } from '../domain/reservation.repository';
 import { RequireCapability, type AuthenticatedRequest } from '../../../common/guards/auth.guard';
 import type { AuditActor } from '../../../common/audit/audit.service';
 import { CreateReservationUseCase } from '../application/create-reservation.usecase';
@@ -31,6 +32,9 @@ const staySchema = z
     adults: z.number().int().min(1).max(20),
     children: z.number().int().min(0).max(20).optional(),
     guestName: z.string().max(200).optional(),
+    // The room to put this stay in, when the desk already knows. Optional: a
+    // booking can wait for a room until the guest arrives.
+    roomId: z.string().uuid().optional(),
   })
   .strict()
   // A stay must occupy at least one night. Caught here so the client gets a
@@ -42,7 +46,7 @@ const staySchema = z
 
 const createReservationSchema = z
   .object({
-    source: z.enum(['DIRECT', 'OTA', 'WALK_IN', 'PHONE', 'EMAIL']),
+    source: z.enum(RESERVATION_SOURCES),
     status: z.enum(['PENDING', 'CONFIRMED']).optional(),
     booker: z
       .object({
@@ -55,6 +59,9 @@ const createReservationSchema = z
     stays: z.array(staySchema).min(1).max(20),
     specialRequests: z.string().max(2000).optional(),
     channelId: z.string().uuid().optional(),
+    // Which OTA or agent — required by the use case for OTA and TRAVEL_AGENT
+    // bookings keyed by hand, refused on any other category.
+    bookingSourceId: z.string().uuid().optional(),
     guestId: z.string().uuid().optional(),
     holdTtlSeconds: z.number().int().min(60).max(3600).optional(),
   })
@@ -223,9 +230,11 @@ export class ReservationsController {
           adults: stay.adults,
           ...(stay.children === undefined ? {} : { children: stay.children }),
           ...(stay.guestName === undefined ? {} : { guestName: stay.guestName }),
+          ...(stay.roomId === undefined ? {} : { roomId: stay.roomId }),
         })),
         ...(body.specialRequests ? { specialRequests: body.specialRequests } : {}),
         ...(body.channelId ? { channelId: body.channelId } : {}),
+        ...(body.bookingSourceId ? { bookingSourceId: body.bookingSourceId } : {}),
         ...(body.guestId ? { guestId: body.guestId } : {}),
         ...(body.holdTtlSeconds ? { holdTtlSeconds: body.holdTtlSeconds } : {}),
       },
@@ -251,6 +260,7 @@ export class ReservationsController {
         adults: stay.adults,
         children: stay.children,
         guestName: stay.guestName,
+        assignedRoomId: stay.assignedRoomId,
         subtotal: { amount: stay.subtotalMinor, currency: result.currency },
         nights: stay.nights.map((night) => ({
           date: night.date,

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login, testData } from './helpers';
+import { login, openForSale, testData } from './helpers';
 
 /**
  * Creates a booking through the API so the list has something real to show.
@@ -30,6 +30,23 @@ async function book(
           },
         ],
       },
+    },
+  );
+  expect(response.ok(), await response.text()).toBeTruthy();
+}
+
+/** A physical room, so the booking form has something to put the guest in. */
+async function addRoom(
+  request: import('@playwright/test').APIRequestContext,
+  token: string,
+  roomNumber: string,
+): Promise<void> {
+  const data = testData();
+  const response = await request.post(
+    `${process.env.DEEHUB_API_URL ?? 'http://127.0.0.1:3001/api/v1'}/properties/${data.propertyId}/rooms`,
+    {
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      data: { roomTypeId: data.roomTypeId, roomNumber },
     },
   );
   expect(response.ok(), await response.text()).toBeTruthy();
@@ -100,8 +117,9 @@ test.describe('reservations', () => {
     // different result set and skip rows.
     //
     // Scoped to the page body: the header carries a language switcher, so a
-    // bare select matches two things.
-    await page.getByRole('main').getByRole('combobox').selectOption('CONFIRMED');
+    // bare select matches two things — and the filters row has two of its
+    // own (status, then source).
+    await page.getByRole('main').getByRole('combobox').first().selectOption('CONFIRMED');
     await expect(page).toHaveURL(/status=CONFIRMED/);
     await expect(page).not.toHaveURL(/cursor=/);
   });
@@ -111,5 +129,73 @@ test.describe('reservations', () => {
     await login(page, data.managerEmail);
     await page.goto(`/properties/${data.propertyId}/reservations?q=nobody-by-this-name`);
     await expect(page.getByText(/No reservations match/)).toBeVisible();
+  });
+  test('takes a booking with the room chosen up front, then moves it', async ({
+    page,
+    request,
+  }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    // Rooms named so no other spec's /201/-style pattern can match them.
+    await addRoom(request, token, '901');
+    await addRoom(request, token, '902');
+    await openForSale(request, token, '2030-08-01', '2030-08-06');
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/new`);
+
+    await page.getByLabel('Check-in').fill('2030-08-01');
+    await page.getByLabel('Check-out').fill('2030-08-03');
+    await page.getByLabel('Name', { exact: true }).fill('Kanya Room Picker');
+
+    // The picker lists what is free for those nights, this type first.
+    const roomSelect = page.getByLabel('Room number (optional)');
+    await expect(roomSelect.locator('option', { hasText: '901' })).toHaveCount(1);
+    await roomSelect.selectOption({ label: '901' });
+    await page.getByRole('button', { name: 'Create booking' }).click();
+
+    await expect(page).toHaveURL(/\/reservations\/[0-9a-f-]{36}$/);
+    await expect(page.getByText('901')).toBeVisible();
+
+    // Moving the guest from the booking itself, not from the stay view.
+    await page.getByRole('button', { name: 'Change room' }).click();
+    const picker = page.getByRole('combobox', { name: 'Room', exact: true });
+    // 1101 is this very stay's room and stays choosable as "current"; 1102 is
+    // free.
+    await expect(picker.locator('option', { hasText: '902' })).toHaveCount(1);
+    await picker.selectOption({ label: '902' });
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByRole('button', { name: 'Change room' })).toBeVisible();
+    await expect(page.getByText('902')).toBeVisible();
+    await expect(page.getByText('901')).toHaveCount(0);
+  });
+
+  test('a room taken on those nights is not offered', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    await addRoom(request, token, '903');
+    await openForSale(request, token, '2030-08-01', '2030-08-06');
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/new`);
+    await page.getByLabel('Check-in').fill('2030-08-03');
+    await page.getByLabel('Check-out').fill('2030-08-05');
+    await page.getByLabel('Name', { exact: true }).fill('First In');
+    await page.getByLabel('Room number (optional)').selectOption({ label: '903' });
+    await page.getByRole('button', { name: 'Create booking' }).click();
+    await expect(page).toHaveURL(/\/reservations\/[0-9a-f-]{36}$/);
+
+    await page.goto(`/properties/${data.propertyId}/reservations/new`);
+    await page.getByLabel('Check-in').fill('2030-08-04');
+    await page.getByLabel('Check-out').fill('2030-08-06');
+    const roomSelect = page.getByLabel('Room number (optional)');
+    await expect(roomSelect.locator('option', { hasText: 'Assign later' })).toHaveCount(1);
+    await expect(roomSelect.locator('option', { hasText: '903' })).toHaveCount(0);
+
+    // Leaving on the 5th frees it for a 5th arrival — nights are half-open.
+    await page.getByLabel('Check-in').fill('2030-08-05');
+    await page.getByLabel('Check-out').fill('2030-08-06');
+    await expect(roomSelect.locator('option', { hasText: '903' })).toHaveCount(1);
   });
 });
