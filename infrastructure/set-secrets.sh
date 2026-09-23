@@ -92,6 +92,16 @@ set_optional() {
 set_optional email-api-key "${EMAIL_API_KEY:-}" EMAIL_API_KEY
 set_optional line-channel-token "${LINE_CHANNEL_TOKEN:-}" LINE_CHANNEL_TOKEN
 
+# Photo uploads. Terraform minted an HMAC pair for the API's service account;
+# the values are read out of state here (never printed) and written to the two
+# secrets the API mounts. Without them the dashboard says photos are not
+# configured, and nothing else changes.
+TF_DIR="$(dirname "$0")/terraform"
+STORAGE_ACCESS_ID="$(terraform -chdir="$TF_DIR" output -raw storage_hmac_access_id 2>/dev/null || true)"
+STORAGE_SECRET="$(terraform -chdir="$TF_DIR" output -raw storage_hmac_secret 2>/dev/null || true)"
+set_optional storage-access-key "$STORAGE_ACCESS_ID" "terraform output storage_hmac_access_id"
+set_optional storage-secret-key "$STORAGE_SECRET" "terraform output storage_hmac_secret"
+
 # database-url is written by Terraform itself: it generates the password, so no
 # human ever handles it.
 echo "  deehub-database-url-${ENVIRONMENT} — managed by Terraform"

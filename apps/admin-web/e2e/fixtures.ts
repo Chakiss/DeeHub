@@ -223,6 +223,7 @@ export async function teardown(data: TestData): Promise<void> {
       'physical_rooms',
       'rate_days',
       'rate_plans',
+      'media',
       'room_types',
       'memberships',
       'refresh_tokens',

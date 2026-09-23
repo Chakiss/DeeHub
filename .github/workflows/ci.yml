@@ -54,6 +54,10 @@ jobs:
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-access-secret-that-is-long-enough-to-pass-validation
       JWT_REFRESH_SECRET: ci-refresh-secret-that-is-long-enough-to-pass-validation
+      STORAGE_ENDPOINT: http://localhost:9000
+      STORAGE_BUCKET: deehub-test
+      STORAGE_ACCESS_KEY: deehub
+      STORAGE_SECRET_KEY: deehub-secret
 
     steps:
       - uses: actions/checkout@v4
@@ -100,6 +104,25 @@ jobs:
       # integration suites rather than in the same step.
       - name: Install Playwright browser
         run: pnpm --filter @deehub/admin-web exec playwright install --with-deps chromium
+
+      # Photo uploads go browser → bucket on a URL the API signs, so the
+      # browser suite needs a real S3 endpoint to PUT to. A step rather than a
+      # service container: the official image needs a command ("server /data")
+      # and service containers cannot pass one. The bucket is world-readable,
+      # the same shape production has (main.tf: allUsers objectViewer).
+      - name: Start MinIO for photo uploads
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=deehub -e MINIO_ROOT_PASSWORD=deehub-secret \
+            quay.io/minio/minio server /data
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9000/minio/health/live >/dev/null && break
+            sleep 1
+          done
+          docker run --rm --network host --entrypoint sh quay.io/minio/mc -c \
+            "mc alias set local http://127.0.0.1:9000 deehub deehub-secret && \
+             mc mb --ignore-existing local/deehub-test && \
+             mc anonymous set download local/deehub-test"
 
       - name: Start API for end-to-end tests
         run: |

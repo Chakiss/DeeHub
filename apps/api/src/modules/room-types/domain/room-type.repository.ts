@@ -5,7 +5,11 @@ export interface RoomTypeRecord {
   readonly propertyId: string;
   readonly code: string;
   readonly name: string;
+  /** English; the Thai copy is `descriptionTh`. */
   readonly description: string | null;
+  readonly descriptionTh: string | null;
+  readonly bedConfig: string | null;
+  readonly sizeSqm: number | null;
   readonly standardOccupancy: number;
   readonly maxOccupancy: number;
   readonly maxAdults: number;
@@ -21,6 +25,9 @@ export interface CreateRoomTypeRecord {
   readonly code: string;
   readonly name: string;
   readonly description: string | null;
+  readonly descriptionTh?: string | null;
+  readonly bedConfig?: string | null;
+  readonly sizeSqm?: number | null;
   readonly standardOccupancy: number;
   readonly maxOccupancy: number;
   readonly maxAdults: number;
@@ -33,6 +40,9 @@ export type UpdateRoomTypeFields = Partial<
     RoomTypeRecord,
     | 'name'
     | 'description'
+    | 'descriptionTh'
+    | 'bedConfig'
+    | 'sizeSqm'
     | 'standardOccupancy'
     | 'maxOccupancy'
     | 'maxAdults'

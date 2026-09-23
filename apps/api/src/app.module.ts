@@ -25,6 +25,7 @@ import { RatePlansModule } from './modules/rate-plans/rate-plans.module';
 import { UsersModule } from './modules/users/users.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { BookingSourcesModule } from './modules/booking-sources/booking-sources.module';
+import { MediaModule } from './modules/media/media.module';
 
 /**
  * Modular monolith root (architecture.md §1).
@@ -45,6 +46,7 @@ import { BookingSourcesModule } from './modules/booking-sources/booking-sources.
     RoomTypesModule,
     RoomsModule,
     BookingSourcesModule,
+    MediaModule,
     ReportsModule,
     GuestsModule,
     FolioModule,

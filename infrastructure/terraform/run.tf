@@ -21,6 +21,9 @@ locals {
     # splitting the map would cost a second one and buy no isolation.
     EMAIL_API_KEY      = "email-api-key"
     LINE_CHANNEL_TOKEN = "line-channel-token"
+    # Signed photo uploads (main.tf, google_storage_hmac_key.api).
+    STORAGE_ACCESS_KEY = "storage-access-key"
+    STORAGE_SECRET_KEY = "storage-secret-key"
   }
 
   # Not secret: a sender address and a chat group id. Absent means the matching
@@ -140,6 +143,20 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "STORAGE_BUCKET"
         value = google_storage_bucket.media.name
+      }
+      # GCS's S3-interoperability endpoint; the same adapter talks to MinIO
+      # locally. Region is what the SigV4 signature is scoped to.
+      env {
+        name  = "STORAGE_ENDPOINT"
+        value = "https://storage.googleapis.com"
+      }
+      env {
+        name  = "STORAGE_REGION"
+        value = var.region
+      }
+      env {
+        name  = "STORAGE_PUBLIC_URL"
+        value = "https://storage.googleapis.com/${google_storage_bucket.media.name}"
       }
 
       dynamic "env" {

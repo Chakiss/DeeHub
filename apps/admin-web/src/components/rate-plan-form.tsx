@@ -40,6 +40,7 @@ export function RatePlanForm({
     (ratePlan?.mealPlan as MealPlan | undefined) ?? 'ROOM_ONLY',
   );
   const [isRefundable, setRefundable] = useState(ratePlan?.isRefundable ?? true);
+  const [sellOnline, setSellOnline] = useState(ratePlan?.sellOnline ?? true);
 
   /*
    * Whether a plan is derived is fixed at creation: switching either way would
@@ -96,6 +97,7 @@ export function RatePlanForm({
           name,
           mealPlan,
           isRefundable,
+          sellOnline,
           ...(ratePlan.derivationType ? { derivationValue: offsetValue } : {}),
         })
       : await createRatePlan(propertyId, {
@@ -104,6 +106,7 @@ export function RatePlanForm({
           name,
           mealPlan,
           isRefundable,
+          sellOnline,
           // selectedParent, never the raw state: `parentId` stays empty until
           // somebody actually changes the dropdown, and the dropdown SHOWS the
           // derived default. Reading the state here silently created a base
@@ -284,6 +287,25 @@ export function RatePlanForm({
             className="h-4 w-4 rounded border-stone-300"
           />
           {t('refundable')}
+        </label>
+
+        {/*
+          Off = desk only. The booking page and the metasearch feed read only
+          plans with this on, so a corporate or walk-in rate stays priced and
+          sellable at the counter without becoming the lowest price a stranger
+          is shown.
+        */}
+        <label className="flex items-start gap-2 text-sm text-ink-700">
+          <input
+            type="checkbox"
+            checked={sellOnline}
+            onChange={(event) => setSellOnline(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-stone-300"
+          />
+          <span>
+            {t('sellOnline')}
+            <span className="block text-xs text-stone-400">{t('sellOnlineHint')}</span>
+          </span>
         </label>
 
         {/* Said up front rather than discovered as a missing option. */}

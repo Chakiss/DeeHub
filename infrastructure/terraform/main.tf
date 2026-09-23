@@ -96,6 +96,9 @@ locals {
     "sentry-dsn",
     "email-api-key",
     "line-channel-token",
+    # HMAC pair for signed photo uploads (google_storage_hmac_key.api).
+    "storage-access-key",
+    "storage-secret-key",
   ]
 }
 
@@ -135,10 +138,39 @@ resource "google_storage_bucket" "media" {
   versioning {
     enabled = true
   }
+
+  # The dashboard PUTs photos here straight from the browser on a URL the API
+  # signed, so the bucket must answer the preflight for the dashboard's
+  # origins. Reads need no CORS: an <img> is not a fetch.
+  cors {
+    origin          = split(",", var.cors_origins)
+    method          = ["PUT", "GET", "HEAD"]
+    response_header = ["Content-Type", "Content-Length", "ETag"]
+    max_age_seconds = 3600
+  }
 }
 
 resource "google_storage_bucket_iam_member" "api_media" {
   bucket = google_storage_bucket.media.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.api.email}"
+}
+
+# Photos are read straight from the bucket by every guest's browser and by
+# Google's crawler, so the bucket is world-readable. Nothing but photos lives
+# here — the API writes only under `public/{org}/{property}/` and the key is
+# minted server-side — and the bucket name is not a secret.
+resource "google_storage_bucket_iam_member" "media_public" {
+  bucket = google_storage_bucket.media.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
+}
+
+# The API signs uploads with the S3 protocol (one adapter for MinIO locally
+# and GCS in production), which means an HMAC key for the API's own service
+# account rather than its OAuth identity. The secret half is written to Secret
+# Manager by set-secrets.sh from `terraform output -raw storage_hmac_secret`;
+# it is sensitive in state, never printed by a plan.
+resource "google_storage_hmac_key" "api" {
+  service_account_email = google_service_account.api.email
 }

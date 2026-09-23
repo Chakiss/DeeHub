@@ -21,6 +21,9 @@ export interface CreateRoomTypeInput {
   readonly code: string;
   readonly name: string;
   readonly description?: string | null;
+  readonly descriptionTh?: string | null;
+  readonly bedConfig?: string | null;
+  readonly sizeSqm?: number | null;
   readonly standardOccupancy: number;
   readonly maxOccupancy: number;
   readonly maxAdults: number;
@@ -60,6 +63,9 @@ export class CreateRoomTypeUseCase {
           code,
           name: input.name.trim(),
           description: input.description?.trim() || null,
+          descriptionTh: input.descriptionTh?.trim() || null,
+          bedConfig: input.bedConfig?.trim() || null,
+          sizeSqm: input.sizeSqm ?? null,
           standardOccupancy: input.standardOccupancy,
           maxOccupancy: input.maxOccupancy,
           maxAdults: input.maxAdults,

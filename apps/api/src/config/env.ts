@@ -75,11 +75,27 @@ export const envSchema = z.object({
     'ZGV2LW9ubHkta2V5LW5vdC1mb3ItcHJvZHVjdGlvbiE=',
   ),
 
+  /*
+   * Object storage, S3-compatible (master prompt: "Storage: S3-compatible").
+   * MinIO locally; Google Cloud Storage through its S3 interoperability HMAC
+   * key in production. Photos are uploaded by the browser straight to the
+   * bucket on a URL this API signs, so no image bytes pass through Cloud Run.
+   *
+   * With no endpoint or key set, uploads answer UNAVAILABLE rather than
+   * failing — the dashboard says photos are not configured.
+   */
   STORAGE_ENDPOINT: z.string().optional(),
   STORAGE_REGION: z.string().default('ap-southeast-1'),
   STORAGE_BUCKET: z.string().default('deehub-local'),
   STORAGE_ACCESS_KEY: z.string().optional(),
   STORAGE_SECRET_KEY: z.string().optional(),
+  /**
+   * Where a stored object is READ from by a browser, e.g.
+   * "https://storage.googleapis.com/<bucket>". Defaults to
+   * "<STORAGE_ENDPOINT>/<STORAGE_BUCKET>" (path-style), which is what MinIO
+   * serves and what a public GCS bucket serves too.
+   */
+  STORAGE_PUBLIC_URL: z.string().optional(),
 
   CORS_ORIGINS: z
     .string()

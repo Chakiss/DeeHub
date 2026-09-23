@@ -24,6 +24,7 @@ export interface CreateRatePlanInput {
   readonly name: string;
   readonly mealPlan: MealPlan;
   readonly isRefundable: boolean;
+  readonly sellOnline?: boolean;
   /**
    * Absent for a plan that will hold its own prices; present for one priced as
    * an offset from another. Fixed at creation — see `UpdateRatePlanFields`.
@@ -79,6 +80,7 @@ export class CreateRatePlanUseCase {
           name: input.name.trim(),
           mealPlan: input.mealPlan,
           isRefundable: input.isRefundable,
+          sellOnline: input.sellOnline ?? true,
           // All three or none: a database CHECK refuses a half-configured
           // derivation, so the object is built that way rather than patched.
           parentRatePlanId: input.derivation?.parentRatePlanId ?? null,

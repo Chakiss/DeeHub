@@ -24,7 +24,8 @@
     "notifications": "Notifications",
     "channels": "Channels",
     "accounting": "Accounting",
-    "bookingSources": "Booking sources"
+    "bookingSources": "Booking sources",
+    "settings": "Settings"
   },
   "login": {
     "title": "Sign in",
@@ -347,7 +348,13 @@
     "updated": "Saved.",
     "codeTaken": "That code is already used at this property.",
     "failed": "Could not save the room type.",
-    "noDelete": "Room types are never deleted — inventory, rates and past bookings point at them. Stop selling instead."
+    "noDelete": "Room types are never deleted — inventory, rates and past bookings point at them. Stop selling instead.",
+    "descriptionEn": "Description (English)",
+    "descriptionTh": "Description (Thai)",
+    "descriptionHint": "Shown to guests on the booking page.",
+    "bedConfig": "Beds",
+    "bedConfigHint": "e.g. 1 king bed, 2 twin beds",
+    "sizeSqm": "Size (m²)"
   },
   "ratePlans": {
     "title": "Rate plans",
@@ -414,7 +421,10 @@
     "offsetAmount": "Fixed amount",
     "offset": "By",
     "offsetHint": "Negative for a discount, e.g. -10.",
-    "offsetRequired": "Enter an offset other than zero."
+    "offsetRequired": "Enter an offset other than zero.",
+    "sellOnline": "Sell online",
+    "sellOnlineHint": "Off = desk only. The booking page and Google never see this plan.",
+    "deskOnly": "Desk only"
   },
   "mealPlans": {
     "ROOM_ONLY": "Room only",
@@ -843,5 +853,55 @@
     "saving": "Saving…",
     "cancel": "Cancel",
     "failed": "Could not save the booking source."
+  },
+  "settings": {
+    "title": "Property settings",
+    "subtitle": "What guests and Google see: address, contact, description, location and photos.",
+    "identity": "Hotel",
+    "name": "Hotel name",
+    "code": "Code",
+    "fixedHint": "Set when the property was created. It cannot be changed here.",
+    "phone": "Phone",
+    "email": "Email",
+    "website": "Website",
+    "websiteHint": "Your own site, if you have one. Leave empty to use the DeeHub booking page.",
+    "address": "Address",
+    "addressLine1": "Address line 1",
+    "addressLine2": "Address line 2",
+    "city": "City / district",
+    "postalCode": "Postal code",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "coordinatesHint": "From Google Maps: right-click the hotel and copy the two numbers.",
+    "coordinatesPair": "Give both latitude and longitude, or neither.",
+    "coordinatesInvalid": "Latitude and longitude must be numbers.",
+    "checkOnMap": "Check the pin on Google Maps",
+    "description": "Description",
+    "descriptionTh": "Description (Thai)",
+    "descriptionEn": "Description (English)",
+    "amenities": "Amenities",
+    "amenitiesHint": "Comma-separated, in the order you want them shown.",
+    "times": "Check-in and check-out",
+    "checkInTime": "Check-in from",
+    "checkOutTime": "Check-out by",
+    "fixedSummary": "Timezone {timezone} · currency {currency} · VAT {tax}% · service charge {serviceCharge}%. These are changed in accounting settings or by support.",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "failed": "Could not save the settings.",
+    "photos": "Photos",
+    "photosHint": "The first photo of each gallery is the cover. JPEG, PNG or WebP, up to 5 MB; phone photos are shrunk before upload.",
+    "propertyPhotos": "Hotel photos",
+    "addPhotos": "Add photos",
+    "uploading": "Uploading…",
+    "noPhotos": "No photos yet.",
+    "coverPhoto": "Cover",
+    "moveEarlier": "Move earlier",
+    "moveLater": "Move later",
+    "removePhoto": "Remove",
+    "tooLarge": "That photo is larger than 5 MB even after shrinking.",
+    "tooManyPhotos": "A gallery holds at most {max} photos; the rest were skipped.",
+    "uploadFailed": "The upload did not finish. Try again.",
+    "storageMissing": "Photo storage is not configured for this deployment yet."
   }
 }

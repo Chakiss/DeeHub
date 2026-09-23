@@ -3,8 +3,10 @@ import {
   boolean,
   char,
   check,
+  index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   smallint,
   text,
@@ -39,6 +41,20 @@ export const properties = pgTable(
     email: text('email'),
     checkInTime: time('check_in_time').notNull().default('14:00'),
     checkOutTime: time('check_out_time').notNull().default('12:00'),
+    /**
+     * What a guest — and Google — sees. Nullable because a property is
+     * sellable through the desk long before anyone writes its blurb.
+     */
+    website: text('website'),
+    /** WGS84, six decimals (about 10 cm). Google matches on these. */
+    latitude: numeric('latitude', { precision: 9, scale: 6, mode: 'number' }),
+    longitude: numeric('longitude', { precision: 9, scale: 6, mode: 'number' }),
+    descriptionTh: text('description_th'),
+    descriptionEn: text('description_en'),
+    /** Free-form tags the booking page lists: ["wifi","parking","pool"]. */
+    amenities: jsonb('amenities')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     /** Basis points: 700 = 7% Thai VAT. Integer arithmetic only. */
     taxRateBp: integer('tax_rate_bp').notNull().default(700),
     serviceChargeRateBp: integer('service_charge_rate_bp').notNull().default(1000),
@@ -52,6 +68,11 @@ export const properties = pgTable(
     check('properties_status_ck', sql`${t.status} IN ('ACTIVE','INACTIVE')`),
     check('properties_tax_rate_ck', sql`${t.taxRateBp} BETWEEN 0 AND 10000`),
     check('properties_service_charge_ck', sql`${t.serviceChargeRateBp} BETWEEN 0 AND 10000`),
+    check('properties_latitude_ck', sql`${t.latitude} IS NULL OR ${t.latitude} BETWEEN -90 AND 90`),
+    check(
+      'properties_longitude_ck',
+      sql`${t.longitude} IS NULL OR ${t.longitude} BETWEEN -180 AND 180`,
+    ),
   ],
 );
 
@@ -67,7 +88,12 @@ export const roomTypes = pgTable(
       .references(() => properties.id, { onDelete: 'restrict' }),
     code: text('code').notNull(),
     name: text('name').notNull(),
+    /** English. The Thai copy has its own column rather than a JSON blob, so the two can be searched and diffed. */
     description: text('description'),
+    descriptionTh: text('description_th'),
+    /** "1 king bed" / "2 twin beds" — what the booking page prints under the name. */
+    bedConfig: text('bed_config'),
+    sizeSqm: smallint('size_sqm'),
     standardOccupancy: smallint('standard_occupancy').notNull().default(2),
     maxOccupancy: smallint('max_occupancy').notNull().default(2),
     maxAdults: smallint('max_adults').notNull().default(2),
@@ -83,6 +109,7 @@ export const roomTypes = pgTable(
     check('room_types_standard_occupancy_ck', sql`${t.standardOccupancy} >= 1`),
     check('room_types_max_occupancy_ck', sql`${t.maxOccupancy} >= 1`),
     check('room_types_max_children_ck', sql`${t.maxChildren} >= 0`),
+    check('room_types_size_ck', sql`${t.sizeSqm} IS NULL OR ${t.sizeSqm} > 0`),
   ],
 );
 
@@ -147,6 +174,13 @@ export const ratePlans = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     isRefundable: boolean('is_refundable').notNull().default(true),
+    /**
+     * Whether a stranger may buy it: the booking engine and the metasearch
+     * feed read only plans with this set. A desk-only plan — a corporate rate,
+     * a walk-in special — stays active and priced without becoming the lowest
+     * price Google shows.
+     */
+    sellOnline: boolean('sell_online').notNull().default(true),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -168,5 +202,52 @@ export const ratePlans = pgTable(
           OR (${t.parentRatePlanId} IS NOT NULL AND ${t.derivationType} IS NOT NULL AND ${t.derivationValue} IS NOT NULL)`,
     ),
     check('rate_plans_no_self_parent_ck', sql`${t.parentRatePlanId} <> ${t.id}`),
+  ],
+);
+
+export const MEDIA_KINDS = ['PROPERTY', 'ROOM_TYPE'] as const;
+
+/**
+ * Photos. The bytes live in the object store; this is what points at them.
+ *
+ * One table for property and room-type photos rather than two, because they
+ * are the same thing shown in two places — and a room photo promoted to the
+ * hotel's hero shot should be a row update, not a copy. `roomTypeId` is set
+ * exactly when `kind` is ROOM_TYPE (CHECK below).
+ *
+ * `objectKey` is the store's path, never a URL: the public host is a
+ * deployment setting (a bucket today, a CDN tomorrow) and is prepended on the
+ * way out.
+ */
+export const media = pgTable(
+  'media',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'restrict' }),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'restrict' }),
+    kind: text('kind').notNull(),
+    roomTypeId: uuid('room_type_id').references(() => roomTypes.id, { onDelete: 'restrict' }),
+    objectKey: text('object_key').notNull(),
+    contentType: text('content_type').notNull(),
+    bytes: integer('bytes').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    alt: text('alt'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('media_object_key_uq').on(t.objectKey),
+    index('media_property_kind_idx').on(t.propertyId, t.kind, t.roomTypeId, t.sortOrder),
+    check('media_kind_ck', sql`${t.kind} IN ('PROPERTY','ROOM_TYPE')`),
+    check(
+      'media_room_type_ck',
+      sql`(${t.kind} = 'ROOM_TYPE' AND ${t.roomTypeId} IS NOT NULL) OR (${t.kind} = 'PROPERTY' AND ${t.roomTypeId} IS NULL)`,
+    ),
+    check('media_bytes_ck', sql`${t.bytes} > 0`),
   ],
 );

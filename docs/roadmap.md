@@ -75,6 +75,13 @@ Phase 4 with it. Delivered:
   before any connector exists, and stays one line after one does.
 - **Guests**: profiles and stay history, and a way to fold two profiles into
   one when the same person booked twice under different details.
+- **The property as a guest sees it** (2026-09-23, first step of the Google +
+  booking-site plan): a settings page for address, contact, website,
+  coordinates, Thai and English descriptions, amenities and check-in times;
+  photos of the hotel and of each room type, uploaded from the browser
+  straight to the bucket on a URL the API signs; bed configuration and size
+  on a room type; and a `sellOnline` switch on a rate plan so a desk-only
+  rate never becomes the lowest price a stranger is shown.
 - **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking
   forward — what has been taken for the nights ahead since a week ago.
 - **Direct bookings**: a public API a guest can search, hold a room through,

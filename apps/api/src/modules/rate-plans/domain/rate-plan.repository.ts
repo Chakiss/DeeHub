@@ -19,6 +19,8 @@ export interface RatePlanRecord {
   readonly name: string;
   readonly mealPlan: string;
   readonly isRefundable: boolean;
+  /** Bookable by a stranger (booking engine, metasearch). Off = desk only. */
+  readonly sellOnline: boolean;
   readonly isActive: boolean;
   /** Null for a plan that holds its own prices. */
   readonly parentRatePlanId: string | null;
@@ -36,6 +38,7 @@ export interface CreateRatePlanRecord {
   readonly name: string;
   readonly mealPlan: MealPlan;
   readonly isRefundable: boolean;
+  readonly sellOnline: boolean;
   /** All three together or none: a database CHECK enforces the pairing. */
   readonly parentRatePlanId?: string | null;
   readonly derivationType?: DerivationType | null;
@@ -56,7 +59,10 @@ export interface CreateRatePlanRecord {
  * exactly what a derived plan is for — and is allowed.
  */
 export type UpdateRatePlanFields = Partial<
-  Pick<RatePlanRecord, 'name' | 'mealPlan' | 'isRefundable' | 'isActive' | 'derivationValue'>
+  Pick<
+    RatePlanRecord,
+    'name' | 'mealPlan' | 'isRefundable' | 'sellOnline' | 'isActive' | 'derivationValue'
+  >
 >;
 
 /**

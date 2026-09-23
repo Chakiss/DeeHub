@@ -27,6 +27,7 @@ const COLUMNS = {
   name: ratePlans.name,
   mealPlan: ratePlans.mealPlan,
   isRefundable: ratePlans.isRefundable,
+  sellOnline: ratePlans.sellOnline,
   isActive: ratePlans.isActive,
   parentRatePlanId: ratePlans.parentRatePlanId,
   derivationType: ratePlans.derivationType,

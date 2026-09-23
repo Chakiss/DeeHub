@@ -19,6 +19,11 @@ export function RoomTypeForm({ propertyId, roomType, onClose }: Props) {
   const [code, setCode] = useState(roomType?.code ?? '');
   const [name, setName] = useState(roomType?.name ?? '');
   const [description, setDescription] = useState(roomType?.description ?? '');
+  const [descriptionTh, setDescriptionTh] = useState(roomType?.descriptionTh ?? '');
+  const [bedConfig, setBedConfig] = useState(roomType?.bedConfig ?? '');
+  const [sizeSqm, setSizeSqm] = useState(
+    roomType?.sizeSqm === null || roomType?.sizeSqm === undefined ? '' : String(roomType.sizeSqm),
+  );
   const [standardOccupancy, setStandard] = useState(roomType?.standardOccupancy ?? 2);
   const [maxOccupancy, setMaxOccupancy] = useState(roomType?.maxOccupancy ?? 2);
   const [maxAdults, setMaxAdults] = useState(roomType?.maxAdults ?? 2);
@@ -35,6 +40,10 @@ export function RoomTypeForm({ propertyId, roomType, onClose }: Props) {
     const shape = {
       name,
       description: description.trim() || null,
+      descriptionTh: descriptionTh.trim() || null,
+      bedConfig: bedConfig.trim() || null,
+      // parseInt, not Number(): a local component called Number shadows the global here.
+      sizeSqm: sizeSqm.trim() === '' ? null : parseInt(sizeSqm, 10),
       standardOccupancy,
       maxOccupancy,
       maxAdults,
@@ -102,7 +111,7 @@ export function RoomTypeForm({ propertyId, roomType, onClose }: Props) {
           </Field>
         </div>
 
-        <Field id="rt-description" label={t('description')}>
+        <Field id="rt-description" label={t('descriptionEn')} hint={t('descriptionHint')}>
           <textarea
             id="rt-description"
             value={description}
@@ -112,6 +121,42 @@ export function RoomTypeForm({ propertyId, roomType, onClose }: Props) {
             className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           />
         </Field>
+
+        <Field id="rt-description-th" label={t('descriptionTh')}>
+          <textarea
+            id="rt-description-th"
+            value={descriptionTh}
+            onChange={(event) => setDescriptionTh(event.target.value)}
+            rows={2}
+            maxLength={2000}
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+        </Field>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="rt-bed" label={t('bedConfig')} hint={t('bedConfigHint')}>
+            <input
+              id="rt-bed"
+              value={bedConfig}
+              onChange={(event) => setBedConfig(event.target.value)}
+              maxLength={120}
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              placeholder="1 king bed"
+            />
+          </Field>
+          <Field id="rt-size" label={t('sizeSqm')}>
+            <input
+              id="rt-size"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={10000}
+              value={sizeSqm}
+              onChange={(event) => setSizeSqm(event.target.value)}
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+          </Field>
+        </div>
 
         <fieldset className="grid gap-4 sm:grid-cols-4">
           <legend className="mb-1 text-sm font-medium text-ink-700">{t('occupancy')}</legend>

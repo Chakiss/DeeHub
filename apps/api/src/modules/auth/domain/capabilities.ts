@@ -150,6 +150,11 @@ const MANAGER_CAPABILITIES: readonly Capability[] = [
   'room:update',
   'rateplan:create',
   'rateplan:update',
+  // The property's own description, address, coordinates and photos — what a
+  // guest reads on the booking page and what Google matches a listing on.
+  // Creating a property stays with ADMIN; tax identity stays with
+  // `accounting:settings`.
+  'property:update',
   'channel:update',
   'channel:sync',
   'reservation:price_override',
@@ -169,7 +174,6 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   'user:invite',
   'user:update',
   'property:create',
-  'property:update',
   'channel:create',
   'expense:void',
   'accounting:read',
