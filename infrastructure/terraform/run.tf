@@ -34,6 +34,10 @@ locals {
     # Where an emailed link points. Mounted on both the API (which sends the
     # reset mail) and the worker (which shares the image and the config).
     var.admin_web_url == "" ? {} : { ADMIN_WEB_URL = var.admin_web_url },
+    # Where a card holder may be sent back after 3-D Secure. Only the custom
+    # domain form: the book service's own URI would make the two services
+    # reference each other, which Terraform cannot resolve.
+    var.custom_domain == "" ? {} : { BOOKING_WEB_URL = "https://book.${var.custom_domain}" },
   )
 }
 
@@ -369,6 +373,86 @@ resource "google_cloud_run_v2_service" "web" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+}
+
+# --- Guest booking site -------------------------------------------------------
+# Public, no login, path-based per hotel (/{org}/{code}). Same shape as the
+# dashboard: a backend-for-frontend over the API with no database credentials.
+
+resource "google_cloud_run_v2_service" "book" {
+  name     = "deehub-book-${local.suffix}"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  deletion_protection = false
+
+  lifecycle {
+    ignore_changes = [scaling, template[0].containers[0].image, client, client_version]
+  }
+
+  template {
+    service_account = google_service_account.book.email
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 10
+    }
+
+    containers {
+      image = var.book_image
+
+      ports {
+        container_port = 3000
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "NODE_ENV"
+        value = "production"
+      }
+      env {
+        name  = "DEEHUB_API_URL"
+        value = "${google_cloud_run_v2_service.api.uri}/api/v1"
+      }
+      dynamic "env" {
+        for_each = var.omise_public_key == "" ? [] : [1]
+        content {
+          name  = "OMISE_PUBLIC_KEY"
+          value = var.omise_public_key
+        }
+      }
+
+      startup_probe {
+        http_get {
+          # The root redirects to the company site; a 3xx counts as up.
+          path = "/"
+          port = 3000
+        }
+        initial_delay_seconds = 5
+        period_seconds        = 5
+        failure_threshold     = 6
+      }
+    }
+  }
+
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "book_public" {
+  name     = google_cloud_run_v2_service.book.name
+  location = google_cloud_run_v2_service.book.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 # --- Migrations --------------------------------------------------------------

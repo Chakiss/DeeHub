@@ -185,7 +185,7 @@ deehubhotel.com        marketing              ← this plan
 www                    301 → apex
 dashboard              dashboard              ✅ live
 api                    API                    ✅ live
-book                   guest booking engine   ← later, path-based per tenant
+book                   guest booking site     ✅ apps/booking-web, path-based per tenant
 ```
 
 ---

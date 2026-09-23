@@ -83,6 +83,11 @@ resource "google_service_account" "web" {
   display_name = "DeeHub dashboard"
 }
 
+resource "google_service_account" "book" {
+  account_id   = "deehub-book-${local.suffix}"
+  display_name = "DeeHub guest booking site"
+}
+
 # --- Secrets -----------------------------------------------------------------
 # Terraform creates the containers; the VALUES are added out of band so they
 # never appear in state, in a plan, or in a pull request.
