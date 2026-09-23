@@ -1162,6 +1162,48 @@ desk has to see it when the guest arrives asking what they still owe.
 `POST /bookings/{code}/deposit` is the pre-`payments` shape, kept for older
 pages: a card token, settled in one call when the bank allows.
 
+### 6.8c Google Hotels (metasearch)
+
+| Method | Path                                       | Capability       |
+| ------ | ------------------------------------------ | ---------------- |
+| `POST` | `/properties/{pid}/channels/{id}/auto-map` | `channel:update` |
+| `GET`  | `/public/google/hotel-list.xml?key=`       | none (feed key)  |
+| `GET`  | `/public/resolve/{propertyId}`             | none             |
+
+Google is a channel of type `GOOGLE_HOTEL` (ADR-0010): created, mapped,
+activated and synced like any other, with three differences a client sees.
+
+- **No credentials.** Google authenticates the sender's IP, allow-listed in
+  Hotel Center; the channel is created with `type` and `name` only.
+- **`auto-map`** maps every active room type and every `sellOnline` rate plan
+  under its own code (room type code → Google RoomID, rate plan code →
+  PackageID, markup ×1.0) and answers `{ roomTypes, ratePlans }`. Only a
+  Google channel accepts it (`422` otherwise); a desk-only plan is never
+  mapped, so it can never be the lowest price Google shows.
+- **Activation and a forced sync push the catalogue first** (Google's
+  Transaction message: rooms and packages by those ids). `POST …/sync` now
+  returns `catalogError` — `null`, or why Google refused the catalogue while
+  the nights were still attempted. A failed catalogue push on activation lands
+  in the channel's `lastError`, never fails the activation.
+
+Every ARI rate pushed to any channel now carries the all-in price (`grossMinor`,
+from `computeBreakdown`); Google receives it as `AmountAfterTax`, so the figure
+on Google is the figure the booking page charges.
+
+**The feed.** `GET /public/google/hotel-list.xml?key=` is Google's Hotel List
+Feed: every property, across tenants, with a live Google channel — id (the
+property uuid), name, address, country, coordinates, phone. Answered only to
+the configured `GOOGLE_HOTEL_FEED_KEY`, compared in constant time; any other
+request is `404`, as is a deployment with no key. `GET /public/resolve/{id}`
+turns that id back into `{ organizationSlug, propertyCode }` for the booking
+site's landing route; unknown, closed or malformed ids are `404`.
+
+**Without Redis**, the relay records each inventory or rate change as an
+`ari_sync_requests` row instead of failing; the maintenance job drains the
+table on its schedule (`DrainAriRequestsUseCase`), grouping by channel and room
+type. After ten failed rounds the rows are `ABANDONED` and the channel carries
+the error.
+
 ### 6.9 Inbound webhooks (OTA → DeeHub)
 
 ```

@@ -21,6 +21,8 @@ export const CHANNEL_TYPES = [
   'TRIP_COM',
   'AIRBNB',
   'DIRECT',
+  /** Google Hotels (free booking links / Hotel Ads): a metasearch, outbound only. */
+  'GOOGLE_HOTEL',
 ] as const;
 
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
@@ -40,7 +42,14 @@ export interface AriRate {
   /** The channel's own identifier for this rate plan. */
   readonly externalRateId: string;
   readonly occupancy: number;
+  /** The price for this channel, before service charge and VAT (the hotel's net rate × the channel markup). */
   readonly amountMinor: number;
+  /**
+   * The same night all-in: service charge and VAT applied the way a booking
+   * applies them (`computeBreakdown`), so a channel that shows guests a
+   * final price shows the one the checkout will ask for.
+   */
+  readonly grossMinor: number;
   readonly currency: string;
 }
 
@@ -120,6 +129,15 @@ export interface ChannelConnector {
   ): readonly InboundReservation[];
 
   testConnection(ctx: ChannelContext): Promise<HealthResult>;
+
+  /**
+   * Describe the property's rooms and rate plans to the channel — names,
+   * capacity, refundability — as some channels need before they will accept
+   * a price for them (Google's "Transaction" message). Optional: an OTA whose
+   * catalogue is set up in its own extranet has nothing to push here.
+   * Called on activation and before a forced full sync (ADR-0007).
+   */
+  pushCatalog?(ctx: ChannelContext): Promise<PushResult>;
 }
 
 export const CONNECTOR_REGISTRY = Symbol('CONNECTOR_REGISTRY');

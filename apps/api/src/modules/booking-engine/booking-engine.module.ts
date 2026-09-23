@@ -18,7 +18,10 @@ import { PAYMENT_GATEWAY } from './domain/payment-gateway';
 import { PAYMENT_INTENT_REPOSITORY } from './domain/payment-intent.repository';
 import { DrizzlePaymentIntentRepository } from './infrastructure/drizzle-payment-intent.repository';
 import { OmiseGateway } from './infrastructure/omise.gateway';
-import { BookingEngineController } from './interface/booking-engine.controller';
+import {
+  BookingEngineController,
+  PublicResolveController,
+} from './interface/booking-engine.controller';
 import { OmiseWebhookController } from './interface/omise-webhook.controller';
 
 /**
@@ -46,7 +49,7 @@ import { OmiseWebhookController } from './interface/omise-webhook.controller';
     InventoryModule,
     RatesModule,
   ],
-  controllers: [BookingEngineController, OmiseWebhookController],
+  controllers: [PublicResolveController, BookingEngineController, OmiseWebhookController],
   providers: [
     PublicPropertyResolver,
     PublicCatalogQuery,

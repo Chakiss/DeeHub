@@ -155,6 +155,20 @@ export const envSchema = z.object({
    * fine for development, wrong for production.
    */
   BOOKING_WEB_URL: optional(),
+
+  /*
+   * Google Hotels (Hotel Center). DeeHub is the connectivity partner; the
+   * hotels are matched through the Hotel List Feed. Google authenticates ARI
+   * uploads by the SENDER'S IP (allow-listed in Hotel Center), so there is no
+   * secret for the pushes — only the partner key each Transaction names, and
+   * the key that guards the feed URL Google fetches weekly.
+   */
+  /** The partner id Hotel Center issued, e.g. "deehub". Unset = the connector refuses to push. */
+  GOOGLE_HOTEL_PARTNER_KEY: optional(),
+  /** Where ARI messages are POSTed. Overridden in tests to a fake. */
+  GOOGLE_HOTEL_UPLOAD_URL: z.string().default('https://www.google.com/travel/hotels/uploads'),
+  /** Unguessable; the Hotel List Feed answers only with it. Unset = no feed. */
+  GOOGLE_HOTEL_FEED_KEY: optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -714,7 +714,11 @@
     "syncHint": "Sends the whole horizon again. Useful after fixing a mapping, or when you do not trust what the OTA is showing.",
     "syncOk": "Pushed {nights} nights for {rooms} room type(s).",
     "syncPartial": "{failed} of {rooms} room type(s) failed. The rest were pushed.",
-    "syncFailed": "The push could not be started"
+    "syncFailed": "The push could not be started",
+    "googleHint": "Google Hotels shows this property's own price on Google Search and Maps and sends guests to the DeeHub booking page. No credentials: Google trusts this server's address, listed in Hotel Center. Map with one click, activate, then sync.",
+    "googleHotelId": "Hotel ID (as in the Hotel List Feed)",
+    "autoMap": "Map every room type and online rate under its own code",
+    "autoMapped": "Mapped {roomTypes} room type(s) and {ratePlans} rate plan(s)."
   },
   "accounting": {
     "addVendor": "Add a supplier",

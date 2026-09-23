@@ -66,6 +66,7 @@ describe('connector contract (Mock OTA)', () => {
               externalRateId: 'RATE-BAR',
               occupancy: 2,
               amountMinor: 250000,
+              grossMinor: 250000,
               currency: 'THB',
             },
           ],
@@ -100,7 +101,9 @@ describe('connector contract (Mock OTA)', () => {
         nights: [
           {
             ...payload().nights[0]!,
-            rates: [{ externalRateId: 'R', occupancy: 2, amountMinor: 1, currency: 'THB' }],
+            rates: [
+              { externalRateId: 'R', occupancy: 2, amountMinor: 1, grossMinor: 1, currency: 'THB' },
+            ],
           },
         ],
       });

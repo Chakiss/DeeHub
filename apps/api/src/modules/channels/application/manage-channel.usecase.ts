@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { addDays, errors, EVENT_TYPES, toIsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import type { Executor } from '../../../database/executor';
@@ -17,6 +17,15 @@ import {
 } from '../../../database/schema';
 import { ConnectorRegistry } from '../domain/connector.registry';
 import type { ChannelType } from '../domain/channel-connector';
+import { CHANNEL_REPOSITORY, type ChannelRepository } from '../domain/channel.repository';
+import {
+  RATE_PLAN_REPOSITORY,
+  type RatePlanRepository,
+} from '../../rate-plans/domain/rate-plan.repository';
+import {
+  ROOM_TYPE_REPOSITORY,
+  type RoomTypeRepository,
+} from '../../room-types/domain/room-type.repository';
 
 export interface CreateChannelInput {
   readonly propertyId: string;
@@ -82,6 +91,9 @@ export class ManageChannelUseCase {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(CREDENTIAL_CIPHER) private readonly cipher: CredentialCipher,
+    @Inject(CHANNEL_REPOSITORY) private readonly channels: ChannelRepository,
+    @Inject(ROOM_TYPE_REPOSITORY) private readonly roomTypes: RoomTypeRepository,
+    @Inject(RATE_PLAN_REPOSITORY) private readonly ratePlans: RatePlanRepository,
     private readonly connectors: ConnectorRegistry,
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
@@ -138,6 +150,7 @@ export class ManageChannelUseCase {
 
   async update(input: UpdateChannelInput, actor: AuditActor): Promise<void> {
     const tenant = requireTenant();
+    let activated = false;
 
     await this.db.transaction(async (tx) => {
       const existing = await this.load(tx, input.propertyId, input.channelId);
@@ -166,6 +179,8 @@ export class ManageChannelUseCase {
           and(eq(channels.id, input.channelId), eq(channels.organizationId, tenant.organizationId)),
         );
 
+      activated = input.status === 'ACTIVE' && existing.status !== 'ACTIVE';
+
       await this.audit.record(tx, {
         organizationId: tenant.organizationId,
         propertyId: input.propertyId,
@@ -181,6 +196,26 @@ export class ManageChannelUseCase {
         },
       });
     });
+
+    // A channel that needs its catalogue described (Google) gets it the moment
+    // it goes live, so the first ARI push has rooms to price. Best effort and
+    // AFTER the commit: a slow or refused upload must not undo an activation
+    // the mapping check already allowed, and the failure lands on the channel
+    // where the dashboard shows it.
+    if (activated) await this.pushCatalogue(input.channelId);
+  }
+
+  private async pushCatalogue(channelId: string): Promise<void> {
+    const context = await this.channels.loadContext(this.db, channelId);
+    if (!context) return;
+    const connector = this.connectors.get(context.type);
+    if (!connector.pushCatalog) return;
+    try {
+      await connector.pushCatalog(context);
+      await this.channels.markSynced(this.db, channelId, new Date(), null);
+    } catch (error) {
+      await this.channels.markSynced(this.db, channelId, new Date(), String(error).slice(0, 1_000));
+    }
   }
 
   /**
@@ -190,6 +225,56 @@ export class ManageChannelUseCase {
    * on (channel, local) and (channel, external) mean an incremental edit can
    * collide with a row the same request is about to delete.
    */
+  /**
+   * Map every active room type and every online rate plan under our own
+   * codes, for a channel whose external ids are whatever WE say they are.
+   *
+   * An OTA has its own room ids in its extranet and the hotel types them in.
+   * Google has none: the Transaction message we send DEFINES the ids, so the
+   * only sensible mapping is code → code, and asking a hotel to type "BUN"
+   * next to "BUN" fourteen times is a chore that invents typos. Markup ×1.0:
+   * the metasearch shows the hotel's own price by definition.
+   */
+  async autoMap(
+    input: { propertyId: string; channelId: string },
+    actor: AuditActor,
+  ): Promise<{ roomTypes: number; ratePlans: number }> {
+    const channel = await this.load(this.db, input.propertyId, input.channelId);
+    if (channel.type !== 'GOOGLE_HOTEL') {
+      throw errors.validation('Only a Google channel can be mapped automatically', {
+        type: channel.type,
+      });
+    }
+    const [roomTypes, ratePlans] = await Promise.all([
+      this.roomTypes.list(this.db, input.propertyId),
+      this.ratePlans.list(this.db, input.propertyId),
+    ]);
+    const rooms = roomTypes.filter((room) => room.isActive);
+    const roomIds = new Set(rooms.map((room) => room.id));
+    const plans = ratePlans.filter(
+      (plan) => plan.isActive && plan.sellOnline && roomIds.has(plan.roomTypeId),
+    );
+    await this.replaceMappings(
+      {
+        propertyId: input.propertyId,
+        channelId: input.channelId,
+        roomTypes: rooms.map((room) => ({
+          localId: room.id,
+          externalId: room.code,
+          externalName: room.name,
+        })),
+        ratePlans: plans.map((plan) => ({
+          localId: plan.id,
+          externalId: plan.code,
+          externalName: plan.name,
+          rateMultiplierBp: DEFAULT_RATE_MULTIPLIER_BP,
+        })),
+      },
+      actor,
+    );
+    return { roomTypes: rooms.length, ratePlans: plans.length };
+  }
+
   async replaceMappings(input: ReplaceMappingsInput, actor: AuditActor): Promise<void> {
     const tenant = requireTenant();
 
@@ -322,10 +407,14 @@ export class ManageChannelUseCase {
     tx: Executor,
     propertyId: string,
     channelId: string,
-  ): Promise<{ name: string; status: string }> {
+  ): Promise<{ name: string; status: string; type: ChannelType }> {
     const organizationId = requireTenant().organizationId;
     const rows = await tx
-      .select({ name: channels.name, status: channels.status })
+      .select({
+        name: channels.name,
+        status: channels.status,
+        type: sql<ChannelType>`${channels.type}`,
+      })
       .from(channels)
       .where(
         and(

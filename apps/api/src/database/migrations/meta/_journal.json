@@ -127,6 +127,13 @@
       "when": 1790149578614,
       "tag": "0017_wide_millenium_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790158164324,
+      "tag": "0018_freezing_hitman",
+      "breakpoints": true
     }
   ]
 }

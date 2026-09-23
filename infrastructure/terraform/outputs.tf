@@ -110,3 +110,8 @@ output "storage_hmac_secret" {
   value     = google_storage_hmac_key.api.secret
   sensitive = true
 }
+
+output "egress_address" {
+  value       = google_compute_address.egress.address
+  description = "The address every outbound call leaves from. Allow-list it in Google Hotel Center → Price settings."
+}

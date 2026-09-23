@@ -14,6 +14,7 @@ export const CHANNEL_TYPES = [
   'TRIP_COM',
   'AIRBNB',
   'DIRECT',
+  'GOOGLE_HOTEL',
 ] as const;
 
 export type ChannelType = (typeof CHANNEL_TYPES)[number];

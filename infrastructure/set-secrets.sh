@@ -102,6 +102,10 @@ STORAGE_SECRET="$(terraform -chdir="$TF_DIR" output -raw storage_hmac_secret 2>/
 set_optional storage-access-key "$STORAGE_ACCESS_ID" "terraform output storage_hmac_access_id"
 set_optional storage-secret-key "$STORAGE_SECRET" "terraform output storage_hmac_secret"
 
+# The Hotel List Feed key: unguessable, generated here, pasted into Hotel
+# Center as part of the feed URL (docs/google-hotel-center-runbook.md).
+set_generated google-hotel-feed-key 32
+
 # database-url is written by Terraform itself: it generates the password, so no
 # human ever handles it.
 echo "  deehub-database-url-${ENVIRONMENT} — managed by Terraform"

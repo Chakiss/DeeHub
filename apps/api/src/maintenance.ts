@@ -12,6 +12,7 @@ import { sql } from 'drizzle-orm';
 import { WorkerModule } from './worker.module';
 import { DATABASE, type Database } from './database/database.module';
 import { OutboxRelayService } from './modules/outbox/outbox-relay.service';
+import { DrainAriRequestsUseCase } from './modules/channels/application/drain-ari-requests.usecase';
 import { ExpireHoldsUseCase } from './modules/inventory/application/expire-holds.usecase';
 import { ReconcileInventoryUseCase } from './modules/inventory/application/reconcile-inventory.usecase';
 import { DispatchNotificationsUseCase } from './modules/notifications/application/dispatch-notifications.usecase';
@@ -73,6 +74,17 @@ async function main(): Promise<void> {
       );
       failed = true;
     }
+
+    // Pushes the relay recorded because there is no Redis to enqueue into
+    // (ari_sync_requests). Right after the relay, so a price changed a minute
+    // ago reaches Google on this run rather than the next.
+    const drained = await app.get(DrainAriRequestsUseCase).execute();
+    if (drained.groups > 0) {
+      logger.log(
+        `Channel sync: pushed ${String(drained.pushed)}, failed ${String(drained.failed)}, abandoned ${String(drained.abandoned)} of ${String(drained.groups)} group(s)`,
+      );
+    }
+    if (drained.abandoned > 0) failed = true;
 
     const dispatch = app.get(DispatchNotificationsUseCase);
     let sent = 0;

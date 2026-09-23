@@ -54,7 +54,7 @@ variable "maintenance_schedule" {
   # within seconds.
   description = "Cron for the maintenance job, in the property timezone."
   type        = string
-  default     = "*/10 * * * *"
+  default     = "*/5 * * * *"
 }
 
 variable "maintenance_paused" {
@@ -124,6 +124,12 @@ variable "book_image" {
 # and the secret key is in Secret Manager.
 variable "omise_public_key" {
   description = "Omise public key (pkey_…) for the booking site's card form. Empty disables card entry."
+  type        = string
+  default     = ""
+}
+
+variable "google_hotel_partner_key" {
+  description = "Partner id issued by Google Hotel Center (names every Transaction message). Empty until DeeHub is accepted as a connectivity partner."
   type        = string
   default     = ""
 }

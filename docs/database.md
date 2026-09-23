@@ -455,7 +455,7 @@ CREATE TABLE booking_sources (
   -- the same label the desk used by hand. NULL for agents and for OTAs we
   -- have no connector type for yet.
   channel_type      text CHECK (channel_type IS NULL OR channel_type IN
-                      ('MOCK_OTA','AGODA','BOOKING_COM','EXPEDIA','TRIP_COM','AIRBNB','DIRECT')),
+                      ('MOCK_OTA','AGODA','BOOKING_COM','EXPEDIA','TRIP_COM','AIRBNB','DIRECT','GOOGLE_HOTEL')),
   is_active         boolean NOT NULL DEFAULT true,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now()
@@ -821,6 +821,36 @@ CREATE INDEX sync_jobs_completed_idx ON sync_jobs (channel_id, completed_at DESC
 ```
 
 ---
+
+### 9.1 ARI sync requests (no-Redis deployments)
+
+```sql
+CREATE TABLE ari_sync_requests (
+  id              uuid PRIMARY KEY,
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  property_id     uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
+  channel_id      uuid NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+  room_type_id    uuid NOT NULL REFERENCES room_types(id) ON DELETE CASCADE,
+  date_from       date NOT NULL,
+  date_to         date NOT NULL CHECK (date_to >= date_from),   -- inclusive
+  status          text NOT NULL DEFAULT 'PENDING'
+                  CHECK (status IN ('PENDING','PUSHED','ABANDONED')),
+  attempts        smallint NOT NULL DEFAULT 0,
+  last_error      text,
+  requested_at    timestamptz NOT NULL DEFAULT now(),
+  pushed_at       timestamptz
+);
+CREATE INDEX ari_sync_requests_pending_idx
+  ON ari_sync_requests (channel_id, room_type_id, requested_at) WHERE status = 'PENDING';
+```
+
+What the outbox relay writes when there is no Redis to enqueue an ARI push
+into (ADR-0010). One row per change; the maintenance job groups pending rows by
+channel and room type, unions the date spans — the debounce the Redis set
+provides on the event-driven path — and pushes once per group through the same
+use case the worker uses. Absolute state, so a span wider than any single
+change asked for is harmless and a repeated push is not. Ten failed rounds
+abandon the rows and flag the channel.
 
 ## 10. Platform
 

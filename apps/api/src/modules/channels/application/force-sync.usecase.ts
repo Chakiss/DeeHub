@@ -4,6 +4,7 @@ import { DATABASE, type Database } from '../../../database/database.module';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { requireTenant } from '../../../common/tenant/tenant-context';
 import { CHANNEL_REPOSITORY, type ChannelRepository } from '../domain/channel.repository';
+import { ConnectorRegistry } from '../domain/connector.registry';
 import { PushAriUseCase } from './push-ari.usecase';
 
 export interface ForceSyncInput {
@@ -25,6 +26,8 @@ export interface ForceSyncResult {
   readonly to: IsoDate;
   readonly nights: number;
   readonly roomTypes: readonly ForceSyncRoomTypeResult[];
+  /** Set when the channel takes a catalogue and refused it; the nights were still attempted. */
+  readonly catalogError: string | null;
 }
 
 /**
@@ -55,6 +58,7 @@ export class ForceSyncUseCase {
     @Inject(DATABASE) private readonly db: Database,
     @Inject(CHANNEL_REPOSITORY) private readonly channels: ChannelRepository,
     private readonly push: PushAriUseCase,
+    private readonly registry: ConnectorRegistry,
     private readonly audit: AuditService,
   ) {}
 
@@ -76,7 +80,9 @@ export class ForceSyncUseCase {
      * accident that activation's mapping check exists to prevent, arrived at
      * through a different door.
      */
-    if (channel.status !== 'ACTIVE') {
+    // ERROR is allowed: a forced sync is how an operator recovers a channel
+    // whose last push failed. Only a channel the hotel switched off is refused.
+    if (channel.status === 'INACTIVE') {
       throw errors.conflict(`A ${channel.status} channel cannot be synced`, {
         channelId: channel.id,
         status: channel.status,
@@ -96,6 +102,21 @@ export class ForceSyncUseCase {
     const from = toIsoDate(now.toISOString().slice(0, 10));
     const to = addDays(from, channel.syncHorizonDays);
     const dates = dateRange(from, to);
+
+    // Rooms and packages before their prices, for a channel that needs them
+    // described (Google). Its failure is reported like a room type's, not
+    // thrown: the operator asked for everything and gets told what happened.
+    let catalogError: string | null = null;
+    const context = await this.channels.loadContext(this.db, channel.id);
+    const connector = context ? this.registry.get(context.type) : null;
+    if (context && connector?.pushCatalog) {
+      try {
+        await connector.pushCatalog(context);
+      } catch (error) {
+        catalogError = String(error).slice(0, 500);
+        this.logger.warn(`Catalogue push to channel ${channel.id} failed: ${catalogError}`);
+      }
+    }
 
     const roomTypes: ForceSyncRoomTypeResult[] = [];
     for (const roomTypeId of roomTypeIds) {
@@ -138,7 +159,7 @@ export class ForceSyncUseCase {
       });
     });
 
-    return { from, to, nights: dates.length, roomTypes };
+    return { from, to, nights: dates.length, roomTypes, catalogError };
   }
 }
 
