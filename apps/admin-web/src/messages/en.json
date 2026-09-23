@@ -238,7 +238,9 @@
     "sourceTRAVEL_AGENT": "Travel agent",
     "sourceGroupOta": "OTA",
     "sourceGroupAgent": "Travel agents",
-    "allSources": "All sources"
+    "allSources": "All sources",
+    "otaAbsorbHint": "The OTA has already sold this room, so the booking will be recorded even though the night is closed or full, and the team will be alerted.",
+    "absorbedBanner": "This booking was taken past a closed or full night because the OTA had already sold it. The team has been alerted; check tonight’s rooms."
   },
   "folio": {
     "title": "Guest account",

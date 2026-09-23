@@ -179,7 +179,13 @@ export function BookingForm({
       if (stayNights.length === 0) continue;
       map.set(row.roomTypeId, {
         available: Math.min(...stayNights.map((day) => day.available)),
-        closed: stayNights.some((day) => !day.open),
+        // A stop-sell on any night closes the stay; a closed-to-arrival on
+        // the first night does too. `open` alone only says a row exists,
+        // which is what let the panel say "5 left" on a night nobody could
+        // sell.
+        closed:
+          stayNights.some((day) => !day.open || day.stopSell) ||
+          Boolean(stayNights[0]?.closedToArrival),
         // Only a total when every night has a price. A stay with one unpriced
         // night cannot be sold at all, so a partial sum would be a lie.
         lowestRate: stayNights.every((day) => day.rate)
@@ -246,7 +252,10 @@ export function BookingForm({
     startTransition(async () => {
       const result = await createReservation(propertyId, input);
       if (result.ok && result.reservation) {
-        router.push(`/properties/${propertyId}/reservations/${result.reservation.id}`);
+        // Taken past a stop-sell or an allotment: say so on the page that
+        // opens, not only in the alert the team gets.
+        const absorbed = result.reservation.overbookings.length > 0 ? '?absorbed=1' : '';
+        router.push(`/properties/${propertyId}/reservations/${result.reservation.id}${absorbed}`);
         return;
       }
       // Sold out, closed to arrival, no price for a night: the API's message
@@ -542,6 +551,19 @@ export function BookingForm({
             </ul>
           )}
           <p className="mt-3 text-xs text-stone-500">{t('availabilityHint')}</p>
+          {/* An OTA already sold the room: the booking will be taken even if
+              a night is closed or full, and the team told. Said here, before
+              the click, so nobody is surprised by a booking that "should
+              have failed". */}
+          {sourceValue(sourceChoice, bookingSources).source === 'OTA' &&
+            stays.some((stay) => {
+              const state = availability.get(stay.roomTypeId);
+              return state && (state.closed || state.available <= 0);
+            }) && (
+              <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {t('otaAbsorbHint')}
+              </p>
+            )}
         </Card>
 
         <div className="space-y-2">

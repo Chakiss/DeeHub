@@ -625,4 +625,21 @@ the form, and a separate decision.
 engine sets it); phone and email bookings keep their own categories rather
 than folding into "direct", since they are the ones a receptionist takes.
 
+## 24. An OTA booking keyed by hand is never refused for a stop-sell
+
+From the pilot's screen recording on 2026-09-23: Booking.com sold tonight, the
+hotel had closed sales on tonight, and the desk could not record the guest who
+was about to arrive — while the form's own panel said "5 left". Two things
+changed. The panel now honours stop-sell and closed-to-arrival, so it says
+"Closed" when the API will refuse. And a hand-keyed OTA booking now behaves
+like a connector's: it is taken past a stop-sell or a full allotment, the
+response and the audit trail say so, the page that opens carries a banner, and
+the team gets the same overbooking alert. Walk-in, phone, email, website and
+travel-agent bookings are refused exactly as before.
+
+**The call you may want to overturn**: whether travel-agent bookings deserve
+the same treatment. An agent with an allotment contract has also "already sold"
+the room; today it is refused like a walk-in, because nothing in the system
+knows which agents hold allotments.
+
 _(Updated as the session continues.)_

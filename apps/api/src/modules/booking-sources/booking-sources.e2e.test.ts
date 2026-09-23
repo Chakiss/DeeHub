@@ -369,6 +369,47 @@ describeIfDb('Booking sources', () => {
       expect(response.body.error.message).toMatch(/no longer in use/i);
     });
 
+    /**
+     * The pilot hotel's case: Booking.com sold tonight, the hotel had closed
+     * sales on tonight, and the desk could not record the guest who was
+     * about to arrive. An OTA booking is absorbed and flagged, as a
+     * connector's would be; a walk-in on the same night is still refused.
+     */
+    it('takes an OTA booking past a stop-sell and says so; a walk-in is still refused', async () => {
+      const agoda = await addSource('Agoda');
+      await pool.query(
+        `UPDATE inventory_days SET stop_sell = true
+         WHERE organization_id = $1 AND date = '2029-03-01'`,
+        [orgId],
+      );
+
+      const walkIn = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations`)
+        .set(asDesk())
+        .send(booking('WALK_IN'))
+        .expect(422);
+      expect(walkIn.body.error.message).toMatch(/closed on 2029-03-01/);
+
+      const created = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations`)
+        .set(asDesk())
+        .send(booking('OTA', { bookingSourceId: agoda }))
+        .expect(201);
+      expect(created.body.overbookings).toEqual([
+        expect.objectContaining({ reason: 'RESTRICTION_OVERRIDDEN', dates: ['2029-03-01'] }),
+      ]);
+
+      const audit = await pool.query<{ after: { absorbed?: unknown[] } }>(
+        "SELECT after FROM audit_logs WHERE action = 'reservation.created' AND entity_id = $1",
+        [created.body.id],
+      );
+      expect(audit.rows[0]?.after.absorbed).toHaveLength(1);
+
+      await pool.query(`UPDATE inventory_days SET stop_sell = false WHERE organization_id = $1`, [
+        orgId,
+      ]);
+    });
+
     it('rejects a list filter outside the known categories', async () => {
       await request(app.getHttpServer())
         .get(`/api/v1/properties/${propertyId}/reservations?source=CARRIER_PIGEON`)

@@ -332,6 +332,13 @@ export interface CreatedReservation {
   propertyId: string;
   currency: string;
   total: Money;
+  /** Non-empty when an OTA booking was taken past a stop-sell or an allotment. */
+  overbookings: {
+    roomTypeId: string;
+    dates: string[];
+    reason: 'ALLOTMENT_RAISED' | 'RESTRICTION_OVERRIDDEN';
+    detail: string;
+  }[];
 }
 
 export interface InventoryUpdate {

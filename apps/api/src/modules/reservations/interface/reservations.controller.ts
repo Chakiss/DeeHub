@@ -247,6 +247,14 @@ export class ReservationsController {
       status: result.status,
       propertyId,
       currency: result.currency,
+      // Non-empty when an OTA booking was taken past a stop-sell or an
+      // allotment: the desk should know it just recorded an oversell.
+      overbookings: result.overbookings.map((incident) => ({
+        roomTypeId: incident.roomTypeId,
+        dates: incident.dates,
+        reason: incident.reason,
+        detail: incident.detail,
+      })),
       subtotal: presentMoney(result.subtotal),
       serviceCharge: presentMoney(result.serviceCharge),
       tax: presentMoney(result.tax),

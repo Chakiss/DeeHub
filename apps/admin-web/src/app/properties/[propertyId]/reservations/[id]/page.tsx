@@ -26,10 +26,13 @@ const STATUS_TONE: Record<string, string> = {
 
 export default async function ReservationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ propertyId: string; id: string }>;
+  searchParams: Promise<{ absorbed?: string }>;
 }) {
   const { propertyId, id } = await params;
+  const { absorbed } = await searchParams;
   const t = await getTranslations('reservations');
 
   let reservation: ReservationDetail;
@@ -97,6 +100,12 @@ export default async function ReservationDetailPage({
           </span>
         </div>
       </div>
+
+      {absorbed === '1' && (
+        <p role="status" className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {t('absorbedBanner')}
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">

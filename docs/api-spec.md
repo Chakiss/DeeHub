@@ -806,6 +806,14 @@ matching kind — and any other category must not; both are 422s that say so.
 A booking a connector delivers carries `channelId` instead and gets the
 matching source by connector type when the property still has one.
 
+**An OTA booking is never refused for a stop-sell or a full allotment**,
+whether a connector delivered it or the desk keyed it in from the extranet: the
+channel has already sold the room to a guest who is coming, and refusing the
+record only hides them. The night is taken anyway, the response carries
+`overbookings` (`RESTRICTION_OVERRIDDEN` or `ALLOTMENT_RAISED`, with the
+dates), the audit entry records it as absorbed, and the desk is alerted. Every
+other category is still refused with the usual 422/409.
+
 ```jsonc
 // POST /properties/{pid}/reservations   Idempotency-Key: 0192...
 {
