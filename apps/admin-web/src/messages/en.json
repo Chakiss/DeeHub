@@ -483,7 +483,8 @@
     "cancel": "Cancel",
     "numberTaken": "That room number is already used at this property.",
     "failed": "Could not save the room.",
-    "noDelete": "Rooms are never deleted — past assignments point at them. Take out of service instead."
+    "noDelete": "Rooms are never deleted — past assignments point at them. Take out of service instead.",
+    "rename": "Rename"
   },
   "housekeeping": {
     "CLEAN": "Clean",

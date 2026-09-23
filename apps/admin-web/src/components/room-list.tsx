@@ -33,7 +33,41 @@ export function RoomList({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // Renaming in place: a hotel numbers rooms by floor (101, 302), and the
+  // numbers a property was set up with are rarely the ones on the doors.
+  const [renaming, setRenaming] = useState<Room | null>(null);
+  const [draft, setDraft] = useState({ roomNumber: '', floor: '' });
+
   const roomTypeById = new Map(roomTypes.map((roomType) => [roomType.id, roomType]));
+
+  function startRename(room: Room) {
+    setError(null);
+    setRenaming(room);
+    setDraft({ roomNumber: room.roomNumber, floor: room.floor ?? '' });
+  }
+
+  function saveRename() {
+    if (!renaming) return;
+    const roomNumber = draft.roomNumber.trim();
+    if (!roomNumber) return;
+    const room = renaming;
+    setError(null);
+    startTransition(async () => {
+      const result = await updateRoom(propertyId, room.id, {
+        roomNumber,
+        floor: draft.floor.trim() || null,
+      });
+      if (!result.ok) {
+        setError(
+          result.error?.code === 'CONFLICT'
+            ? t('numberTaken')
+            : (result.error?.message ?? t('failed')),
+        );
+        return;
+      }
+      setRenaming(null);
+    });
+  }
 
   function setStatus(room: Room, housekeepingStatus: string) {
     setError(null);
@@ -115,8 +149,73 @@ export function RoomList({
                     room.isActive ? '' : 'bg-sunk/60 text-stone-400'
                   }`}
                 >
-                  <td className="px-3 py-2 font-medium text-ink-800">{room.roomNumber}</td>
-                  <td className="px-3 py-2 text-stone-600">{room.floor ?? '—'}</td>
+                  {renaming?.id === room.id ? (
+                    <>
+                      <td className="px-3 py-2">
+                        <input
+                          aria-label={t('roomNumber')}
+                          value={draft.roomNumber}
+                          onChange={(event) =>
+                            setDraft({ ...draft, roomNumber: event.target.value })
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') saveRename();
+                            if (event.key === 'Escape') setRenaming(null);
+                          }}
+                          maxLength={32}
+                          autoFocus
+                          className="w-24 rounded-md border border-stone-300 px-2 py-1 text-sm"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          aria-label={t('floor')}
+                          value={draft.floor}
+                          onChange={(event) => setDraft({ ...draft, floor: event.target.value })}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') saveRename();
+                            if (event.key === 'Escape') setRenaming(null);
+                          }}
+                          maxLength={32}
+                          className="w-16 rounded-md border border-stone-300 px-2 py-1 text-sm"
+                        />
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-3 py-2 font-medium text-ink-800">
+                        <span className="inline-flex items-center gap-1.5">
+                          {room.roomNumber}
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => startRename(room)}
+                              aria-label={`${t('rename')} ${room.roomNumber}`}
+                              title={t('rename')}
+                              className="rounded p-0.5 text-stone-400 hover:bg-sunk hover:text-ink-800"
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                aria-hidden
+                              >
+                                <path
+                                  d="m11.1 2.4 2.5 2.5M2.5 13.5l.6-3 7.6-7.6a1.4 1.4 0 0 1 2 0l.4.4a1.4 1.4 0 0 1 0 2l-7.6 7.6-3 .6Z"
+                                  stroke="currentColor"
+                                  strokeWidth="1.4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-stone-600">{room.floor ?? '—'}</td>
+                    </>
+                  )}
                   <td className="px-3 py-2 text-stone-600">
                     {roomTypeById.get(room.roomTypeId)?.name ?? '—'}
                   </td>
@@ -152,14 +251,35 @@ export function RoomList({
                   </td>
                   {canEdit && (
                     <td className="px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => toggleService(room)}
-                        className="rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
-                      >
-                        {room.isActive ? t('takeOutOfService') : t('returnToService')}
-                      </button>
+                      {renaming?.id === room.id ? (
+                        <span className="inline-flex gap-1">
+                          <button
+                            type="button"
+                            disabled={pending || !draft.roomNumber.trim()}
+                            onClick={saveRename}
+                            className="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+                          >
+                            {t('save')}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => setRenaming(null)}
+                            className="rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70"
+                          >
+                            {t('cancel')}
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => toggleService(room)}
+                          className="rounded-md border border-stone-300 px-2 py-1 text-xs text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
+                        >
+                          {room.isActive ? t('takeOutOfService') : t('returnToService')}
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>
