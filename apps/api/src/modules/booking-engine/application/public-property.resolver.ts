@@ -80,6 +80,32 @@ export class PublicPropertyResolver {
   }
 
   /**
+   * The address of a property, from its id.
+   *
+   * What Google's landing link carries is the property id (the Hotel List
+   * Feed's `<id>`, chosen because a slug or code can be renamed and an id
+   * cannot); the booking site turns it back into `/{slug}/{code}` here. The
+   * same small answer for a closed property and an unknown id.
+   */
+  async resolveById(
+    propertyId: string,
+  ): Promise<{ organizationSlug: string; propertyCode: string } | null> {
+    const rows = await this.db
+      .select({ organizationSlug: organizations.slug, propertyCode: properties.code })
+      .from(properties)
+      .innerJoin(organizations, eq(organizations.id, properties.organizationId))
+      .where(
+        and(
+          eq(properties.id, propertyId),
+          eq(organizations.status, 'ACTIVE'),
+          eq(properties.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  /**
    * Run tenant-scoped work for a public caller.
    *
    * `userId` is null and stays null: nothing in the booking engine acts on

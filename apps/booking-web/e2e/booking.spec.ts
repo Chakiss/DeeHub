@@ -29,6 +29,25 @@ test.describe('guest booking', () => {
     await expect(page.getByText('Free cancellation')).toBeVisible();
   });
 
+  test("turns Google's landing link into the hotel's rooms page", async ({ page }) => {
+    const d = data();
+    const checkIn = d.dates[3]!;
+    // The template in docs/google/landing-pages.xml, filled the way Google fills it.
+    await page.goto(
+      `/g/${d.propertyId}?checkin=${checkIn}&nights=1&adults=2&children=0&lang=en&rate=BAR&room=BUN&src=free`,
+    );
+    await expect(page).toHaveURL(new RegExp(`/${d.organizationSlug}/${d.propertyCode}/rooms\\?`));
+    await expect(page).toHaveURL(/checkin=/);
+    await expect(page.getByText('The rate you selected')).toBeVisible();
+    await expect(page.getByText('฿450', { exact: true })).toBeVisible();
+
+    // An id nobody issued goes to the company site rather than a 404.
+    const stray = await page.request.get('/g/00000000-0000-4000-8000-000000000000', {
+      maxRedirects: 0,
+    });
+    expect(stray.status()).toBe(302);
+  });
+
   test('reads Thai by default and switches to English', async ({ page }) => {
     const d = data();
     await page.context().clearCookies();

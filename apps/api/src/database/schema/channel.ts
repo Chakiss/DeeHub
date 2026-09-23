@@ -48,7 +48,7 @@ export const channels = pgTable(
       .where(sql`${t.status} <> 'INACTIVE'`),
     check(
       'channels_type_ck',
-      sql`${t.type} IN ('MOCK_OTA','AGODA','BOOKING_COM','EXPEDIA','TRIP_COM','AIRBNB','DIRECT')`,
+      sql`${t.type} IN ('MOCK_OTA','AGODA','BOOKING_COM','EXPEDIA','TRIP_COM','AIRBNB','DIRECT','GOOGLE_HOTEL')`,
     ),
     check('channels_status_ck', sql`${t.status} IN ('ACTIVE','INACTIVE','ERROR')`),
     check('channels_horizon_ck', sql`${t.syncHorizonDays} BETWEEN 1 AND 730`),

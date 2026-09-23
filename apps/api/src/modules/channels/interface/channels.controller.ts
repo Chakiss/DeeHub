@@ -181,6 +181,20 @@ export class ChannelsController {
     return this.testConnection.execute({ propertyId, channelId }, this.actor(request));
   }
 
+  @Post(':channelId/auto-map')
+  @HttpCode(200)
+  @RequireCapability('channel:update')
+  @ApiOperation({
+    summary: 'Map every room type and online rate plan under our own codes (Google)',
+  })
+  async autoMap(
+    @Param('propertyId') propertyId: string,
+    @Param('channelId') channelId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.manage.autoMap({ propertyId, channelId }, this.actor(request));
+  }
+
   @Post(':channelId/sync')
   @HttpCode(200)
   @RequireCapability('channel:sync')

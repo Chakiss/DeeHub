@@ -200,6 +200,24 @@ The API refuses to boot in production if it detects a development secret — a
 guard that has already fired once during container testing, which is exactly
 when you want it to.
 
+### Google Hotels: a fixed outbound address
+
+Google Hotel Center authenticates ARI uploads by the sender's IP and nothing
+else, so the API and the maintenance job leave through Cloud NAT on one
+reserved address (`network.tf`; `vpc_egress = ALL_TRAFFIC` in `run.tf`).
+`terraform output egress_address` is what goes into Hotel Center's allow-list.
+Every outbound call — Resend, Omise, Sentry — now goes through the NAT too;
+the volumes are tiny and the cost is the reserved address plus the gateway's
+hourly charge, a few dollars a month. Rollback: `vpc_egress` back to
+`PRIVATE_RANGES_ONLY`.
+
+Two more settings: `google_hotel_partner_key` (the id Hotel Center issues;
+empty until DeeHub is accepted) and the generated secret
+`deehub-google-hotel-feed-key-*` that guards the Hotel List Feed URL. The
+maintenance schedule is every five minutes now: it is also how long a price
+change takes to reach Google (`ari_sync_requests`). The whole operator path is
+in [google-hotel-center-runbook.md](google-hotel-center-runbook.md).
+
 ### The guest booking site
 
 `apps/booking-web` is a third Cloud Run service (`deehub-book-*`) with its

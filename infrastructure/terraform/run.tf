@@ -7,8 +7,11 @@ locals {
   # Shared configuration. Secrets are referenced, never inlined.
   # Empty when channel sync is off: the API treats a missing REDIS_URL as
   # "channels disabled" and refuses to enqueue rather than dropping work.
-  redis_url  = var.enable_channel_sync ? "redis://${google_redis_instance.main[0].host}:${google_redis_instance.main[0].port}" : ""
-  vpc_egress = "PRIVATE_RANGES_ONLY" # public egress (OTAs) still goes direct
+  redis_url = var.enable_channel_sync ? "redis://${google_redis_instance.main[0].host}:${google_redis_instance.main[0].port}" : ""
+  # ALL_TRAFFIC: every outbound call leaves through Cloud NAT on the reserved
+  # address in network.tf, because Google Hotel Center allow-lists the
+  # sender's IP and nothing else. Was PRIVATE_RANGES_ONLY before Google.
+  vpc_egress = "ALL_TRAFFIC"
 
   api_secret_env = {
     DATABASE_URL       = "database-url"
@@ -24,6 +27,8 @@ locals {
     # Signed photo uploads (main.tf, google_storage_hmac_key.api).
     STORAGE_ACCESS_KEY = "storage-access-key"
     STORAGE_SECRET_KEY = "storage-secret-key"
+    # Guards the Hotel List Feed URL Google fetches (set-secrets.sh generates it).
+    GOOGLE_HOTEL_FEED_KEY = "google-hotel-feed-key"
   }
 
   # Not secret: a sender address and a chat group id. Absent means the matching
@@ -38,6 +43,8 @@ locals {
     # domain form: the book service's own URI would make the two services
     # reference each other, which Terraform cannot resolve.
     var.custom_domain == "" ? {} : { BOOKING_WEB_URL = "https://book.${var.custom_domain}" },
+    # The partner id Hotel Center issued. Unset = the Google connector refuses to push.
+    var.google_hotel_partner_key == "" ? {} : { GOOGLE_HOTEL_PARTNER_KEY = var.google_hotel_partner_key },
   )
 }
 

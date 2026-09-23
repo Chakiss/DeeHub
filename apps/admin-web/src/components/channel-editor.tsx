@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import type { ChannelDetail, MappingInput, RatePlanMappingInput } from '@/lib/api';
 import { PasswordInput } from '@/components/password-input';
 import {
+  autoMapChannel,
   replaceMappings,
   syncChannel,
   testChannelConnection,
@@ -205,6 +206,37 @@ export function ChannelEditor({
             ))}
           {!fullyMapped && <span className="text-xs text-amber-700">{t('activateBlocked')}</span>}
         </div>
+
+        {canEdit && channel.type === 'GOOGLE_HOTEL' && (
+          <div className="mt-3 space-y-2 rounded-md bg-brand-50 px-3 py-2 text-sm text-ink-700">
+            <p>{t('googleHint')}</p>
+            <p className="font-mono text-xs">
+              {t('googleHotelId')}: {propertyId}
+            </p>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                run(async () => {
+                  const result = await autoMapChannel(propertyId, channel.id);
+                  if (result.ok && result.mapped) {
+                    setOutcome({
+                      ok: true,
+                      text: t('autoMapped', {
+                        roomTypes: result.mapped.roomTypes,
+                        ratePlans: result.mapped.ratePlans,
+                      }),
+                    });
+                  }
+                  return result;
+                })
+              }
+              className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              {t('autoMap')}
+            </button>
+          </div>
+        )}
 
         {canEdit && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-3">

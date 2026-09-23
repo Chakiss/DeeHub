@@ -3,7 +3,8 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type Redis from 'ioredis';
 import { dateRange, EVENT_TYPES, toIsoDate, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../database/database.module';
-import { channels, outboxEvents } from '../../database/schema';
+import { ariSyncRequests, channels, outboxEvents } from '../../database/schema';
+import { newId } from '../../common/ids';
 import { ARI_SYNC_QUEUE, REDIS, RESERVATION_DELIVERY_QUEUE } from '../../queue/queue.module';
 import {
   ariDirtyKey,
@@ -127,7 +128,7 @@ export class OutboxRelayService {
     switch (row.eventType) {
       case EVENT_TYPES.INVENTORY_CHANGED:
       case EVENT_TYPES.RATE_CHANGED:
-        await this.scheduleAriPush(row);
+        await this.scheduleAriPush(row, tx);
         return;
       case EVENT_TYPES.CHANNEL_RESERVATION_RECEIVED:
         await this.scheduleDelivery(row);
@@ -231,7 +232,7 @@ export class OutboxRelayService {
    * channels is a property of configuration, not of the booking: a reservation
    * should not have to know how many OTAs the hotel sells on.
    */
-  private async scheduleAriPush(row: OutboxRow): Promise<void> {
+  private async scheduleAriPush(row: OutboxRow, tx: Executor): Promise<void> {
     const payload = row.payload as InventoryChangedPayload;
     if (!payload?.roomTypeId || !payload.propertyId) {
       throw new Error('inventory.changed payload is missing propertyId or roomTypeId');
@@ -243,7 +244,15 @@ export class OutboxRelayService {
     const activeChannels = await this.db
       .select({ id: channels.id })
       .from(channels)
-      .where(and(eq(channels.propertyId, payload.propertyId), eq(channels.status, 'ACTIVE')));
+      // ERROR too: a channel whose last push failed is still selling, and a
+      // change it never hears about is the overbooking this engine exists to
+      // prevent. Only INACTIVE means the hotel turned it off.
+      .where(
+        and(
+          eq(channels.propertyId, payload.propertyId),
+          inArray(channels.status, ['ACTIVE', 'ERROR']),
+        ),
+      );
 
     if (activeChannels.length === 0) {
       // No channel connected yet. Not an error: a hotel running direct-only
@@ -252,12 +261,23 @@ export class OutboxRelayService {
     }
 
     if (!this.redis) {
-      // A channel is active but this deployment has no Redis. Fail loudly: the
-      // event stays unpublished with the error recorded, rather than the OTA
-      // quietly never hearing about the change.
-      throw new Error(
-        'Channel sync is active but REDIS_URL is not configured; cannot schedule an ARI push',
+      // No Redis to debounce in or worker to push from: record what is owed
+      // and let the maintenance job push it on its schedule
+      // (DrainAriRequestsUseCase). Minutes of lag instead of seconds, for a
+      // deployment that chose not to pay for the always-on worker.
+      const sorted = [...dirtyDates].sort();
+      await tx.insert(ariSyncRequests).values(
+        activeChannels.map((channel) => ({
+          id: newId(),
+          organizationId: row.organizationId,
+          propertyId: payload.propertyId,
+          channelId: channel.id,
+          roomTypeId: payload.roomTypeId,
+          dateFrom: sorted[0] as string,
+          dateTo: sorted[sorted.length - 1] as string,
+        })),
       );
+      return;
     }
 
     for (const channel of activeChannels) {

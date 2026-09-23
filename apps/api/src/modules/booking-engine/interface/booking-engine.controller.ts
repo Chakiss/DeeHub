@@ -115,6 +115,25 @@ type DepositBody = z.infer<typeof depositSchema>;
  * per-IP limit at the edge (Cloud Armor, in front of the booking site). An
  * in-memory limiter would count only its own instance's requests.
  */
+/** The one public route not under a property: id → address, for Google's landing link. */
+@ApiTags('booking-engine')
+@Controller('public/resolve')
+export class PublicResolveController {
+  constructor(private readonly resolver: PublicPropertyResolver) {}
+
+  @Public()
+  @Get(':propertyId')
+  @ApiOperation({
+    summary: 'The booking address of a property, from the id the Hotel List Feed carries',
+  })
+  async resolve(@Param('propertyId') propertyId: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(propertyId)) throw errors.notFound('Property', propertyId);
+    const found = await this.resolver.resolveById(propertyId);
+    if (!found) throw errors.notFound('Property', propertyId);
+    return found;
+  }
+}
+
 @ApiTags('booking-engine')
 @Controller('public/:organizationSlug/:propertyCode')
 export class BookingEngineController {

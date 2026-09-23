@@ -8,6 +8,11 @@ import {
 } from '../../inventory/domain/inventory.repository';
 import { availableUnits } from '../../inventory/domain/inventory-day';
 import { RATE_REPOSITORY, type RateRepository } from '../../rates/domain/rate.repository';
+import {
+  PROPERTY_REPOSITORY,
+  type PropertyRepository,
+} from '../../properties/domain/property.repository';
+import { computeBreakdown } from '../../reservations/domain/pricing';
 import { ConnectorRegistry } from '../domain/connector.registry';
 import { CHANNEL_REPOSITORY, type ChannelRepository } from '../domain/channel.repository';
 import type { AriNight, AriRate, PushResult } from '../domain/channel-connector';
@@ -38,6 +43,7 @@ export class PushAriUseCase {
     @Inject(CHANNEL_REPOSITORY) private readonly channels: ChannelRepository,
     @Inject(INVENTORY_REPOSITORY) private readonly inventory: InventoryRepository,
     @Inject(RATE_REPOSITORY) private readonly rates: RateRepository,
+    @Inject(PROPERTY_REPOSITORY) private readonly properties: PropertyRepository,
     private readonly registry: ConnectorRegistry,
   ) {}
 
@@ -117,24 +123,37 @@ export class PushAriUseCase {
         ? await this.rates.findRatesForPlans(this.db, [...mappingByPlan.keys()], dates)
         : [];
 
+    // The property's tax settings, read once per push: a channel that shows
+    // guests a final figure (Google) gets the all-in price computed by the
+    // same function the checkout uses, so the two cannot disagree.
+    const property = await this.properties.findProperty(this.db, channel.propertyId);
+    if (!property) throw errors.notFound('Property', channel.propertyId);
+    const tax = {
+      taxRateBp: property.taxRateBp,
+      serviceChargeRateBp: property.serviceChargeRateBp,
+      pricesIncludeTax: property.pricesIncludeTax,
+    };
+
     const ratesByDate = new Map<string, AriRate[]>();
     for (const row of rateRows) {
       const mapping = mappingByPlan.get(row.ratePlanId);
       if (!mapping) continue;
       const list = ratesByDate.get(row.date) ?? [];
+      // The channel markup, applied HERE and nowhere else: this is the only
+      // point in the system where a price becomes a price-for-a-channel.
+      // Doing it inside a connector would give every OTA its own rounding
+      // (docs/channel-markup-plan.md §4). The row is already the resolved
+      // price, so a derived rate plan's offset is applied before the markup
+      // rather than being multiplied by it.
+      const forChannel = applyBasisPoints(
+        money(row.amountMinor, row.currency),
+        mapping.rateMultiplierBp,
+      );
       list.push({
         externalRateId: mapping.externalRateId,
         occupancy: row.occupancy,
-        // The channel markup, applied HERE and nowhere else: this is the only
-        // point in the system where a price becomes a price-for-a-channel.
-        // Doing it inside a connector would give every OTA its own rounding
-        // (docs/channel-markup-plan.md §4). The row is already the resolved
-        // price, so a derived rate plan's offset is applied before the markup
-        // rather than being multiplied by it.
-        amountMinor: applyBasisPoints(
-          money(row.amountMinor, row.currency),
-          mapping.rateMultiplierBp,
-        ).amount,
+        amountMinor: forChannel.amount,
+        grossMinor: computeBreakdown([forChannel], row.currency, tax).total.amount,
         currency: row.currency,
       });
       ratesByDate.set(row.date, list);

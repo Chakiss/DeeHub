@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The landing-pages file for DeeHub's Hotel Center account. Uploaded once, by
+  hand, in Hotel Center → Property data → Landing pages. One template for
+  every property: Google fills the variables, book.deehubhotel.com/g turns
+  the hotel id into the hotel's own address (apps/booking-web/src/app/g).
+
+  PARTNER-HOTEL-ID is the property's uuid, as the Hotel List Feed carries it.
+  Dates arrive as YYYY-MM-DD and a night count; language as ISO 639-1.
+-->
+<PointsOfSale>
+  <PointOfSale id="deehub-book">
+    <URL>https://book.deehubhotel.com/g/(PARTNER-HOTEL-ID)?checkin=(CHECKINYEAR)-(CHECKINMONTH)-(CHECKINDAY)&amp;nights=(LENGTH)&amp;adults=(NUM-ADULTS)&amp;children=(NUM-CHILDREN)&amp;lang=(USER-LANGUAGE)&amp;rate=(RATE-PLAN-ID)&amp;room=(PARTNER-ROOM-ID)&amp;src=(IF-AD-CLICK)ad(ELSE)free(ENDIF)</URL>
+  </PointOfSale>
+</PointsOfSale>

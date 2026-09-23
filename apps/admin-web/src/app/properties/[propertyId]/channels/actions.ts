@@ -111,6 +111,24 @@ export async function testChannelConnection(
   }
 }
 
+export interface AutoMapResult extends ChannelActionResult {
+  readonly mapped?: { roomTypes: number; ratePlans: number };
+}
+
+/** Google only: our codes are the channel's ids, so the mapping writes itself. */
+export async function autoMapChannel(
+  propertyId: string,
+  channelId: string,
+): Promise<AutoMapResult> {
+  try {
+    const mapped = await api.autoMapChannel(propertyId, channelId);
+    revalidate(propertyId, channelId);
+    return { ok: true, mapped };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export interface SyncResult extends ChannelActionResult {
   readonly sync?: ForceSyncResult;
 }

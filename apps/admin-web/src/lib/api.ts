@@ -1398,6 +1398,12 @@ export const api = {
       method: 'POST',
     }),
 
+  autoMapChannel: (propertyId: string, channelId: string) =>
+    request<{ roomTypes: number; ratePlans: number }>(
+      `/properties/${propertyId}/channels/${channelId}/auto-map`,
+      { method: 'POST' },
+    ),
+
   syncChannel: (propertyId: string, channelId: string) =>
     request<ForceSyncResult>(`/properties/${propertyId}/channels/${channelId}/sync`, {
       method: 'POST',

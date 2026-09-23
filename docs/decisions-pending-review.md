@@ -668,3 +668,32 @@ so a report can keep the three apart. A later modification re-quotes from the
 plan and drops the typed price, which the modify form already says.
 
 _(Updated as the session continues.)_
+
+## 26. Google and the booking site: three things only you can do
+
+The code for the hotel's price on Google and a page a guest books on is
+merged (PRs #5–#8, ADR-0010). What remains is not code.
+
+**Apply to Google.** Free booking links are fed only by a connectivity
+partner. The interest form asks about the company, its site and its
+properties; Google reviews "stability and recognition" and a transaction
+history, and says three to nine weeks. Nothing I can write shortens that,
+and everything is testable against a fake Hotel Center until it lands.
+`docs/google-hotel-center-runbook.md` §1 is the checklist.
+
+**Open an Omise account.** Card and PromptPay checkout are built and tested
+against a fake provider. Without `OMISE_SECRET_KEY` a guest still books and
+the page says the hotel will be in touch — which is the pilot's current
+practice. Omise's fees (about 3.65% cards, 1.65% PromptPay) have to be
+somebody's: Google must see the price the guest pays, so absorbing them is
+the simple answer; a surcharge line is a day's work if you prefer it.
+
+**Switch the pilot's Business Profile.** The "official site" badge follows
+the website in Google Business Profile, which today is the old PMS's page.
+When DeeHub's feed is certified the hotel changes it to
+`book.deehubhotel.com/lets-chill/main` and stops the old feed the same day —
+two "official" prices is how a listing gets flagged.
+
+Three applies are also yours: photo storage (#5), the booking site's service,
+Cloud Armor and `book.` on the certificate (#7), and the NAT address and the
+five-minute schedule (#8). `terraform plan` before each, per §18.

@@ -98,6 +98,15 @@ Phase 4 with it. Delivered:
   email. Thai by default, English by `?lang=en`, which is what Google's
   landing template sends. Mobile-first; the final price carries the
   microdata Google's price-accuracy crawler reads.
+- **Google Hotels as a channel** (2026-09-23, ADR-0010): `GOOGLE_HOTEL`
+  connector — property data, rates all-in, availability and inventory as
+  Google's OTA-flavoured XML, mapped in one click under our own codes; the
+  Hotel List Feed and a one-template landing page resolved by the booking
+  site; and, for a deployment without Redis, changes recorded in
+  `ari_sync_requests` and pushed by the maintenance job every five minutes.
+  **Waiting on Google**: DeeHub's acceptance as a connectivity partner
+  (weeks), then the pilot's Business Profile website switched to the DeeHub
+  page for the official-site badge.
 - **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking
   forward — what has been taken for the nights ahead since a week ago.
 - **Direct bookings**: a public API a guest can search, hold a room through,

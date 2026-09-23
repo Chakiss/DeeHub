@@ -53,6 +53,21 @@ export default async function RoomsPage({
   const nights = nightsBetween(stay.checkIn, stay.checkOut);
   const catalogRoom = new Map(hotel.roomTypes.map((room) => [room.roomTypeId, room]));
 
+  // Google's link names the room and rate by the CODES we published (they are
+  // the ids Google knows); the site's own links use ids. Accept either.
+  const matches = (wanted: string | undefined, id: string, codeOf: string | undefined) =>
+    wanted !== undefined &&
+    (wanted === id || (codeOf !== undefined && wanted.toUpperCase() === codeOf.toUpperCase()));
+  const planCode = new Map(
+    hotel.roomTypes.flatMap((room) =>
+      room.ratePlans.map((plan) => [plan.ratePlanId, plan.code] as const),
+    ),
+  );
+  const isWantedRoom = (roomTypeId: string) =>
+    matches(wantedRoom, roomTypeId, catalogRoom.get(roomTypeId)?.code);
+  const isWantedRate = (ratePlanId: string) =>
+    matches(wantedRate, ratePlanId, planCode.get(ratePlanId));
+
   const roomTypes = [...availability.roomTypes].sort((a, b) => {
     const score = (room: typeof a) =>
       (room.roomTypeId === wantedRoom ? 2 : 0) +
@@ -135,7 +150,7 @@ export default async function RoomsPage({
                     </div>
                     <ul className="divide-y divide-stone-200/70">
                       {room.ratePlans.map((plan) => {
-                        const highlighted = plan.ratePlanId === wantedRate;
+                        const highlighted = isWantedRate(plan.ratePlanId);
                         return (
                           <li
                             key={plan.ratePlanId}

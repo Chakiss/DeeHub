@@ -104,6 +104,7 @@ locals {
     # HMAC pair for signed photo uploads (google_storage_hmac_key.api).
     "storage-access-key",
     "storage-secret-key",
+    "google-hotel-feed-key",
   ]
 }
 
