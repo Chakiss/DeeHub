@@ -54,10 +54,21 @@ export interface PlanStayInput {
    * otherwise have had, so a weekend night keeps its larger share.
    */
   readonly channelTotal?: Money;
+  /**
+   * A price per night typed at the desk instead of the plan's — a negotiated
+   * discount, a long-stay deal, or what an OTA sold at when the booking is
+   * keyed in from the extranet. Applied to every night of the stay.
+   *
+   * Labelled by the caller: CHANNEL for an OTA booking (it IS the channel's
+   * price), MANUAL for anything else. A MANUAL price below the plan must
+   * carry `priceNote` — revenue given away needs a reason next to it.
+   */
+  readonly nightlyRate?: { readonly amount: Money; readonly as: 'MANUAL' | 'CHANNEL' };
+  readonly priceNote?: string | null;
 }
 
 /** Where a stay's frozen night prices came from. */
-export type PricingSource = 'PROPERTY_RATES' | 'CHANNEL';
+export type PricingSource = 'PROPERTY_RATES' | 'CHANNEL' | 'MANUAL';
 
 /**
  * What to do when the requested nights are not sellable.
@@ -247,7 +258,9 @@ export class PlanStayService {
       ownPrices.push(price);
     }
 
-    const { nightPrices, pricedFrom } = this.applyChannelTotal(property, ownPrices, input);
+    const { nightPrices, pricedFrom } = input.nightlyRate
+      ? this.applyTypedRate(property, ownPrices, input.nightlyRate, input.priceNote ?? null)
+      : this.applyChannelTotal(property, ownPrices, input);
     const nightRecords = nights.map((night, index) => {
       const price = nightPrices[index] ?? money(0, property.currency);
       return { date: night, amountMinor: price.amount, currency: price.currency };
@@ -268,12 +281,50 @@ export class PlanStayService {
         // Planning prices and holds inventory; which room is a separate
         // decision the caller makes, so it starts empty.
         assignedRoomId: null,
+        pricedFrom,
+        priceNote: pricedFrom === 'MANUAL' ? input.priceNote?.trim() || null : null,
         subtotalMinor: sum(nightPrices, property.currency).amount,
         nights: nightRecords,
       },
       nightPrices,
       overbookings,
       pricedFrom,
+    };
+  }
+
+  /**
+   * Replace our own night prices with one typed at the desk.
+   *
+   * Refuses, rather than falls back, on a currency mismatch or a negative
+   * amount: unlike a channel delivery there is a person at the keyboard who
+   * can correct it. A MANUAL price below what the plan would have charged on
+   * any night needs a reason — the note is what a later reader of the audit
+   * trail has instead of the conversation at the desk.
+   */
+  private applyTypedRate(
+    property: PropertySettings,
+    ownPrices: readonly Money[],
+    rate: { readonly amount: Money; readonly as: 'MANUAL' | 'CHANNEL' },
+    note: string | null,
+  ): { nightPrices: readonly Money[]; pricedFrom: PricingSource } {
+    if (rate.amount.currency !== property.currency) {
+      throw errors.validation(`Price must be in ${property.currency}, the property's currency`, {
+        expected: property.currency,
+        actual: rate.amount.currency,
+      });
+    }
+    if (rate.amount.amount < 0) {
+      throw errors.validation('Price cannot be negative');
+    }
+    const belowPlan = ownPrices.some((price) => price.amount > rate.amount.amount);
+    if (rate.as === 'MANUAL' && belowPlan && !note?.trim()) {
+      throw errors.validation('Give a reason for a price below the rate plan', {
+        field: 'priceNote',
+      });
+    }
+    return {
+      nightPrices: ownPrices.map(() => money(rate.amount.amount, property.currency)),
+      pricedFrom: rate.as,
     };
   }
 

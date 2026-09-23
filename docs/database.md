@@ -518,6 +518,11 @@ CREATE TABLE reservation_stays (
   children            smallint NOT NULL DEFAULT 0 CHECK (children >= 0),
   assigned_room_id    uuid REFERENCES physical_rooms(id) ON DELETE SET NULL,  -- Phase 4
   guest_name          text,
+  -- Where the frozen night prices came from, and why a typed price sits below
+  -- the plan. Reports keep a discount apart from an OTA price and list price.
+  priced_from         text NOT NULL DEFAULT 'PROPERTY_RATES'
+                      CHECK (priced_from IN ('PROPERTY_RATES','CHANNEL','MANUAL')),
+  price_note          text,
   subtotal_minor      bigint NOT NULL DEFAULT 0 CHECK (subtotal_minor >= 0),
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now(),

@@ -136,6 +136,33 @@ test.describe('rooms and stay view', () => {
       .toContain('Dirty');
   });
 
+  test('renames a room and its floor in place', async ({ page }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/rooms`);
+
+    await page.getByRole('button', { name: 'Add room' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add room' });
+    await dialog.getByLabel('Room type').selectOption({ label: 'Deluxe Double' });
+    await dialog.getByLabel('Room number').fill('X1');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    const row = page.getByRole('row', { name: /X1/ });
+    await expect(row).toBeVisible();
+
+    // The numbers a property was set up with are rarely the ones on the doors.
+    await row.getByRole('button', { name: 'Rename X1' }).click();
+    // The row's text becomes inputs while editing, so locate those directly;
+    // the add dialog with the same labels is closed.
+    await page.getByLabel('Room number', { exact: true }).fill('X9');
+    await page.getByLabel('Floor', { exact: true }).fill('9');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+    const renamed = page.getByRole('row', { name: /X9/ });
+    await expect(renamed).toBeVisible();
+    await expect(renamed).toContainText('9');
+    await expect(page.getByRole('row', { name: /X1/ })).toHaveCount(0);
+  });
+
   test('refuses a duplicate room number', async ({ page }) => {
     const data = testData();
     await login(page, data.managerEmail);

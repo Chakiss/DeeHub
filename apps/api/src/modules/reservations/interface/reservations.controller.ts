@@ -35,6 +35,11 @@ const staySchema = z
     // The room to put this stay in, when the desk already knows. Optional: a
     // booking can wait for a room until the guest arrives.
     roomId: z.string().uuid().optional(),
+    // A price per night instead of the plan's, in minor units (satang).
+    // Gated on reservation:price_override in the handler, since the guard
+    // checks one capability per route and taking a booking needs none of it.
+    nightlyRate: z.number().int().min(0).max(1_000_000_000).optional(),
+    priceNote: z.string().trim().max(500).optional(),
   })
   .strict()
   // A stay must occupy at least one night. Caught here so the client gets a
@@ -214,6 +219,13 @@ export class ReservationsController {
     @Body(new ZodValidationPipe(createReservationSchema)) body: CreateBody,
     @Req() request: AuthenticatedRequest,
   ) {
+    if (
+      body.stays.some((stay) => stay.nightlyRate !== undefined) &&
+      !request.capabilities?.has('reservation:price_override')
+    ) {
+      throw errors.forbidden('reservation:price_override');
+    }
+
     const result = await this.createReservation.execute(
       {
         propertyId,
@@ -231,6 +243,8 @@ export class ReservationsController {
           ...(stay.children === undefined ? {} : { children: stay.children }),
           ...(stay.guestName === undefined ? {} : { guestName: stay.guestName }),
           ...(stay.roomId === undefined ? {} : { roomId: stay.roomId }),
+          ...(stay.nightlyRate === undefined ? {} : { nightlyRateMinor: stay.nightlyRate }),
+          ...(stay.priceNote ? { priceNote: stay.priceNote } : {}),
         })),
         ...(body.specialRequests ? { specialRequests: body.specialRequests } : {}),
         ...(body.channelId ? { channelId: body.channelId } : {}),
@@ -247,6 +261,14 @@ export class ReservationsController {
       status: result.status,
       propertyId,
       currency: result.currency,
+      // Non-empty when an OTA booking was taken past a stop-sell or an
+      // allotment: the desk should know it just recorded an oversell.
+      overbookings: result.overbookings.map((incident) => ({
+        roomTypeId: incident.roomTypeId,
+        dates: incident.dates,
+        reason: incident.reason,
+        detail: incident.detail,
+      })),
       subtotal: presentMoney(result.subtotal),
       serviceCharge: presentMoney(result.serviceCharge),
       tax: presentMoney(result.tax),
@@ -261,6 +283,8 @@ export class ReservationsController {
         children: stay.children,
         guestName: stay.guestName,
         assignedRoomId: stay.assignedRoomId,
+        pricedFrom: stay.pricedFrom,
+        priceNote: stay.priceNote,
         subtotal: { amount: stay.subtotalMinor, currency: result.currency },
         nights: stay.nights.map((night) => ({
           date: night.date,

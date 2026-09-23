@@ -127,6 +127,14 @@ export const reservationStays = pgTable(
       onDelete: 'set null',
     }),
     guestName: text('guest_name'),
+    /**
+     * Where the frozen night prices came from: the rate plan, what a channel
+     * sold at, or a figure typed at the desk. Reports read this to keep a
+     * negotiated discount apart from an OTA price and from list price.
+     */
+    pricedFrom: text('priced_from').notNull().default('PROPERTY_RATES'),
+    /** Why a typed price is below the plan — required for one that is. */
+    priceNote: text('price_note'),
     subtotalMinor: bigint('subtotal_minor', { mode: 'number' }).notNull().default(0),
     /**
      * How many nights were handed back because the guest left before using
@@ -142,6 +150,7 @@ export const reservationStays = pgTable(
     check('stays_date_order_ck', sql`${t.checkOut} > ${t.checkIn}`),
     check('stays_adults_ck', sql`${t.adults} >= 1`),
     check('stays_children_ck', sql`${t.children} >= 0`),
+    check('stays_priced_from_ck', sql`${t.pricedFrom} IN ('PROPERTY_RATES','CHANNEL','MANUAL')`),
     index('reservation_stays_reservation_idx').on(t.reservationId),
     index('reservation_stays_arrivals_idx').on(t.propertyId, t.checkIn),
     index('reservation_stays_departures_idx').on(t.propertyId, t.checkOut),

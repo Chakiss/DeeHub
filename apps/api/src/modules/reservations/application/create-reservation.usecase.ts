@@ -59,6 +59,14 @@ export interface CreateStayInput {
    */
   readonly roomId?: string;
   /**
+   * A price per night typed at the desk, in the property's currency's minor
+   * unit. Needs `reservation:price_override`, which the controller checks.
+   * On an OTA booking it is recorded as the channel's price; on any other it
+   * is a manual price, and one below the plan needs `priceNote`.
+   */
+  readonly nightlyRateMinor?: number;
+  readonly priceNote?: string;
+  /**
    * The price a CHANNEL sold this stay at. Only the channel delivery path may
    * set it; every public and staff-facing schema is strict, so an amount in a
    * request body is rejected rather than ignored.
@@ -89,7 +97,13 @@ export interface CreateReservationInput {
   readonly guestId?: string;
   /** Hold lifetime for PENDING reservations. Defaults to 15 minutes. */
   readonly holdTtlSeconds?: number;
-  /** Defaults to REJECT. Only the channel delivery path may relax this. */
+  /**
+   * Defaults to REJECT for anything the hotel controls, and to ACCEPT_AND_ALERT
+   * for an OTA booking — whether a connector delivered it or the desk keyed it
+   * in from the extranet. Either way the channel has already sold the room to
+   * a guest who is coming; refusing the record does not un-sell it, it only
+   * hides it. The oversell or override is recorded and the desk is alerted.
+   */
   readonly onInsufficientInventory?: InsufficientInventoryPolicy;
 }
 
@@ -229,7 +243,8 @@ export class CreateReservationUseCase {
       const nightPrices: Money[] = [];
       const overbookings: OverbookingIncident[] = [];
       const touchedRoomTypes = new Map<string, { from: IsoDate; to: IsoDate }>();
-      const policy = input.onInsufficientInventory ?? 'REJECT';
+      const policy =
+        input.onInsufficientInventory ?? (input.source === 'OTA' ? 'ACCEPT_AND_ALERT' : 'REJECT');
       // CHANNEL only if every stay that was offered a channel price took it.
       // One stay quietly falling back to our own rates is the case worth
       // seeing, so it decides the answer for the reservation.
@@ -238,7 +253,21 @@ export class CreateReservationUseCase {
         : 'PROPERTY_RATES';
 
       for (const stayInput of input.stays) {
-        const stay = await this.planStay.plan(tx, property, stayInput, policy);
+        const stay = await this.planStay.plan(
+          tx,
+          property,
+          stayInput.nightlyRateMinor === undefined
+            ? stayInput
+            : {
+                ...stayInput,
+                nightlyRate: {
+                  amount: { amount: stayInput.nightlyRateMinor, currency: property.currency },
+                  as: input.source === 'OTA' ? 'CHANNEL' : 'MANUAL',
+                },
+                priceNote: stayInput.priceNote ?? null,
+              },
+          policy,
+        );
         const room = stayInput.roomId
           ? await this.roomFor(tx, property.id, stayInput.roomId, chosenRooms)
           : null;
@@ -247,6 +276,16 @@ export class CreateReservationUseCase {
         overbookings.push(...stay.overbookings);
         if (stayInput.channelTotal && stay.pricedFrom === 'PROPERTY_RATES') {
           pricedFrom = 'PROPERTY_RATES';
+        }
+        // A typed price on any stay is the thing worth seeing about the
+        // booking, whichever label the other stays carry.
+        if (stay.pricedFrom === 'MANUAL') pricedFrom = 'MANUAL';
+        else if (
+          stay.pricedFrom === 'CHANNEL' &&
+          pricedFrom === 'PROPERTY_RATES' &&
+          !input.stays.some((s) => s.channelTotal)
+        ) {
+          pricedFrom = 'CHANNEL';
         }
 
         const existing = touchedRoomTypes.get(stay.record.roomTypeId);
@@ -308,10 +347,19 @@ export class CreateReservationUseCase {
             : {}),
           total: breakdown.total.amount,
           currency: property.currency,
+          // Which nights were taken past a stop-sell or an allotment, so the
+          // trail says this booking was absorbed rather than sold.
+          ...(overbookings.length > 0 ? { absorbed: overbookings } : {}),
           stays: stays.map((stay) => ({
             roomTypeId: stay.roomTypeId,
             checkIn: stay.checkIn,
             checkOut: stay.checkOut,
+            // Which prices the nights froze at, and the reason when a person
+            // chose them: the audit trail is where "why was this room ฿900"
+            // gets answered.
+            pricedFrom: stay.pricedFrom,
+            ...(stay.priceNote ? { priceNote: stay.priceNote } : {}),
+            subtotal: stay.subtotalMinor,
             assignedRoomId: stay.assignedRoomId,
             ...(stay.assignedRoomId
               ? { roomNumber: chosenRooms.get(stay.assignedRoomId)?.roomNumber }

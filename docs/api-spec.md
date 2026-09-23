@@ -806,6 +806,25 @@ matching kind — and any other category must not; both are 422s that say so.
 A booking a connector delivers carries `channelId` instead and gets the
 matching source by connector type when the property still has one.
 
+**An OTA booking is never refused for a stop-sell or a full allotment**,
+whether a connector delivered it or the desk keyed it in from the extranet: the
+channel has already sold the room to a guest who is coming, and refusing the
+record only hides them. The night is taken anyway, the response carries
+`overbookings` (`RESTRICTION_OVERRIDDEN` or `ALLOTMENT_RAISED`, with the
+dates), the audit entry records it as absorbed, and the desk is alerted. Every
+other category is still refused with the usual 422/409.
+
+**A price typed at the desk.** `nightlyRate` on a stay (minor units, the
+property's currency) replaces the plan's price on every night of that stay and
+needs `reservation:price_override` (managers and above; 403 otherwise). On an
+OTA booking it is recorded as the channel's price (`pricedFrom: "CHANNEL"`);
+on any other it is `"MANUAL"`, and a MANUAL price below what the plan would
+have charged on any night must carry `priceNote` (422 without). Each stay in
+the create and detail responses carries `pricedFrom` and `priceNote`, and the
+audit entry records both, so a report can keep a discount apart from list price
+and from an OTA rate. A later modification re-quotes from the plan and drops
+the typed price.
+
 ```jsonc
 // POST /properties/{pid}/reservations   Idempotency-Key: 0192...
 {
@@ -821,6 +840,8 @@ matching source by connector type when the property still has one.
       "children": 0,
       "guestName": "Somchai Prasert",
       "roomId": "0192c...", // optional: put this stay in a room now (Phase 4)
+      "nightlyRate": 90000, // optional, minor units: a price per night instead of the plan's
+      "priceNote": "Regular guest", // required when nightlyRate is below the plan (non-OTA)
     },
   ],
   "specialRequests": "High floor",

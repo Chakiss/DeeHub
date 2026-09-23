@@ -625,4 +625,46 @@ the form, and a separate decision.
 engine sets it); phone and email bookings keep their own categories rather
 than folding into "direct", since they are the ones a receptionist takes.
 
+## 24. An OTA booking keyed by hand is never refused for a stop-sell
+
+From the pilot's screen recording on 2026-09-23: Booking.com sold tonight, the
+hotel had closed sales on tonight, and the desk could not record the guest who
+was about to arrive — while the form's own panel said "5 left". Two things
+changed. The panel now honours stop-sell and closed-to-arrival, so it says
+"Closed" when the API will refuse. And a hand-keyed OTA booking now behaves
+like a connector's: it is taken past a stop-sell or a full allotment, the
+response and the audit trail say so, the page that opens carries a banner, and
+the team gets the same overbooking alert. Walk-in, phone, email, website and
+travel-agent bookings are refused exactly as before.
+
+**The call you may want to overturn**: whether travel-agent bookings deserve
+the same treatment. An agent with an allotment contract has also "already sold"
+the room; today it is refused like a walk-in, because nothing in the system
+knows which agents hold allotments.
+
+## 25. A price typed at the desk, and the three calls made for you
+
+The pilot asked for a "special price" it could type. Built as one field per
+room on the booking form — a price per night that replaces the plan's on
+every night of that stay — rather than a second rate plan, because the price
+is specific to one booking and a plan is not.
+
+**Managers and above only** (`reservation:price_override`). A discount is
+revenue given away; a receptionist takes bookings, a manager decides what a
+room is worth tonight. Give front-desk the capability if that is wrong for
+you.
+
+**Below the plan needs a reason; above it does not.** The reason is stored on
+the stay and in the audit trail, and shown on the booking page — it is what a
+later reader has instead of the conversation at the desk. There is no floor:
+฿1 is accepted with a reason. A floor (never below X% of the plan) is a
+one-line rule if the audit trail turns up abuse.
+
+**On an OTA booking the typed price is the channel's price**, labelled
+CHANNEL, no reason needed — it is what Agoda sold at, not a discount. This
+closes the gap in §23: a hand-keyed OTA booking can now carry the OTA's
+figure. Every stay carries `priced_from` (PROPERTY_RATES, CHANNEL, MANUAL),
+so a report can keep the three apart. A later modification re-quotes from the
+plan and drops the typed price, which the modify form already says.
+
 _(Updated as the session continues.)_

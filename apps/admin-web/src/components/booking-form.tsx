@@ -49,6 +49,9 @@ interface StayDraft {
   guestName: string;
   /** A room chosen now; empty is "assign later". */
   roomId: string;
+  /** A price per night typed instead of the plan's, in major units as typed. */
+  nightlyRate: string;
+  priceNote: string;
 }
 
 /**
@@ -70,6 +73,7 @@ export function BookingForm({
   ratePlans,
   hasRooms,
   bookingSources,
+  canOverridePrice,
 }: {
   propertyId: string;
   currency: string;
@@ -83,6 +87,8 @@ export function BookingForm({
    * picker saying "none free" would be a lie about the wrong thing.
    */
   hasRooms: boolean;
+  /** reservation:price_override — managers and above. */
+  canOverridePrice: boolean;
 }) {
   const t = useTranslations('reservations');
   const router = useRouter();
@@ -179,7 +185,13 @@ export function BookingForm({
       if (stayNights.length === 0) continue;
       map.set(row.roomTypeId, {
         available: Math.min(...stayNights.map((day) => day.available)),
-        closed: stayNights.some((day) => !day.open),
+        // A stop-sell on any night closes the stay; a closed-to-arrival on
+        // the first night does too. `open` alone only says a row exists,
+        // which is what let the panel say "5 left" on a night nobody could
+        // sell.
+        closed:
+          stayNights.some((day) => !day.open || day.stopSell) ||
+          Boolean(stayNights[0]?.closedToArrival),
         // Only a total when every night has a price. A stay with one unpriced
         // night cannot be sold at all, so a partial sum would be a lie.
         lowestRate: stayNights.every((day) => day.rate)
@@ -239,6 +251,12 @@ export function BookingForm({
         ...(stay.children > 0 ? { children: stay.children } : {}),
         ...(stay.guestName.trim() ? { guestName: stay.guestName.trim() } : {}),
         ...(stay.roomId ? { roomId: stay.roomId } : {}),
+        ...(canOverridePrice && stay.nightlyRate.trim()
+          ? {
+              nightlyRate: toMinor(stay.nightlyRate),
+              ...(stay.priceNote.trim() ? { priceNote: stay.priceNote.trim() } : {}),
+            }
+          : {}),
       })),
       ...(specialRequests.trim() ? { specialRequests: specialRequests.trim() } : {}),
     };
@@ -246,7 +264,10 @@ export function BookingForm({
     startTransition(async () => {
       const result = await createReservation(propertyId, input);
       if (result.ok && result.reservation) {
-        router.push(`/properties/${propertyId}/reservations/${result.reservation.id}`);
+        // Taken past a stop-sell or an allotment: say so on the page that
+        // opens, not only in the alert the team gets.
+        const absorbed = result.reservation.overbookings.length > 0 ? '?absorbed=1' : '';
+        router.push(`/properties/${propertyId}/reservations/${result.reservation.id}${absorbed}`);
         return;
       }
       // Sold out, closed to arrival, no price for a night: the API's message
@@ -400,6 +421,49 @@ export function BookingForm({
                         className={inputClass}
                       />
                     </Labelled>
+                    {canOverridePrice && (
+                      <Labelled label={t('nightlyRateOptional', { currency })}>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          inputMode="decimal"
+                          value={stay.nightlyRate}
+                          onChange={(event) =>
+                            updateStay(stay.key, { nightlyRate: event.target.value })
+                          }
+                          placeholder={
+                            availability.get(stay.roomTypeId)?.lowestRate != null && nights > 0
+                              ? t('planPriceHint', {
+                                  price: formatMoney(
+                                    Math.round(
+                                      (availability.get(stay.roomTypeId)?.lowestRate ?? 0) / nights,
+                                    ),
+                                    currency,
+                                  ),
+                                })
+                              : ''
+                          }
+                          className={inputClass}
+                        />
+                      </Labelled>
+                    )}
+                    {canOverridePrice &&
+                      stay.nightlyRate.trim() &&
+                      sourceValue(sourceChoice, bookingSources).source !== 'OTA' && (
+                        <Labelled label={t('priceNote')}>
+                          <input
+                            type="text"
+                            maxLength={500}
+                            value={stay.priceNote}
+                            onChange={(event) =>
+                              updateStay(stay.key, { priceNote: event.target.value })
+                            }
+                            placeholder={t('priceNoteHint')}
+                            className={inputClass}
+                          />
+                        </Labelled>
+                      )}
                     {hasRooms && (
                       <Labelled label={t('roomNumberOptional')}>
                         <RoomSelect
@@ -542,6 +606,19 @@ export function BookingForm({
             </ul>
           )}
           <p className="mt-3 text-xs text-stone-500">{t('availabilityHint')}</p>
+          {/* An OTA already sold the room: the booking will be taken even if
+              a night is closed or full, and the team told. Said here, before
+              the click, so nobody is surprised by a booking that "should
+              have failed". */}
+          {sourceValue(sourceChoice, bookingSources).source === 'OTA' &&
+            stays.some((stay) => {
+              const state = availability.get(stay.roomTypeId);
+              return state && (state.closed || state.available <= 0);
+            }) && (
+              <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {t('otaAbsorbHint')}
+              </p>
+            )}
         </Card>
 
         <div className="space-y-2">
@@ -585,7 +662,14 @@ function newStay(roomTypes: RoomType[], plansFor: Map<string, RatePlan[]>): Stay
     children: 0,
     guestName: '',
     roomId: '',
+    nightlyRate: '',
+    priceNote: '',
   };
+}
+
+/** "1,250.50" typed at the desk → 125050 satang. Two minor digits, as THB has. */
+function toMinor(typed: string): number {
+  return Math.round(Number(typed.replace(/,/g, '')) * 100);
 }
 
 /**

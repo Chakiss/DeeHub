@@ -49,6 +49,8 @@ export interface ReservationView {
     readonly guestName: string | null;
     readonly assignedRoomId: string | null;
     readonly assignedRoomNumber: string | null;
+    readonly pricedFrom: string;
+    readonly priceNote: string | null;
     readonly subtotal: { amount: number; currency: string };
     readonly nights: readonly { readonly date: string; readonly amount: number }[];
   }[];
@@ -96,6 +98,8 @@ export class GetReservationQuery {
         guestName: reservationStays.guestName,
         assignedRoomId: reservationStays.assignedRoomId,
         assignedRoomNumber: physicalRooms.roomNumber,
+        pricedFrom: reservationStays.pricedFrom,
+        priceNote: reservationStays.priceNote,
         subtotalMinor: reservationStays.subtotalMinor,
       })
       .from(reservationStays)
@@ -175,6 +179,8 @@ export class GetReservationQuery {
         guestName: stay.guestName,
         assignedRoomId: stay.assignedRoomId,
         assignedRoomNumber: stay.assignedRoomNumber,
+        pricedFrom: stay.pricedFrom,
+        priceNote: stay.priceNote,
         subtotal: { amount: stay.subtotalMinor, currency },
         nights: nightsByStay.get(stay.id) ?? [],
       })),

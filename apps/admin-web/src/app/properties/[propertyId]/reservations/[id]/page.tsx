@@ -26,10 +26,13 @@ const STATUS_TONE: Record<string, string> = {
 
 export default async function ReservationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ propertyId: string; id: string }>;
+  searchParams: Promise<{ absorbed?: string }>;
 }) {
   const { propertyId, id } = await params;
+  const { absorbed } = await searchParams;
   const t = await getTranslations('reservations');
 
   let reservation: ReservationDetail;
@@ -97,6 +100,12 @@ export default async function ReservationDetailPage({
           </span>
         </div>
       </div>
+
+      {absorbed === '1' && (
+        <p role="status" className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {t('absorbedBanner')}
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
@@ -193,6 +202,17 @@ export default async function ReservationDetailPage({
                   <p className="tabular mt-2 text-right text-sm font-medium text-ink-800">
                     {formatMoney(stay.subtotal.amount, stay.subtotal.currency)}
                   </p>
+                  {/* Where the money came from, when not the plan: a typed
+                      price and its reason are the answer to "why was this
+                      room ฿900" without opening the audit trail. */}
+                  {stay.pricedFrom !== 'PROPERTY_RATES' && (
+                    <p className="mt-1 text-right text-xs text-stone-500">
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800">
+                        {t(`pricedFrom${stay.pricedFrom}`)}
+                      </span>
+                      {stay.priceNote && <span className="ml-2">{stay.priceNote}</span>}
+                    </p>
+                  )}
 
                   {/*
                    * One editor or the other, never both. A stay that has begun

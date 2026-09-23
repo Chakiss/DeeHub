@@ -34,6 +34,10 @@ export interface StayRecord {
   readonly guestName: string | null;
   /** Set when the booking named its room; null is "no room yet". */
   readonly assignedRoomId: string | null;
+  /** Where the frozen night prices came from. */
+  readonly pricedFrom: 'PROPERTY_RATES' | 'CHANNEL' | 'MANUAL';
+  /** Why a typed price sits below the plan; null otherwise. */
+  readonly priceNote: string | null;
   readonly subtotalMinor: number;
   readonly nights: readonly StayNightRecord[];
 }
