@@ -53,6 +53,10 @@ export interface RateRepository {
     propertyId: string,
     roomTypeIds: readonly string[],
     dates: readonly IsoDate[],
+    options?: {
+      /** Only plans a stranger may buy (`sell_online`): the booking page and the metasearch feed. */
+      readonly onlineOnly?: boolean;
+    },
   ): Promise<readonly LeadRate[]>;
 }
 

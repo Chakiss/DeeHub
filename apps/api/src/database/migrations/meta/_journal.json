@@ -120,6 +120,13 @@
       "when": 1790147956109,
       "tag": "0016_clever_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790149578614,
+      "tag": "0017_wide_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

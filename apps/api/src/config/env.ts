@@ -145,6 +145,16 @@ export const envSchema = z.object({
    * tokenises the card directly so no card number ever reaches this server.
    */
   OMISE_SECRET_KEY: optional(),
+
+  /**
+   * Where the guest booking site is served, e.g. "https://book.deehubhotel.com".
+   *
+   * A payment's return URI (where a card holder lands after 3-D Secure) must
+   * begin with it, so a stranger holding a booking code cannot point that
+   * redirect at a page of their own. Unset, any https URL is accepted —
+   * fine for development, wrong for production.
+   */
+  BOOKING_WEB_URL: optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

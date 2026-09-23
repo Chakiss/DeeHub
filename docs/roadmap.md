@@ -82,6 +82,14 @@ Phase 4 with it. Delivered:
   straight to the bucket on a URL the API signs; bed configuration and size
   on a room type; and a `sellOnline` switch on a rate plan so a desk-only
   rate never becomes the lowest price a stranger is shown.
+- **Booking engine API, second pass** (2026-09-23): the public catalogue
+  (photos, rooms, beds, amenities, coordinates), every price all-in from the
+  same arithmetic a booking uses, a per-night "from" calendar, a cap on
+  unpaid holds per email, a booking readable back by code + email, and
+  two-step payment — card with 3-D Secure, or a PromptPay QR — settled only
+  on the provider's own word (a webhook is a prompt, never a fact), exactly
+  once, onto the folio, with the confirmation email owed by the same
+  transaction.
 - **Reporting**: occupancy, ADR and RevPAR looking back, and pickup looking
   forward — what has been taken for the nights ahead since a week ago.
 - **Direct bookings**: a public API a guest can search, hold a room through,

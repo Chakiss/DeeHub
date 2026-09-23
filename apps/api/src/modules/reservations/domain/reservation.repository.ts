@@ -192,6 +192,14 @@ export interface ReservationRepository {
   findByCode(tx: Executor, propertyId: string, code: string): Promise<LoadedReservation | null>;
 
   /**
+   * Push a PENDING booking's hold out to `until`, never in. Used when a
+   * payment has been started and the provider needs longer than the hold
+   * to answer (a PromptPay QR, a 3-D Secure challenge). Returns 0 when the
+   * booking is not PENDING or already holds longer.
+   */
+  extendHold(tx: Executor, reservationId: string, until: Date): Promise<number>;
+
+  /**
    * Status change guarded by `version` (optimistic locking).
    *
    * Returns 0 when the version no longer matches, which means someone else

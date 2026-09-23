@@ -109,6 +109,18 @@ async function main(): Promise<void> {
       logger.log(`Password resets: forgot ${String(purged.removed)} expired token(s)`);
     }
 
+    // A payment the provider will no longer accept is closed here so a
+    // polling page stops waiting on it; the hold it extended lapses on its own.
+    const stalePayments = await app.get<Database>(DATABASE).execute<{ id: string }>(sql`
+      UPDATE payment_intents
+         SET status = 'EXPIRED', settled_at = now(), updated_at = now()
+       WHERE status = 'PENDING' AND expires_at IS NOT NULL AND expires_at < now()
+       RETURNING id
+    `);
+    if ((stalePayments.rowCount ?? 0) > 0) {
+      logger.log(`Payments: expired ${String(stalePayments.rowCount)} unpaid attempt(s)`);
+    }
+
     const holds = await app.get(ExpireHoldsUseCase).execute();
     if (holds.expired > 0) {
       logger.log(

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, lt, sql } from 'drizzle-orm';
 import { toIsoDate, type IsoDate } from '@deehub/shared';
 import { reservationStayNights, reservationStays, reservations } from '../../../database/schema';
 import type { Executor } from '../../../database/executor';
@@ -133,6 +133,23 @@ export class DrizzleReservationRepository implements ReservationRepository {
 
     const found = rows[0];
     return found ? this.findById(tx, found.id) : null;
+  }
+
+  async extendHold(tx: Executor, reservationId: string, until: Date): Promise<number> {
+    const organizationId = requireOrganizationId();
+    const result = await tx
+      .update(reservations)
+      .set({ holdExpiresAt: until, updatedAt: new Date() })
+      .where(
+        and(
+          eq(reservations.id, reservationId),
+          eq(reservations.organizationId, organizationId),
+          eq(reservations.status, 'PENDING'),
+          lt(reservations.holdExpiresAt, until),
+        ),
+      )
+      .returning({ id: reservations.id });
+    return result.length;
   }
 
   async updateStatus(
