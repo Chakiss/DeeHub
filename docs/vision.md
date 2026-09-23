@@ -45,8 +45,12 @@ arriving in this order:
 4. **Booking Engine** — commission-free direct bookings on the hotel's own
    website.
 5. **PMS operations** — room assignment, check-in/out, housekeeping.
-6. **Revenue Management, CRM, Analytics** — data products on top of the core.
-7. **AI Assistant** — the differentiator (see below).
+6. **Accounting** — expenses, profit and loss, and the Thai tax paperwork an
+   owner cannot avoid: ใบกำกับภาษี, ภ.พ.30, หัก ณ ที่จ่าย. The system already
+   holds every baht of revenue; the owner's real question is what is left
+   after costs, and today they answer it in a spreadsheet.
+7. **Revenue Management, CRM, Analytics** — data products on top of the core.
+8. **AI Assistant** — the differentiator (see below).
 
 ## Why AI-first
 
@@ -68,7 +72,8 @@ arriving in this order:
 2. **Honest SME pricing** — affordable for a 15-room guesthouse, priced per
    property/room, no per-booking commission on direct bookings.
 3. **Thailand-first** — THB, Thai VAT + service charge, Asia/Bangkok dates,
-   Thai UI (planned), local OTA priorities (Agoda first-class).
+   Thai UI (planned), local OTA priorities (Agoda first-class), and the Thai
+   tax paperwork produced from the bookings rather than re-typed from them.
 4. **AI assistant** on a platform designed for it, not bolted on.
 
 ## Success Metrics
@@ -84,7 +89,12 @@ arriving in this order:
 ## Non-goals (for now)
 
 - Enterprise chains, hotel groups with central reservation offices.
-- POS, F&B, spa, or accounting modules (integrate later, don't build).
+- POS, F&B outlets, spa (integrate later, don't build).
+- Payroll, social security, and any filing that is a payroll system's job
+  (ภ.ง.ด.1) — the accounting module stops at the hotel's own books.
+- Bookkeeping _for an accountant_: no double-entry general ledger, no chart of
+  accounts, no e-Tax Invoice submission to the Revenue Department. DeeHub
+  produces the figures and the supporting reports; a human files the return.
 - Global multi-currency selling and metasearch (Google Hotel Ads) — after
   the core proves itself.
 - Microservices — modular monolith until scale demands otherwise.

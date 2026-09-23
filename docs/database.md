@@ -824,6 +824,127 @@ comparing against nothing.
 
 ---
 
+## 10a. Accounting — the hotel's own books
+
+Six tables added by migration `0012` (ADR-0008, [accounting-plan.md](accounting-plan.md)).
+Everything the platform stored before this was money coming IN; this is the
+other half, plus the identity the business files its returns under.
+
+### 10a.1 `accounting_settings`
+
+One row per property, keyed by `property_id`. `taxpayer_type INDIVIDUAL|JURISTIC`,
+`tax_id` (13 digits), `branch_code` (`'00000'` = สำนักงานใหญ่), legal names,
+`vat_registered` + `vat_registered_from`, `withholding_enabled`,
+`local_levy_enabled` + `local_levy_rate_bp`, `fiscal_year_start_month`.
+
+Separate from `properties` because the taxpayer and the building are not the
+same thing: several properties under one tax ID are BRANCHES differing only by
+`branch_code`, and a property is created and sold from long before anyone
+decides how it is taxed.
+
+`taxpayer_type` selects which basis the income-tax reports default to — an
+individual files on cash (ภ.ง.ด.90/94), a company on accrual (ภ.ง.ด.50/51). It
+is a fact about the taxpayer, not a user preference.
+
+**`tax_id` is not encrypted**, unlike channel credentials. It is printed on
+every invoice the business issues and receives; it identifies a taxpayer rather
+than authenticating one. A 13-digit mod-11 check digit is validated in the
+domain layer instead, which catches the typo that encryption never would.
+`CHECK` constraints enforce the digit format only — a rejected checksum needs
+to explain itself, and a constraint violation cannot.
+
+### 10a.2 `expense_categories` and `vendors`
+
+Categories are seeded per property on first read with Thai hotel defaults
+(`domain/expense-category.ts`), each carrying `default_wht_rate_bp` and
+`default_wht_income_type` — the column that turns "which rate applies to a
+plumber" into something the form proposes rather than something the owner has
+to know. `group` is the profit-and-loss line.
+
+`vendors.taxpayer_type` decides ภ.ง.ด.3 (individuals) or ภ.ง.ด.53 (companies) —
+two separately filed returns, so this is not cosmetic. `is_foreign` is captured
+in phase 1 although nothing reads it until phase 4: commission paid to Agoda or
+Booking.com is a service performed abroad and used in Thailand, so a
+VAT-registered hotel self-assesses 7% on ภ.พ.36. A checkbox at vendor creation
+is cheaper than re-reading two years of invoices later. `vendors_foreign_tax_id_ck`
+refuses a Thai tax ID on a foreign vendor, which is how such a line ends up
+filed as an ordinary domestic purchase.
+
+### 10a.3 `expenses`
+
+The money columns are `net_amount_minor`, `vat_minor` (input tax the supplier
+charged), `self_assessed_vat_minor` (ภ.พ.36 — a different tax, so a different
+column; summing them would file both wrongly), `gross_amount_minor`,
+`wht_rate_bp`, `wht_minor`, `paid_amount_minor`.
+
+Two identities are enforced in the database as well as the domain, because
+these numbers are typed by a person under time pressure and a row that does not
+add up cannot be reconciled later without the original receipt:
+
+```sql
+gross_amount_minor = net_amount_minor + vat_minor
+paid_amount_minor  = gross_amount_minor - wht_minor
+```
+
+**Withholding is computed on the pre-VAT value**, not on the gross. Three
+percent of the VAT-inclusive total over-withholds, short-pays the supplier, and
+puts a wrong figure on the certificate they will use to claim the credit back.
+
+**Two dates, one row.** `expense_date` is the accrual date (what the supplier's
+invoice says); `paid_date` is the cash date and is null while unpaid, which is
+how a payable is represented. A report picks which column its range applies to
+— that choice IS the cash/accrual switch, and there is no second table.
+
+`vat_claimed_period` (`YYYY-MM`) is separate from `expense_date` because input
+tax may be claimed in the invoice's month or within the six months after, and an
+invoice arriving late is the normal case for a small hotel rather than an
+exception. Without the column a VAT worksheet has nowhere to put a bill that
+surfaced in September for July.
+
+The duplicate guard is the cheapest correctness win in the schema:
+
+```sql
+CREATE UNIQUE INDEX expenses_supplier_doc_uq ON expenses (property_id, vendor_id, supplier_doc_number)
+  WHERE vendor_id IS NOT NULL AND supplier_doc_number IS NOT NULL AND voided_at IS NULL;
+```
+
+Entering a bill twice doubles a cost, understates profit and over-claims input
+tax — quiet in all three directions. `vendor_id IS NOT NULL` is in the predicate
+rather than left implicit because Postgres treats NULLs in a unique index as
+distinct: without it, two vendorless rows with the same receipt number would
+both be accepted while the index looked like it was guarding them. It is
+enforced by the index rather than by a check before the insert, because two
+people entering the same electricity bill at once would both pass a `SELECT`.
+
+Voided rows are excluded from the predicate, so a bill entered against the wrong
+vendor can be corrected and re-entered.
+
+### 10a.4 `expense_recurrences` and `revenue_entries`
+
+`expense_recurrences` is a completeness mechanism, not a convenience: a wrong
+expense is visible in the list looking wrong, but a MISSING one is invisible by
+construction and the only symptom is a profit figure that looks better than it
+is. `day_of_month` is capped at 28 — a reminder set for the 30th never fires in
+February.
+
+`revenue_entries` is income that did not come from a booking. Its
+`wht_withheld_minor` needs a warning in the UI rather than a plain label: under
+ท.ป.4/2528 hotel accommodation and restaurant service are **exempt** from the 3%
+withholding, so a corporate guest deducting it from a room bill is doing
+something the hotel should question. It is legitimately non-zero when a meeting
+room is let as bare space — that is rent at 5%, as opposed to a seminar package
+with food and service, which is hotel service and exempt.
+
+### 10a.5 What is deliberately absent
+
+No `revenue_postings`, `accounting_periods`, `tax_documents` or
+`wht_certificates` yet — phases 2 to 4. Until postings exist, the profit and
+loss derives room revenue live from `reservation_stay_nights` through
+`computeBreakdown`, which is correct for a month nobody has filed on and wrong
+for one anybody has. That is precisely why the period close comes next.
+
+---
+
 ## 11. The queries that matter
 
 ### 11.1 Hold inventory (the booking guard)

@@ -7,6 +7,12 @@
     "serviceChargePercent": 0,
     "ratesIncludeTax": true
   },
+  "accounting": {
+    "taxpayerType": "INDIVIDUAL",
+    "vatRegistered": false,
+    "withholdingEnabled": true,
+    "fiscalYearStartMonth": 1
+  },
   "roomTypes": [
     {
       "code": "TRP",

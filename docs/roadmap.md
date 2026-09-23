@@ -172,6 +172,33 @@ Mostly delivered early; what is left is listed as **remaining**.
   freezes on-the-books figures once per business date. History starts from the
   first snapshot and cannot be backfilled.
 
+## Phase 4b — Accounting and Thai tax (added 2026-08-14)
+
+Net-new scope. `vision.md` listed accounting as a non-goal and the founder has
+reversed that for this module; the reasoning and its design constraints are in
+[ADR-0008](adr/0008-accounting-ledger.md). Planned in
+[accounting-plan.md](accounting-plan.md).
+
+It lands here rather than in Phase 5 because it closes the posted-charge ledger
+gap Phase 4 has been carrying: a night audit that freezes a day's revenue is
+the same machinery a tax filing needs.
+
+1. **Expenses and the cash book** — taxpayer settings, seeded Thai hotel expense
+   categories, vendors, expenses carrying VAT and withholding tax, other income,
+   รายงานเงินสดรับ-จ่าย, and a profit and loss with revenue still derived live.
+   Ships alone and is useful alone: today the system has no expense side at all.
+2. **Periods and posted revenue** — the night audit journal, month close, and
+   the drift reconciler that is the price of storing revenue twice.
+3. **Tax documents and VAT** — ใบกำกับภาษี / ใบเสร็จ issued against payments
+   (the tax point for a service is receipt of payment), ใบลดหนี้ / ใบเพิ่มหนี้,
+   gapless numbering, sales and purchase VAT reports, ภ.พ.30 worksheet.
+4. **Withholding and foreign vendors** — 50 ทวิ, ภ.ง.ด.3/53, and **ภ.พ.36** for
+   commission paid to foreign OTAs, which is a live exposure for every hotel
+   selling through Agoda or Booking.com.
+
+Not built: payroll and ภ.ง.ด.1, social security, a double-entry general ledger,
+e-Tax Invoice submission, bank and OTA settlement reconciliation, fixed assets.
+
 ## Phase 5 — Revenue + AI Assistant (Months 9–12+)
 
 - More connectors: Expedia, Trip.com — planned in

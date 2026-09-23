@@ -39,7 +39,7 @@ describeIfDb('HTTP API', () => {
   const passwordUserId = crypto.randomUUID();
 
   const PASSWORD = 'correct-horse-battery-staple';
-  const HORIZON = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'];
+  const HORIZON = ['2027-09-01', '2027-09-02', '2027-09-03', '2027-09-04'];
 
   beforeAll(async () => {
     const { AppModule } = await import('../../app.module');
@@ -186,8 +186,8 @@ describeIfDb('HTTP API', () => {
         {
           roomTypeId,
           ratePlanId,
-          checkIn: '2026-09-01',
-          checkOut: '2026-09-03',
+          checkIn: '2027-09-01',
+          checkOut: '2027-09-03',
           adults: 2,
         },
       ],
@@ -552,7 +552,7 @@ describeIfDb('HTTP API', () => {
         .expect(409);
 
       expect(response.body.error.code).toBe('INVENTORY_UNAVAILABLE');
-      expect(response.body.error.details.unavailableDates).toEqual(['2026-09-01', '2026-09-02']);
+      expect(response.body.error.details.unavailableDates).toEqual(['2027-09-01', '2027-09-02']);
     });
 
     it('rejects an impossible calendar date', async () => {
@@ -578,7 +578,7 @@ describeIfDb('HTTP API', () => {
         .send({
           ...bookingBody(),
           stays: [
-            { roomTypeId, ratePlanId, checkIn: '01/09/2026', checkOut: '2026-09-03', adults: 2 },
+            { roomTypeId, ratePlanId, checkIn: '01/09/2027', checkOut: '2027-09-03', adults: 2 },
           ],
         })
         .expect(422);
@@ -592,7 +592,7 @@ describeIfDb('HTTP API', () => {
         .send({
           ...bookingBody(),
           stays: [
-            { roomTypeId, ratePlanId, checkIn: '2026-09-01', checkOut: '2026-09-01', adults: 2 },
+            { roomTypeId, ratePlanId, checkIn: '2027-09-01', checkOut: '2027-09-01', adults: 2 },
           ],
         })
         .expect(422);
@@ -664,7 +664,7 @@ describeIfDb('HTTP API', () => {
         .send({ version: 0, reason: 'Guest changed plans' })
         .expect(200);
       expect(cancelled.body.status).toBe('CANCELLED');
-      expect(cancelled.body.releasedNights).toEqual(['2026-09-01', '2026-09-02']);
+      expect(cancelled.body.releasedNights).toEqual(['2027-09-01', '2027-09-02']);
 
       // The room is sellable again.
       await request(app.getHttpServer())

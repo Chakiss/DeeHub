@@ -205,6 +205,16 @@ export async function teardown(data: TestData): Promise<void> {
       // which is exactly how the channel tables were found missing.
       'folio_payments',
       'folio_charges',
+      // Accounting, before `properties`: every one of these carries an
+      // ON DELETE RESTRICT reference to it, which is deliberate — a property
+      // with money recorded against it must not be removable — and means the
+      // teardown has to name them or the whole organization survives the run.
+      'revenue_entries',
+      'expense_recurrences',
+      'expenses',
+      'vendors',
+      'expense_categories',
+      'accounting_settings',
       'reservations',
       'guests',
       'inventory_days',

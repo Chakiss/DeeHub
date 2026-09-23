@@ -18,6 +18,7 @@ import { RoomsModule } from './modules/rooms/rooms.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { GuestsModule } from './modules/guests/guests.module';
 import { FolioModule } from './modules/folio/folio.module';
+import { AccountingModule } from './modules/accounting/accounting.module';
 import { BookingEngineModule } from './modules/booking-engine/booking-engine.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { RatePlansModule } from './modules/rate-plans/rate-plans.module';
@@ -45,6 +46,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
     ReportsModule,
     GuestsModule,
     FolioModule,
+    AccountingModule,
     AuditModule,
     RatePlansModule,
     RatesModule,

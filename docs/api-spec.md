@@ -1065,6 +1065,55 @@ tell an operator than a failure, and the row says which.
 | `GET`  | `/health`                                                      | public — liveness             |
 | `GET`  | `/health/ready`                                                | public — DB + Redis readiness |
 
+### 6.12 Accounting (Phase 4b)
+
+The hotel's own books — see [ADR-0008](adr/0008-accounting-ledger.md) and
+[accounting-plan.md](accounting-plan.md).
+
+| Method       | Path                                                                                                 | Capability                       |
+| ------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `GET` `PUT`  | `/properties/{propertyId}/accounting/settings`                                                       | `accounting:settings`            |
+| `GET`        | `/properties/{propertyId}/accounting/categories`                                                     | `expense:read`                   |
+| `GET` `POST` | `/properties/{propertyId}/accounting/vendors`                                                        | `expense:read` / `expense:write` |
+| `GET` `POST` | `/properties/{propertyId}/accounting/expenses?from=&to=&basis=&categoryId=&vendorId=&includeVoided=` | `expense:read` / `expense:write` |
+| `POST`       | `/properties/{propertyId}/accounting/expenses/{id}/void`                                             | `expense:void`                   |
+| `GET` `POST` | `/properties/{propertyId}/accounting/revenue-entries?from=&to=&basis=`                               | `accounting:read`                |
+| `GET`        | `/properties/{propertyId}/accounting/summary?year=&month=&basis=`                                    | `accounting:read`                |
+| `GET`        | `/properties/{propertyId}/accounting/reports/profit-loss?from=&to=&basis=`                           | `accounting:read`                |
+| `GET`        | `/properties/{propertyId}/accounting/reports/cash-book?from=&to=`                                    | `accounting:read`                |
+
+**`basis` is `CASH` or `ACCRUAL`, and it selects which date column the range
+filters on** — `paid_date` or `expense_date` for an expense. There is one set of
+rows and two date dimensions, not two ledgers (ADR-0008 §4). Omitted, it
+defaults to `ACCRUAL` on the report endpoints and, on `summary`, to whichever
+basis the taxpayer actually files on: cash for an individual, accrual for a
+company.
+
+**Capabilities split three ways on purpose.** A MANAGER holds `expense:read` and
+`expense:write` — buying the property's electricity is their job — but not
+`accounting:read`, so profit and loss and the tax identity return `403` for
+them. FRONT_DESK and READ_ONLY hold none of these. Note that `expense:read`
+ending in `:read` no longer places it in the READ_ONLY bundle: that bundle is
+now an explicit list rather than a suffix filter, precisely so a capability
+cannot join it by being named.
+
+Amounts follow §2: `{ "amount": 107000, "currency": "THB" }`, integer minor
+units. An expense POST takes `amount` plus `amountIs: "GROSS" | "NET"` — an
+owner types the total printed on the receipt and the server splits the VAT out
+using the same `computeBreakdown` the booking path uses.
+
+New error codes, both returned in `error.details.code` alongside the standard
+envelope:
+
+| Code                          | Status | Meaning                                                                                                                                                                                                  |
+| ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DUPLICATE_SUPPLIER_DOCUMENT` | 409    | That supplier invoice number is already recorded against that vendor. Enforced by a partial unique index, not a pre-check, because two people entering the same bill at once would both pass a `SELECT`. |
+| `VAT_CLAIM_WINDOW_EXPIRED`    | 422    | `vatClaimedPeriod` is more than six months after the supplier invoice, or earlier than it.                                                                                                               |
+
+**Reports are worksheets, not filings.** Nothing here submits to the Revenue
+Department, and every response is intended to be checked by whoever files the
+return. Clients must present them that way.
+
 ---
 
 ## 7. Rate limiting

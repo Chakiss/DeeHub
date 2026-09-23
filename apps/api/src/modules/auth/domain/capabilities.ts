@@ -65,13 +65,58 @@ export const CAPABILITIES = [
   'folio:read',
   'folio:post',
   'folio:void',
+  /*
+   * The hotel's own books (accounting-plan.md §6).
+   *
+   * Split three ways rather than one `accounting:*`, because the three answer
+   * different questions about trust. Recording what the electricity cost is
+   * the work of whoever runs the property. What the owner clears after those
+   * costs, and the tax identity the business files under, are not — a manager
+   * reading the profit and loss is a different disclosure from a manager
+   * paying a bill, and small hotels are exactly where that distinction is
+   * felt. Voiding is separated from writing for the reason `folio:void` is.
+   */
+  'expense:read',
+  'expense:write',
+  'expense:void',
+  /** Profit and loss, the cash book, and every tax report. */
+  'accounting:read',
+  'accounting:settings',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
 
-const READ_ONLY_CAPABILITIES: readonly Capability[] = CAPABILITIES.filter((capability) =>
-  capability.endsWith(':read'),
-);
+/**
+ * Written out rather than computed.
+ *
+ * This was `CAPABILITIES.filter((c) => c.endsWith(':read'))`, which decided
+ * who could see what by how a string was spelled. That is fine until a
+ * capability arrives whose name ends in `:read` and whose contents nobody
+ * would hand a receptionist — `folio:read` was already the warning, and
+ * `expense:read` would have been the second one, granted silently by the act
+ * of naming it.
+ *
+ * This list is the exact set the filter produced, so the refactor changes
+ * nothing that existed before it. `folio:read` stays deliberately: narrowing
+ * it is a live question for the founder in decisions-pending-review.md §15,
+ * and answering it quietly here would bury the decision rather than make it.
+ */
+const READ_ONLY_CAPABILITIES: readonly Capability[] = [
+  'org:read',
+  'user:read',
+  'property:read',
+  'roomtype:read',
+  'room:read',
+  'rateplan:read',
+  'inventory:read',
+  'rate:read',
+  'reservation:read',
+  'guest:read',
+  'channel:read',
+  'audit:read',
+  'notification:read',
+  'folio:read',
+];
 
 /** Day-to-day front-desk work: take bookings, check guests in and out. */
 const FRONT_DESK_CAPABILITIES: readonly Capability[] = [
@@ -101,6 +146,10 @@ const MANAGER_CAPABILITIES: readonly Capability[] = [
   'channel:update',
   'channel:sync',
   'folio:void',
+  // Buying the property's electricity is the job. Seeing what the owner keeps
+  // after it is not — `accounting:read` stops at ADMIN.
+  'expense:read',
+  'expense:write',
 ];
 
 /** Runs the organization: everything except transferring ownership. */
@@ -114,6 +163,9 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   'property:create',
   'property:update',
   'channel:create',
+  'expense:void',
+  'accounting:read',
+  'accounting:settings',
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<Role, ReadonlySet<Capability>>> = {

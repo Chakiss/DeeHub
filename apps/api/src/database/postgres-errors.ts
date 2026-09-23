@@ -10,17 +10,20 @@
 /** `exclusion_violation`. */
 const EXCLUSION_VIOLATION = '23P01';
 
+/** `unique_violation`. */
+const UNIQUE_VIOLATION = '23505';
+
 /**
  * Drizzle wraps driver errors, so the pg error sits down the `cause` chain.
  * The depth limit is a guard against a cyclic chain, not a real expectation.
  */
-export function isExclusionViolation(error: unknown, constraint: string): boolean {
+function matches(error: unknown, code: string, constraint: string): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 5 && current; depth += 1) {
     const candidate = current as { code?: unknown; constraint?: unknown; cause?: unknown };
     if (typeof candidate.code === 'string') {
       return (
-        candidate.code === EXCLUSION_VIOLATION &&
+        candidate.code === code &&
         typeof candidate.constraint === 'string' &&
         candidate.constraint.includes(constraint)
       );
@@ -28,6 +31,22 @@ export function isExclusionViolation(error: unknown, constraint: string): boolea
     current = candidate.cause;
   }
   return false;
+}
+
+export function isExclusionViolation(error: unknown, constraint: string): boolean {
+  return matches(error, EXCLUSION_VIOLATION, constraint);
+}
+
+/**
+ * A partial unique index refusing a duplicate.
+ *
+ * Postgres reports the index name in `constraint` for a unique index just as it
+ * does for a named constraint, so the two are recognised the same way. Used
+ * where a pre-check would race — two people entering the same supplier invoice
+ * at the same moment both pass a SELECT and both write.
+ */
+export function isUniqueViolation(error: unknown, constraint: string): boolean {
+  return matches(error, UNIQUE_VIOLATION, constraint);
 }
 
 /** Two stays may not hold the same physical room on overlapping nights. */
