@@ -48,6 +48,7 @@ const createSchema = z
     name: z.string().trim().min(1).max(120),
     mealPlan: z.enum(MEAL_PLANS).default('ROOM_ONLY'),
     isRefundable: z.boolean().default(true),
+    sellOnline: z.boolean().default(true),
     derivation: derivationSchema.optional(),
   })
   .strict();
@@ -63,6 +64,7 @@ const updateSchema = z
     name: z.string().trim().min(1).max(120).optional(),
     mealPlan: z.enum(MEAL_PLANS).optional(),
     isRefundable: z.boolean().optional(),
+    sellOnline: z.boolean().optional(),
     isActive: z.boolean().optional(),
     derivationValue: z.number().int().optional(),
   })
@@ -125,6 +127,7 @@ function present(row: RatePlanRecord) {
     name: row.name,
     mealPlan: row.mealPlan,
     isRefundable: row.isRefundable,
+    sellOnline: row.sellOnline,
     isActive: row.isActive,
     // Null on a plan that holds its own prices. `derivationLabel` is the
     // rendering — "−10%" — computed here rather than in three clients, each of

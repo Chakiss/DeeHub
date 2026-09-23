@@ -360,11 +360,114 @@ export interface InventoryUpdate {
   closedToDeparture?: boolean;
 }
 
+/** One property as the settings page edits it. Tax and currency are read-only here. */
+export interface PropertyProfile {
+  id: string;
+  code: string;
+  name: string;
+  timezone: string;
+  currency: string;
+  country: string;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  postalCode: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  descriptionTh: string | null;
+  descriptionEn: string | null;
+  amenities: string[];
+  checkInTime: string;
+  checkOutTime: string;
+  taxRateBp: number;
+  serviceChargeRateBp: number;
+  pricesIncludeTax: boolean;
+  status: string;
+}
+
+export type UpdatePropertyInput = Partial<
+  Pick<
+    PropertyProfile,
+    | 'name'
+    | 'addressLine1'
+    | 'addressLine2'
+    | 'city'
+    | 'postalCode'
+    | 'phone'
+    | 'email'
+    | 'website'
+    | 'latitude'
+    | 'longitude'
+    | 'descriptionTh'
+    | 'descriptionEn'
+    | 'amenities'
+    | 'checkInTime'
+    | 'checkOutTime'
+  >
+>;
+
+export const MEDIA_KINDS = ['PROPERTY', 'ROOM_TYPE'] as const;
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+export interface MediaItem {
+  id: string;
+  kind: MediaKind;
+  roomTypeId: string | null;
+  url: string;
+  contentType: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  alt: string | null;
+  sortOrder: number;
+}
+
+export interface MediaListing {
+  items: MediaItem[];
+  storageAvailable: boolean;
+  limits: { maxBytes: number; maxPerGallery: number };
+}
+
+export interface CreateMediaUploadInput {
+  kind: MediaKind;
+  roomTypeId?: string | null;
+  contentType: string;
+  bytes: number;
+}
+
+export interface MediaUploadGrant {
+  mediaId: string;
+  uploadUrl: string;
+  headers: Record<string, string>;
+  expiresAt: string;
+}
+
+export interface AttachMediaInput {
+  kind: MediaKind;
+  roomTypeId?: string | null;
+  mediaId: string;
+  width?: number | null;
+  height?: number | null;
+  alt?: string | null;
+}
+
+export interface UpdateMediaInput {
+  alt?: string | null;
+  sortOrder?: number;
+}
+
 export interface RoomType {
   id: string;
   code: string;
   name: string;
+  /** English; Thai is `descriptionTh`. */
   description: string | null;
+  descriptionTh: string | null;
+  bedConfig: string | null;
+  sizeSqm: number | null;
   standardOccupancy: number;
   maxOccupancy: number;
   maxAdults: number;
@@ -377,6 +480,9 @@ export interface CreateRoomTypeInput {
   code: string;
   name: string;
   description?: string | null;
+  descriptionTh?: string | null;
+  bedConfig?: string | null;
+  sizeSqm?: number | null;
   standardOccupancy: number;
   maxOccupancy: number;
   maxAdults: number;
@@ -396,6 +502,8 @@ export interface RatePlan {
   name: string;
   mealPlan: string;
   isRefundable: boolean;
+  /** Bookable by a stranger on the booking page and metasearch. Off = desk only. */
+  sellOnline: boolean;
   isActive: boolean;
   /** Null on a plan that holds its own prices. */
   parentRatePlanId: string | null;
@@ -412,6 +520,7 @@ export interface CreateRatePlanInput {
   name: string;
   mealPlan: MealPlan;
   isRefundable: boolean;
+  sellOnline?: boolean;
   /** Present to price this plan as an offset from another. Fixed at creation. */
   derivation?: {
     parentRatePlanId: string;
@@ -428,6 +537,7 @@ export interface UpdateRatePlanInput {
   name?: string;
   mealPlan?: MealPlan;
   isRefundable?: boolean;
+  sellOnline?: boolean;
   isActive?: boolean;
   derivationValue?: number;
 }
@@ -1068,6 +1178,37 @@ export const api = {
     request<{ id: string; code: string; name: string; timezone: string; currency: string }[]>(
       '/properties',
     ),
+
+  property: (propertyId: string) => request<PropertyProfile>(`/properties/${propertyId}`),
+
+  updateProperty: (propertyId: string, input: UpdatePropertyInput) =>
+    request<PropertyProfile>(`/properties/${propertyId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  media: (propertyId: string) => request<MediaListing>(`/properties/${propertyId}/media`),
+
+  createMediaUpload: (propertyId: string, input: CreateMediaUploadInput) =>
+    request<MediaUploadGrant>(`/properties/${propertyId}/media/uploads`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  attachMedia: (propertyId: string, input: AttachMediaInput) =>
+    request<MediaItem>(`/properties/${propertyId}/media`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateMedia: (propertyId: string, mediaId: string, input: UpdateMediaInput) =>
+    request<MediaItem>(`/properties/${propertyId}/media/${mediaId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  deleteMedia: (propertyId: string, mediaId: string) =>
+    request<void>(`/properties/${propertyId}/media/${mediaId}`, { method: 'DELETE' }),
 
   roomTypes: (propertyId: string) =>
     request<{ items: RoomType[] }>(`/properties/${propertyId}/room-types`).then(

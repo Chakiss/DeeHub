@@ -33,6 +33,7 @@ export default async function PropertyLayout({
     { href: `/properties/${propertyId}/accounting`, label: t('accounting') },
     { href: `/properties/${propertyId}/notifications`, label: t('notifications') },
     { href: `/properties/${propertyId}/audit`, label: t('audit') },
+    { href: `/properties/${propertyId}/settings`, label: t('settings') },
     { href: '/team', label: t('team') },
   ];
 

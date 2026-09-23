@@ -200,6 +200,19 @@ The API refuses to boot in production if it detects a development secret — a
 guard that has already fired once during container testing, which is exactly
 when you want it to.
 
+### Photo storage
+
+The media bucket (`main.tf`, `google_storage_bucket.media`) is world-readable
+and accepts browser PUTs from the dashboard's origins (its CORS rule reads
+`cors_origins`). The API signs those PUTs with the **S3 protocol** against
+`https://storage.googleapis.com`, so the same adapter serves MinIO in
+development; that needs an HMAC pair for the API's service account
+(`google_storage_hmac_key.api`), which `set-secrets.sh` copies from Terraform
+output into `deehub-storage-access-key-*` / `deehub-storage-secret-key-*`.
+Order on first setup: `terraform apply`, then `set-secrets.sh`, then a deploy —
+until the two secrets have a version the API starts with photos reported as
+"not configured" and everything else works.
+
 ### Notification delivery
 
 All optional, and all absent by default:

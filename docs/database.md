@@ -184,6 +184,13 @@ CREATE TABLE properties (
   country               char(2) NOT NULL DEFAULT 'TH',
   address_line1         text, address_line2 text, city text,
   postal_code           text, phone text, email text,
+  -- What a guest and Google see (0016). Nullable: a property sells through
+  -- the desk long before anyone writes its blurb.
+  website               text,
+  latitude              numeric(9,6) CHECK (latitude  IS NULL OR latitude  BETWEEN -90  AND 90),
+  longitude             numeric(9,6) CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
+  description_th        text, description_en text,
+  amenities             jsonb NOT NULL DEFAULT '[]',          -- ["Free Wi-Fi","Parking"]
   check_in_time         time NOT NULL DEFAULT '14:00',
   check_out_time        time NOT NULL DEFAULT '12:00',
   tax_rate_bp           integer NOT NULL DEFAULT 700   CHECK (tax_rate_bp BETWEEN 0 AND 10000),
@@ -202,7 +209,10 @@ CREATE TABLE room_types (
   property_id         uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
   code                text NOT NULL,
   name                text NOT NULL,
-  description         text,
+  description         text,                 -- English
+  description_th      text,
+  bed_config          text,                 -- "1 king bed"; printed under the name online
+  size_sqm            smallint CHECK (size_sqm IS NULL OR size_sqm > 0),
   standard_occupancy  smallint NOT NULL DEFAULT 2 CHECK (standard_occupancy >= 1),
   max_occupancy       smallint NOT NULL DEFAULT 2 CHECK (max_occupancy >= 1),
   max_adults          smallint NOT NULL DEFAULT 2 CHECK (max_adults >= 1),
@@ -245,6 +255,9 @@ CREATE TABLE rate_plans (
                       CHECK (meal_plan IN ('ROOM_ONLY','BREAKFAST','HALF_BOARD','FULL_BOARD','ALL_INCLUSIVE')),
   cancellation_policy jsonb NOT NULL DEFAULT '{}'::jsonb,
   is_refundable       boolean NOT NULL DEFAULT true,
+  -- Off = desk only: the booking engine and the metasearch feed skip it, so a
+  -- corporate or walk-in rate never becomes the lowest price a stranger sees.
+  sell_online         boolean NOT NULL DEFAULT true,
   is_active           boolean NOT NULL DEFAULT true,
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now(),
@@ -461,6 +474,52 @@ the usual OTAs (migration 0013 backfills, the seed and `POST
 booking-sources/defaults` cover the rest).
 
 ---
+
+## 8b. Media (photos)
+
+Photos of a property and of its room types, for the booking page. The bytes
+live in an S3-compatible object store (MinIO locally, Google Cloud Storage
+through its S3 interoperability endpoint in production, ADR-0004); the row is
+what points at them.
+
+```sql
+CREATE TABLE media (
+  id               uuid PRIMARY KEY,
+  organization_id  uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  property_id      uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
+  kind             text NOT NULL CHECK (kind IN ('PROPERTY','ROOM_TYPE')),
+  room_type_id     uuid REFERENCES room_types(id) ON DELETE RESTRICT,
+  object_key       text NOT NULL,          -- "public/{org}/{property}/{id}.jpg"; never a URL
+  content_type     text NOT NULL,
+  bytes            integer NOT NULL CHECK (bytes > 0),
+  width            integer, height integer,
+  alt              text,
+  sort_order       integer NOT NULL DEFAULT 0,   -- 0 is the cover
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT media_room_type_ck CHECK (
+    (kind = 'ROOM_TYPE' AND room_type_id IS NOT NULL) OR (kind = 'PROPERTY' AND room_type_id IS NULL))
+);
+CREATE UNIQUE INDEX media_object_key_uq   ON media (object_key);
+CREATE INDEX        media_property_kind_idx ON media (property_id, kind, room_type_id, sort_order);
+```
+
+Rules:
+
+- **The key is minted by the server**, never accepted from a client: it is the
+  tenant boundary inside the bucket, and a client naming a key could hang
+  another tenant's object on its own page. The public host is prepended on the
+  way out, so moving to a CDN is a config change.
+- **Two steps, browser-driven.** The API signs a PUT for exactly one key, type
+  and size (`POST /media/uploads`) and writes nothing; the browser PUTs the
+  file to the store; only then is the row written (`POST /media`), and only
+  after the API has HEADed the object. A row that points at nothing is a broken
+  image on the booking page for every guest.
+- **Delete removes the row, then the object.** In that order: a row without an
+  object is a broken picture, an object without a row is a few hundred
+  kilobytes nobody can see. A failed second step is logged, not surfaced.
+- At most 20 photos per gallery, 5 MB each, JPEG/PNG/WebP. The dashboard
+  shrinks phone photos to 1600 px before upload; the server enforces the cap
+  regardless.
 
 ## 8. Reservations
 

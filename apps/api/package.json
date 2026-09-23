@@ -23,6 +23,8 @@
     "db:set-user-email": "tsx src/database/set-user-email.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1137.0",
+    "@aws-sdk/s3-request-presigner": "^3.1137.0",
     "@deehub/shared": "workspace:*",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.4",

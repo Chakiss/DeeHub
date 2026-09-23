@@ -522,9 +522,56 @@ Capabilities in the right column are the permission checked
 | `PATCH`                | `/properties/{pid}/rooms/{id}`      | `room:update`                       |
 | `GET` `POST`           | `/properties/{pid}/rate-plans`      | `rateplan:read` / `rateplan:create` |
 | `GET` `PATCH` `DELETE` | `/properties/{pid}/rate-plans/{id}` | `rateplan:*`                        |
+| `GET`                  | `/properties/{pid}/media`           | `property:read`                     |
+| `POST`                 | `/properties/{pid}/media/uploads`   | `property:update`                   |
+| `POST`                 | `/properties/{pid}/media`           | `property:update`                   |
+| `PATCH` `DELETE`       | `/properties/{pid}/media/{id}`      | `property:update`                   |
 
 Property `timezone` and `currency` become immutable once a reservation
 exists; attempting to change them returns `409 CONFLICT`.
+
+#### The property profile
+
+`GET /properties/{pid}` returns everything the settings page edits and the
+booking page shows: address, phone, email, `website`, `latitude`/`longitude`,
+`descriptionTh`/`descriptionEn`, `amenities` (a list of strings), the check-in
+and check-out times, and — read-only — the code, timezone, currency and tax
+rates. `PATCH` accepts exactly the editable set (`.strict()`, so `code`,
+`currency` or `taxRateBp` in the body is a `422` rather than silently ignored).
+Coordinates must arrive as a pair or not at all: a latitude alone would place
+the hotel on the prime meridian, which Google will happily match to the Gulf of
+Guinea. Only the fields that changed appear in the `property.updated` audit
+entry.
+
+Room types gain `descriptionTh`, `bedConfig` ("1 king bed") and `sizeSqm`; rate
+plans gain `sellOnline` (default true). A plan with `sellOnline: false` stays
+active and priced for the desk but is invisible to the booking engine and to
+the metasearch feed, so a walk-in special never becomes the lowest price a
+stranger is shown.
+
+#### Photos
+
+Two steps, driven by the browser, so no image bytes pass through the API:
+
+```jsonc
+// POST /properties/{pid}/media/uploads   → 201
+{ "kind": "ROOM_TYPE", "roomTypeId": "0191…", "contentType": "image/jpeg", "bytes": 248113 }
+// ← { "mediaId": "0195…", "uploadUrl": "https://…?X-Amz-Signature=…",
+//     "headers": { "Content-Type": "image/jpeg", "Content-Length": "248113" },
+//     "expiresAt": "2026-09-23T08:05:00Z" }
+
+// The browser PUTs the file to uploadUrl with exactly those headers, then:
+// POST /properties/{pid}/media   → 201
+{ "kind": "ROOM_TYPE", "roomTypeId": "0191…", "mediaId": "0195…", "width": 1600, "height": 1200 }
+// ← { "id": "0195…", "url": "https://storage…/public/{org}/{pid}/0195….jpg", "sortOrder": 0, … }
+```
+
+The second call answers `422` until the object actually exists in the store
+(the API HEADs it), and the key is always the server's own — a client cannot
+attach an object it did not upload through this property. `GET` lists every
+photo with a public `url`, plus `storageAvailable: false` when the deployment
+has no store configured, so the dashboard can say so instead of failing. Limits
+(`422`): JPEG, PNG or WebP; 5 MB; 20 per gallery. `sortOrder: 0` is the cover.
 
 #### Derived rate plans
 

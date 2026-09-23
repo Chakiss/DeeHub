@@ -94,3 +94,14 @@ output "service_accounts" {
     web    = google_service_account.web.email
   }
 }
+
+# Written to Secret Manager by set-secrets.sh; sensitive so a plan never
+# prints it. `terraform output -raw storage_hmac_secret` is the only way out.
+output "storage_hmac_access_id" {
+  value = google_storage_hmac_key.api.access_id
+}
+
+output "storage_hmac_secret" {
+  value     = google_storage_hmac_key.api.secret
+  sensitive = true
+}
