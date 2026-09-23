@@ -681,6 +681,46 @@ folio rows before the reservation — the same trap the channel tables set.
 
 ---
 
+### 8.2 Payment intents
+
+One attempt to pay for a booking online. A folio payment is money that arrived;
+this is the step before it — a charge started with the provider that may still
+be waiting on a bank (3-D Secure) or on a guest scanning a PromptPay QR.
+
+```sql
+CREATE TABLE payment_intents (
+  id                 uuid PRIMARY KEY,
+  organization_id    uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  property_id        uuid NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
+  reservation_id     uuid NOT NULL REFERENCES reservations(id) ON DELETE RESTRICT,
+  provider           text NOT NULL,                    -- 'omise'
+  provider_charge_id text NOT NULL,
+  method             text NOT NULL CHECK (method IN ('CARD','PROMPTPAY')),
+  status             text NOT NULL DEFAULT 'PENDING'
+                     CHECK (status IN ('PENDING','PAID','FAILED','EXPIRED')),
+  amount_minor       bigint NOT NULL CHECK (amount_minor > 0),
+  currency           char(3) NOT NULL,
+  authorize_uri      text,          -- 3-D Secure page, when the bank asks
+  qr_image_uri       text,          -- the PromptPay QR, as the provider serves it
+  failure_reason     text,
+  expires_at         timestamptz,   -- the provider's deadline; EXPIRED after it
+  checked_at         timestamptz,   -- last time the provider was asked (poll throttle)
+  settled_at         timestamptz,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX payment_intents_provider_charge_uq ON payment_intents (provider, provider_charge_id);
+CREATE INDEX payment_intents_reservation_idx ON payment_intents (reservation_id, created_at);
+CREATE INDEX payment_intents_pending_idx ON payment_intents (expires_at) WHERE status = 'PENDING';
+```
+
+The unique index is the exactly-once guarantee: a webhook delivered twice, or
+racing the page's poll, finds the row already out of `PENDING` and does
+nothing. Everything that follows "paid" — the folio payment, `PENDING →
+CONFIRMED`, the confirmation email's outbox event — happens in the transaction
+that moves the row. Nothing here is the card; card details never reach this
+system.
+
 ## 9. Channel
 
 ```sql

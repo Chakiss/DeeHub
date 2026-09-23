@@ -420,7 +420,7 @@ describeIfDb('Booking engine', () => {
       // Telling a guest their card was declined when the hotel never had a
       // provider would be a lie about the hotel's own setup.
       expect(response.body.status).toBe('UNAVAILABLE');
-      expect(response.body.reason).toMatch(/does not take card payments/i);
+      expect(response.body.reason).toMatch(/does not take online payments/i);
     });
 
     it('leaves the booking held so a human can still confirm it', async () => {

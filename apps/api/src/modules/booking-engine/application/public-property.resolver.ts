@@ -15,6 +15,10 @@ export interface PublicProperty {
   readonly phone: string | null;
   readonly checkInTime: string;
   readonly checkOutTime: string;
+  /** For the tax breakdown a guest is shown — the same numbers the booking is priced with. */
+  readonly taxRateBp: number;
+  readonly serviceChargeRateBp: number;
+  readonly pricesIncludeTax: boolean;
 }
 
 /**
@@ -51,6 +55,9 @@ export class PublicPropertyResolver {
         phone: properties.phone,
         checkInTime: properties.checkInTime,
         checkOutTime: properties.checkOutTime,
+        taxRateBp: properties.taxRateBp,
+        serviceChargeRateBp: properties.serviceChargeRateBp,
+        pricesIncludeTax: properties.pricesIncludeTax,
       })
       .from(properties)
       .innerJoin(organizations, eq(organizations.id, properties.organizationId))

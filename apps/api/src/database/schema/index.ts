@@ -17,5 +17,6 @@ export * from './platform';
 export * from './notification';
 export * from './reporting';
 export * from './folio';
+export * from './payment';
 export * from './accounting';
 export * from './rate-view';

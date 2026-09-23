@@ -81,6 +81,7 @@ export class DrizzleRateRepository implements RateRepository {
     propertyId: string,
     roomTypeIds: readonly string[],
     dates: readonly IsoDate[],
+    options: { readonly onlineOnly?: boolean } = {},
   ): Promise<readonly LeadRate[]> {
     if (roomTypeIds.length === 0 || dates.length === 0) return [];
     const organizationId = requireOrganizationId();
@@ -99,7 +100,11 @@ export class DrizzleRateRepository implements RateRepository {
       // may well BE the lead rate — that is usually the point of creating one.
       .innerJoin(
         ratePlans,
-        and(eq(ratePlans.id, effectiveRateDays.ratePlanId), eq(ratePlans.isActive, true)),
+        and(
+          eq(ratePlans.id, effectiveRateDays.ratePlanId),
+          eq(ratePlans.isActive, true),
+          ...(options.onlineOnly ? [eq(ratePlans.sellOnline, true)] : []),
+        ),
       )
       // Joined to compare occupancy against each room type's OWN standard.
       // A fixed occupancy would silently show nothing for a family room whose

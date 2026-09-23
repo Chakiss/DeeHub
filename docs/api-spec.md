@@ -1047,12 +1047,17 @@ retry and dead-lettering, inbound webhooks, test-connection and forced sync.
 
 ### 6.8b Direct booking engine (public)
 
-| Method | Path                                                       | Auth |
-| ------ | ---------------------------------------------------------- | ---- |
-| `GET`  | `/public/{orgSlug}/{propertyCode}`                         | none |
-| `GET`  | `/public/{orgSlug}/{propertyCode}/availability`            | none |
-| `POST` | `/public/{orgSlug}/{propertyCode}/bookings`                | none |
-| `POST` | `/public/{orgSlug}/{propertyCode}/bookings/{code}/deposit` | none |
+| Method | Path                                                             | Auth |
+| ------ | ---------------------------------------------------------------- | ---- |
+| `GET`  | `/public/{orgSlug}/{propertyCode}`                               | none |
+| `GET`  | `/public/{orgSlug}/{propertyCode}/lowest?from&to`                | none |
+| `GET`  | `/public/{orgSlug}/{propertyCode}/availability`                  | none |
+| `POST` | `/public/{orgSlug}/{propertyCode}/bookings`                      | none |
+| `GET`  | `/public/{orgSlug}/{propertyCode}/bookings/{code}?email=`        | none |
+| `POST` | `/public/{orgSlug}/{propertyCode}/bookings/{code}/payments`      | none |
+| `GET`  | `/public/{orgSlug}/{propertyCode}/bookings/{code}/payments/{id}` | none |
+| `POST` | `/public/{orgSlug}/{propertyCode}/bookings/{code}/deposit`       | none |
+| `POST` | `/webhooks/omise`                                                | none |
 
 The only routes a stranger can reach, so the rules are about what they cannot
 do.
@@ -1067,59 +1072,95 @@ and dates; what it costs is read server-side by the same query and the same rate
 resolution the front desk uses. The schemas are `.strict()`, so an amount smuggled
 into the body is rejected rather than ignored.
 
-**Availability returns only what can be booked.** The staff-facing search
-returns unbookable room types WITH a reason, because a clerk needs to see that a
-three-night minimum is in the way. A guest gets the bookable set: the hotel's
-commercial rules are not theirs, and a list of rooms they may not have reads as
-a broken page.
+**Every figure a guest sees is all-in.** `perNight` and `total` on a plan are the
+hotel's net rates; `breakdown { subtotal, serviceCharge, tax, total }` applies the
+property's service charge and VAT exactly as the booking will (`computeBreakdown`,
+one function), and `fromTotal` on a room type is the cheapest plan's all-in total.
+`GET /lowest` is the calendar version: per night, the cheapest sellable plan's
+standard-occupancy price, all-in, or `null` when the night is stopped, sold out or
+unpriced. The metasearch feed (§6.8c) reads the same arithmetic, so the number on
+Google, the search page and the checkout cannot disagree.
+
+**`GET /public/{org}/{code}`** is the catalogue a page shows before a date is
+chosen: name, address, coordinates, website, phone, Thai and English
+descriptions, amenities, check-in times, the tax settings, the hotel's photos,
+and each active room type with its photos, beds, size, occupancy limits and the
+plans a stranger may buy. A plan with `sellOnline: false` never appears here,
+in `availability`, or in `lowest` — a room type with no online plan is omitted
+altogether. `paymentMethods` says what the checkout may offer (`CARD`,
+`PROMPTPAY`), empty when no provider is configured.
 
 **A booking is a HOLD.** `POST /bookings` creates a `PENDING` reservation that
 holds inventory for fifteen minutes — the same expiring hold the front desk
 uses, released by the maintenance job. A `CONFIRMED` booking nobody has paid for
 is a room given away. The response carries the CODE, never the id: the code is
-what a guest quotes on the phone and the only handle the deposit step accepts.
+what a guest quotes on the phone and the only handle the payment step accepts.
+Starting a payment extends the hold to thirty minutes so a PromptPay QR or a
+bank's 3-D Secure page outlives it.
 
 Bounds, all `422`: at most 30 nights, at most 5 rooms in one request, and no
 arrival more than 730 days out — the inventory horizon, beyond which there are
 no rows to sell anyway. An email address is required, unlike a desk booking,
-because nothing else can reach a guest who booked online.
+because nothing else can reach a guest who booked online, and it is the second
+factor for reading the booking back. **At most three unpaid holds per email per
+property** (`429 RATE_LIMITED`): a guest retrying a checkout needs two or three,
+a script booking a hotel out needs dozens. Per-IP limits live at the edge
+(Cloud Armor), because an in-memory limiter counts only its own instance.
 
-**`POST /bookings/{code}/deposit`** charges a one-time provider token and
-confirms the booking. The card never reaches this server: the browser tokenises
-it against the provider directly, which keeps the API out of PCI DSS scope.
+**`GET /bookings/{code}?email=`** returns the booking to whoever knows both the
+code and the email it was made with: status, dates, rooms, the all-in total,
+when the hold lapses, and the payment that matters (a paid one, else the newest
+pending). A wrong email is a `404`, the same as a wrong code.
+
+#### Paying
+
+Two steps, because two of the three ways to pay finish after the request that
+began them. `POST /bookings/{code}/payments` starts a charge for the booking's
+total — never a fraction; a deposit percentage needs a policy no rate plan
+carries (decisions-pending-review §17) — and answers one of:
 
 ```jsonc
-// → 200. A decline is a 200 too: the request worked and the bank said no.
-{ "status": "PAID", "amountMinor": 240000, "reservationStatus": "CONFIRMED" }
+// Card the bank did not challenge: done.
+{ "status": "PAID", "intentId": "0195…", "reservationStatus": "CONFIRMED" }
+// Card the bank wants to challenge (3-D Secure): send the guest to authorizeUri,
+// they come back to returnUri, the page polls.
+{ "status": "PENDING", "intentId": "0195…", "method": "CARD", "authorizeUri": "https://…", "qrImageUri": null, "expiresAt": "…" }
+// PromptPay: show the QR, the page polls.
+{ "status": "PENDING", "intentId": "0195…", "method": "PROMPTPAY", "authorizeUri": null, "qrImageUri": "https://…svg", "expiresAt": "…" }
 { "status": "DECLINED", "reason": "insufficient funds", "retryable": false }
-{ "status": "UNAVAILABLE", "reason": "This hotel does not take card payments online yet" }
+{ "status": "UNAVAILABLE", "reason": "This hotel does not take online payments yet" }
 ```
 
-The deposit is the WHOLE stay, not a fraction. A percentage needs a policy — how
-much, per rate plan, refundable until when — and no rate plan carries one; the
-full amount is the only figure that is unambiguous and already computed. A hotel
-wanting 30% can put a non-refundable derived plan in front of it.
+The body is `{ method: "CARD" | "PROMPTPAY", token?, returnUri }`. The card
+never reaches this server: the browser tokenises it against the provider
+directly, which keeps the API out of PCI DSS scope. `returnUri` must be on the
+booking site (`BOOKING_WEB_URL`) so a stranger holding a code cannot point the
+3-D Secure redirect at a page of their own. One open attempt per booking: a
+second `POST` while a QR is still payable returns the same QR rather than
+starting a second charge.
 
-Payment lands on the guest's FOLIO as a `CARD` payment with the provider's
-reference, not in a column of its own — the front desk has to see it when the
-guest arrives asking what they still owe. `recordedByUserId` is null: nobody at
-the hotel took it, and naming somebody would put their name on a cashier
-reconciliation.
+**`GET /bookings/{code}/payments/{intentId}?email=`** is what the page polls.
+It asks the provider (at most once every three seconds) and applies the answer:
+`outcome` is `PENDING`, `PAID`, `FAILED` (with `reason`), `EXPIRED`, or
+`PAID_UNCONFIRMABLE` — money arrived for a booking that was no longer awaiting
+payment (the hold lapsed, the desk cancelled), recorded on the folio and in the
+audit log for a person to refund.
 
-Only a `PENDING` booking can be charged. With nothing but a booking code, a
-public endpoint that charged a `CONFIRMED` one would be a way to bill a
-stranger's card twice.
+**`POST /webhooks/omise`** is the provider saying a charge changed. It is
+public to the JWT guard and NOT trusted: Omise signs nothing, so the body is a
+hint naming a charge and the API goes and asks Omise over the authenticated API.
+A forged body achieves a GET. The answer is always `200`; anything else makes
+Omise retry forever. Delivered twice, it confirms once — the intent row leaves
+`PENDING` exactly once, and the folio payment, the status change and the
+confirmation email all happen inside that transaction.
 
-With no `OMISE_SECRET_KEY` the booking is still taken and stays `PENDING` for a
-human to confirm, which is how most small Thai hotels already work. Answering
-`DECLINED` would be a lie about the hotel's own setup.
+Payment lands on the guest's FOLIO as a `CARD` or `PROMPTPAY` payment with the
+provider's charge id as its reference, not in a column of its own — the front
+desk has to see it when the guest arrives asking what they still owe.
+`recordedByUserId` is null: nobody at the hotel took it.
 
-**There is no rate limiting yet**, and it is a real gap rather than an oversight:
-an in-memory limiter is useless behind a service that scales horizontally, and
-doing it properly needs Redis or Cloud Armor. The exposure is a stranger
-creating expiring holds — bounded and self-healing, since holds release
-themselves — but a determined caller could keep a small hotel's inventory
-occupied.
+`POST /bookings/{code}/deposit` is the pre-`payments` shape, kept for older
+pages: a card token, settled in one call when the bank allows.
 
 ### 6.9 Inbound webhooks (OTA → DeeHub)
 

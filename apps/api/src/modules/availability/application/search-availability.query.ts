@@ -16,6 +16,8 @@ export interface AvailabilityRatePlan {
   readonly ratePlanId: string;
   readonly code: string;
   readonly name: string;
+  readonly mealPlan: string;
+  readonly isRefundable: boolean;
   readonly total: Money;
   readonly perNight: readonly { date: IsoDate; amount: Money }[];
   readonly bookable: boolean;
@@ -26,6 +28,8 @@ export interface AvailabilityRoomType {
   readonly roomTypeId: string;
   readonly code: string;
   readonly name: string;
+  readonly maxAdults: number;
+  readonly maxChildren: number;
   readonly availableUnits: number;
   readonly ratePlans: readonly AvailabilityRatePlan[];
 }
@@ -67,6 +71,10 @@ export class SearchAvailabilityQuery {
     checkOut: IsoDate,
     adults: number,
     children = 0,
+    options: {
+      /** Only plans a stranger may buy (`sell_online`). The desk sees every plan. */
+      readonly onlineOnly?: boolean;
+    } = {},
   ): Promise<AvailabilityResult> {
     const organizationId = requireOrganizationId();
     // Throws when check-out is not after check-in, so date order is enforced by
@@ -128,6 +136,8 @@ export class SearchAvailabilityQuery {
         code: ratePlans.code,
         name: ratePlans.name,
         roomTypeId: ratePlans.roomTypeId,
+        mealPlan: ratePlans.mealPlan,
+        isRefundable: ratePlans.isRefundable,
       })
       .from(ratePlans)
       .where(
@@ -135,6 +145,7 @@ export class SearchAvailabilityQuery {
           eq(ratePlans.organizationId, organizationId),
           eq(ratePlans.propertyId, propertyId),
           eq(ratePlans.isActive, true),
+          ...(options.onlineOnly ? [eq(ratePlans.sellOnline, true)] : []),
         ),
       );
 
@@ -199,6 +210,8 @@ export class SearchAvailabilityQuery {
             ratePlanId: plan.id,
             code: plan.code,
             name: plan.name,
+            mealPlan: plan.mealPlan,
+            isRefundable: plan.isRefundable,
             total: money(0, 'THB'),
             perNight: [],
             bookable: false,
@@ -217,6 +230,8 @@ export class SearchAvailabilityQuery {
           ratePlanId: plan.id,
           code: plan.code,
           name: plan.name,
+          mealPlan: plan.mealPlan,
+          isRefundable: plan.isRefundable,
           total: sum(
             perNight.map((entry) => entry.amount),
             currency,
@@ -240,6 +255,8 @@ export class SearchAvailabilityQuery {
         roomTypeId: type.id,
         code: type.code,
         name: type.name,
+        maxAdults: type.maxAdults,
+        maxChildren: type.maxChildren,
         availableUnits: units,
         ratePlans: typePlans,
       });
