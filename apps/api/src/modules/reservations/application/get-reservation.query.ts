@@ -4,6 +4,7 @@ import { DATABASE, type Database } from '../../../database/database.module';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import {
   bookingSources,
+  channels,
   physicalRooms,
   reservationStayNights,
   reservationStays,
@@ -24,6 +25,8 @@ export interface ReservationView {
     readonly name: string;
     readonly kind: string;
   } | null;
+  /** The connected channel it came through (BOOKING_COM, GOOGLE_HOTEL…); null otherwise. */
+  readonly channelType: string | null;
   /** The CRM profile this booking is linked to, for a "guest profile" link. */
   readonly guestId: string | null;
   readonly bookerName: string;
@@ -134,6 +137,14 @@ export class GetReservationQuery {
     // The OTA or agent this booking named, when it did. A second small read
     // rather than a join on the aggregate select above, which returns every
     // column by name and would have to be rewritten to alias one more.
+    const channelRows = reservation.channelId
+      ? await this.db
+          .select({ type: channels.type })
+          .from(channels)
+          .where(eq(channels.id, reservation.channelId))
+          .limit(1)
+      : [];
+
     const bookingSourceRows = reservation.bookingSourceId
       ? await this.db
           .select({ id: bookingSources.id, name: bookingSources.name, kind: bookingSources.kind })
@@ -154,6 +165,7 @@ export class GetReservationQuery {
       currency,
       source: reservation.source,
       bookingSource: bookingSourceRows[0] ?? null,
+      channelType: channelRows[0]?.type ?? null,
       // Who made the booking. The detail screen exists to answer "who is this
       // and what did they book", and the list only carries a name.
       guestId: reservation.guestId,

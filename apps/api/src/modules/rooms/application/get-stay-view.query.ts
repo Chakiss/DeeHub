@@ -3,7 +3,14 @@ import { and, asc, eq, ne, sql } from 'drizzle-orm';
 import { dateRange, toIsoDate, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
-import { physicalRooms, reservationStays, reservations, roomTypes } from '../../../database/schema';
+import {
+  bookingSources,
+  channels,
+  physicalRooms,
+  reservationStays,
+  reservations,
+  roomTypes,
+} from '../../../database/schema';
 
 export interface StayViewOccupancy {
   readonly stayId: string;
@@ -17,6 +24,12 @@ export interface StayViewOccupancy {
   readonly checkOut: IsoDate;
   /** True when the guest is in a different room type than they booked. */
   readonly upgraded: boolean;
+  /** How the booking arrived: WALK_IN, PHONE, EMAIL, DIRECT, OTA, TRAVEL_AGENT. */
+  readonly source: string;
+  /** Which OTA or agent, as the property named it ("Booking.com"); null otherwise. */
+  readonly bookingSourceName: string | null;
+  /** The connected channel it came through (BOOKING_COM, GOOGLE_HOTEL…); null otherwise. */
+  readonly channelType: string | null;
 }
 
 export interface StayViewRoom {
@@ -97,6 +110,9 @@ export class GetStayViewQuery {
         bookerName: reservations.bookerName,
         status: reservations.status,
         version: reservations.version,
+        source: reservations.source,
+        bookingSourceName: bookingSources.name,
+        channelType: channels.type,
         checkIn: reservationStays.checkIn,
         checkOut: reservationStays.checkOut,
         assignedRoomId: reservationStays.assignedRoomId,
@@ -108,6 +124,10 @@ export class GetStayViewQuery {
       .innerJoin(reservations, eq(reservations.id, reservationStays.reservationId))
       .innerJoin(roomTypes, eq(roomTypes.id, reservationStays.roomTypeId))
       .leftJoin(physicalRooms, eq(physicalRooms.id, reservationStays.assignedRoomId))
+      // Where it came from, for the badge on the bar. LEFT: most bookings
+      // name neither a source nor a channel.
+      .leftJoin(bookingSources, eq(bookingSources.id, reservations.bookingSourceId))
+      .leftJoin(channels, eq(channels.id, reservations.channelId))
       .where(
         and(
           eq(reservationStays.organizationId, organizationId),
@@ -137,6 +157,9 @@ export class GetStayViewQuery {
         checkIn: toIsoDate(row.checkIn),
         checkOut: toIsoDate(row.checkOut),
         upgraded: row.assignedRoomTypeId !== null && row.assignedRoomTypeId !== row.stayRoomTypeId,
+        source: row.source,
+        bookingSourceName: row.bookingSourceName,
+        channelType: row.channelType,
       };
 
       if (row.assignedRoomId === null) {
