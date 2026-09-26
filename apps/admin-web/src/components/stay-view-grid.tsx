@@ -9,7 +9,9 @@ import { assignRoom, checkIn, checkOut } from '@/app/properties/[propertyId]/roo
 import { listAssignableRooms } from '@/app/properties/[propertyId]/reservations/actions';
 import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
 import { freeRoomsPerNight, layoutStays, type StayBar } from '@/lib/stay-layout';
+import { badgeKeyFor } from '@/lib/channel-badge';
 import { StaySheet } from '@/components/stay-sheet';
+import { ChannelBadge } from '@/components/channel-badge';
 
 const HOUSEKEEPING_DOT: Record<string, string> = {
   CLEAN: 'bg-emerald-500',
@@ -676,6 +678,13 @@ function Bar({
         top: `${String(bar.lane * LANE_PX + 4)}px`,
       }}
     >
+      <span className="mr-1 flex shrink-0">
+        <ChannelBadge
+          source={stay.source}
+          bookingSourceName={stay.bookingSourceName}
+          channelType={stay.channelType}
+        />
+      </span>
       <span className="truncate">{name}</span>
       <span className="sr-only">
         {' '}
@@ -688,6 +697,17 @@ function Bar({
 
 function Legend() {
   const t = useTranslations('stayView');
+  const channels: { source: string; name?: string; channel?: string }[] = [
+    { source: 'OTA', name: 'Booking.com' },
+    { source: 'OTA', name: 'Agoda' },
+    { source: 'OTA', name: 'Expedia' },
+    { source: 'DIRECT', channel: 'GOOGLE_HOTEL' },
+    { source: 'DIRECT' },
+    { source: 'WALK_IN' },
+    { source: 'PHONE' },
+    { source: 'EMAIL' },
+    { source: 'TRAVEL_AGENT' },
+  ];
   const items: [string, string][] = [
     ['bg-brand-100 ring-1 ring-brand-200', t('expected')],
     ['bg-emerald-200', t('inHouse')],
@@ -696,14 +716,56 @@ function Legend() {
     ['bg-violet-100', t('upgraded')],
   ];
   return (
-    <ul aria-label={t('legend')} className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-      {items.map(([tone, label]) => (
-        <li key={label} className="flex items-center gap-1.5">
-          <span aria-hidden className={`inline-block h-3 w-5 rounded ${tone}`} />
-          {label}
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-1">
+      <ul
+        aria-label={t('legend')}
+        className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500"
+      >
+        {items.map(([tone, label]) => (
+          <li key={label} className="flex items-center gap-1.5">
+            <span aria-hidden className={`inline-block h-3 w-5 rounded ${tone}`} />
+            {label}
+          </li>
+        ))}
+      </ul>
+      <ul
+        aria-label={t('channels')}
+        className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500"
+      >
+        {channels.map((item) => (
+          <li key={`${item.source}-${item.name ?? ''}-${item.channel ?? ''}`}>
+            <ChannelBadgeWithLabel {...item} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ChannelBadgeWithLabel({
+  source,
+  name,
+  channel,
+}: {
+  source: string;
+  name?: string;
+  channel?: string;
+}) {
+  const t = useTranslations('reservations');
+  const key = badgeKeyFor({
+    source,
+    bookingSourceName: name ?? null,
+    channelType: channel ?? null,
+  });
+  return (
+    <span className="flex items-center gap-1">
+      <ChannelBadge
+        source={source}
+        bookingSourceName={name ?? null}
+        channelType={channel ?? null}
+      />
+      {name ?? t(`badge${key}`)}
+    </span>
   );
 }
 

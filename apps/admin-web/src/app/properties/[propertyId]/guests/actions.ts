@@ -1,11 +1,17 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ApiError, api, type DuplicateGuest, type MergeGuestResult } from '@/lib/api';
+import { ApiError, api, type DuplicateGuest, type Guest, type MergeGuestResult } from '@/lib/api';
 
 export interface DuplicatesResult {
   readonly ok: boolean;
   readonly items?: DuplicateGuest[];
+  readonly error?: { code: string; message: string };
+}
+
+export interface SearchGuestsResult {
+  readonly ok: boolean;
+  readonly items?: Guest[];
   readonly error?: { code: string; message: string };
 }
 
@@ -20,6 +26,15 @@ function failure(error: unknown) {
     return { ok: false as const, error: { code: error.code, message: error.message } };
   }
   throw error;
+}
+
+/** For the booking form's "returning guest" picker: this property's guests by name, email or phone. */
+export async function searchGuests(propertyId: string, q: string): Promise<SearchGuestsResult> {
+  try {
+    return { ok: true, items: await api.guests(propertyId, q) };
+  } catch (error) {
+    return failure(error);
+  }
 }
 
 /** Loaded on demand: most rows have no duplicates and nobody opens the panel. */

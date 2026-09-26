@@ -802,6 +802,12 @@ describeIfDb('Rooms and stay view', () => {
       const room = response.body.rooms.find((r: { roomNumber: string }) => r.roomNumber === '401');
       expect(room.stays).toHaveLength(1);
       expect(room.stays[0].guestName).toBe('Somchai Prasert');
+      // Where it came from, for the badge on the bar.
+      expect(room.stays[0]).toMatchObject({
+        source: expect.any(String),
+        bookingSourceName: null,
+        channelType: null,
+      });
       // The front desk's actual worklist.
       expect(response.body.unassigned).toHaveLength(1);
     });

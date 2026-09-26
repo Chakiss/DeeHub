@@ -257,7 +257,27 @@
     "bookerUnchanged": "ไม่มีอะไรเปลี่ยน",
     "guestProfile": "โปรไฟล์แขก",
     "applyToGuest": "อัปเดตโปรไฟล์แขกด้วย",
-    "bookerAndGuestSaved": "บันทึกข้อมูลติดต่อแล้ว ทั้งบนการจองและโปรไฟล์แขก"
+    "bookerAndGuestSaved": "บันทึกข้อมูลติดต่อแล้ว ทั้งบนการจองและโปรไฟล์แขก",
+    "badgeBOOKING_COM": "Booking.com",
+    "badgeAGODA": "Agoda",
+    "badgeEXPEDIA": "Expedia",
+    "badgeTRIP_COM": "Trip.com",
+    "badgeAIRBNB": "Airbnb",
+    "badgeGOOGLE_HOTEL": "Google",
+    "badgeOTA": "OTA",
+    "badgeDIRECT": "เว็บโรงแรม",
+    "badgeWALK_IN": "Walk-in",
+    "badgePHONE": "โทรศัพท์",
+    "badgeEMAIL": "อีเมล",
+    "badgeTRAVEL_AGENT": "เอเย่นต์",
+    "badgeUNKNOWN": "ไม่ทราบช่องทาง",
+    "returningGuest": "ลูกค้าเก่า",
+    "searchGuests": "ค้นหาด้วยชื่อ เบอร์โทร หรืออีเมล",
+    "noGuestsFound": "ไม่พบแขกที่ตรงกัน",
+    "guestStays": "เคยพัก {count} ครั้ง",
+    "guestLastStay": "ล่าสุด {date}",
+    "unlinkGuest": "ไม่ใช่คนนี้",
+    "closePicker": "ปิด"
   },
   "folio": {
     "title": "บัญชีของแขก",
@@ -574,7 +594,8 @@
     "move": "ย้าย",
     "moveTo": "ย้ายไป {room}",
     "currentRoom": "ห้องปัจจุบัน",
-    "dragHint": "ลากแท่งไปวางที่ห้องอื่นเพื่อย้ายแขก"
+    "dragHint": "ลากแท่งไปวางที่ห้องอื่นเพื่อย้ายแขก",
+    "channels": "ช่องทางการจอง"
   },
   "reports": {
     "title": "ผลประกอบการ",

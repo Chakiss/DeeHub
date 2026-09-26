@@ -257,7 +257,27 @@
     "bookerUnchanged": "Nothing was changed.",
     "guestProfile": "Guest profile",
     "applyToGuest": "Also update the guest profile",
-    "bookerAndGuestSaved": "Contact details saved, on the booking and the guest profile."
+    "bookerAndGuestSaved": "Contact details saved, on the booking and the guest profile.",
+    "badgeBOOKING_COM": "Booking.com",
+    "badgeAGODA": "Agoda",
+    "badgeEXPEDIA": "Expedia",
+    "badgeTRIP_COM": "Trip.com",
+    "badgeAIRBNB": "Airbnb",
+    "badgeGOOGLE_HOTEL": "Google",
+    "badgeOTA": "OTA",
+    "badgeDIRECT": "Hotel website",
+    "badgeWALK_IN": "Walk-in",
+    "badgePHONE": "Phone",
+    "badgeEMAIL": "Email",
+    "badgeTRAVEL_AGENT": "Travel agent",
+    "badgeUNKNOWN": "Unknown source",
+    "returningGuest": "Returning guest",
+    "searchGuests": "Search by name, phone or email",
+    "noGuestsFound": "No guest matches that.",
+    "guestStays": "{count, plural, one {# stay} other {# stays}}",
+    "guestLastStay": "last {date}",
+    "unlinkGuest": "Not this guest",
+    "closePicker": "Close"
   },
   "folio": {
     "title": "Guest account",
@@ -574,7 +594,8 @@
     "move": "Move",
     "moveTo": "Move to {room}",
     "currentRoom": "current",
-    "dragHint": "Drag a bar onto another room to move the guest."
+    "dragHint": "Drag a bar onto another room to move the guest.",
+    "channels": "Where bookings came from"
   },
   "reports": {
     "title": "Performance",

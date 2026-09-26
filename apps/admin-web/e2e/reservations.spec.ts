@@ -218,6 +218,63 @@ test.describe('reservations', () => {
     await expect(page.getByRole('row', { name: /\+66 81 234 5678/ })).toBeVisible();
   });
 
+  /**
+   * A regular comes back. Picked from the profiles this property already
+   * has, the new booking lands on the same person — two stays, one row on the
+   * guests screen — instead of creating a near-duplicate to merge later.
+   */
+  test('books a returning guest from their profile', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    await openForSale(request, token, '2030-12-01', '2030-12-06');
+    const surname = `Regular${Date.now().toString(36)}`;
+    const phone = `08${Date.now().toString().slice(-8)}`;
+    const first = await request.post(
+      `${process.env.DEEHUB_API_URL ?? 'http://127.0.0.1:3001/api/v1'}/properties/${data.propertyId}/reservations`,
+      {
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        data: {
+          source: 'WALK_IN',
+          booker: { name: `Malee ${surname}`, phone },
+          stays: [
+            {
+              roomTypeId: data.roomTypeId,
+              ratePlanId: data.ratePlanId,
+              checkIn: '2030-12-01',
+              checkOut: '2030-12-02',
+              adults: 1,
+            },
+          ],
+        },
+      },
+    );
+    expect(first.ok(), await first.text()).toBeTruthy();
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/new`);
+    await page.getByLabel('Check-in').fill('2030-12-03');
+    await page.getByLabel('Check-out').fill('2030-12-04');
+
+    await page.getByRole('button', { name: 'Returning guest' }).click();
+    await page.getByLabel('Search by name, phone or email').fill(phone);
+    await page.getByRole('button', { name: new RegExp(surname) }).click();
+
+    // Filled in from the profile, and linked.
+    await expect(page.getByLabel('Name', { exact: true })).toHaveValue(`Malee ${surname}`);
+    await expect(page.getByLabel('Phone (optional)')).toHaveValue(phone);
+    await expect(page.getByText(`Malee ${surname}`, { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Create booking' }).click();
+    await expect(page).toHaveURL(/\/reservations\/[0-9a-f-]{36}$/);
+    await expect(page.getByRole('link', { name: /Guest profile/ })).toBeVisible();
+
+    // One person, two stays.
+    await page.goto(`/properties/${data.propertyId}/guests?q=${surname}`);
+    const rows = page.getByRole('row', { name: new RegExp(surname) });
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('2');
+  });
+
   test('a room taken on those nights is not offered', async ({ page, request }) => {
     const data = testData();
     const token = await apiToken(request);

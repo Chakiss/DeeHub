@@ -297,6 +297,8 @@ test.describe('rooms and stay view', () => {
 
     const row = page.getByRole('row', { name: /202/ });
     await expect(row).toContainText(guest);
+    // Where it came from, on the bar itself.
+    await expect(row.getByRole('img', { name: 'Walk-in' })).toBeVisible();
 
     // The bar is one tap; what it can do lives in the sheet it opens.
     await row.getByRole('button', { name: new RegExp(guest) }).click();
