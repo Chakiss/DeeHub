@@ -197,3 +197,10 @@ variable "line_staff_target" {
   type        = string
   default     = ""
 }
+
+variable "enable_storage_hmac" {
+  description = "Mint the HMAC key the API signs photo uploads with. false when the organization policy iam.disableServiceAccountKeyCreation blocks it; photos are then reported as not configured until it is lifted."
+  type        = bool
+  default     = true
+}
+

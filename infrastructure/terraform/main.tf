@@ -177,6 +177,15 @@ resource "google_storage_bucket_iam_member" "media_public" {
 # account rather than its OAuth identity. The secret half is written to Secret
 # Manager by set-secrets.sh from `terraform output -raw storage_hmac_secret`;
 # it is sensitive in state, never printed by a plan.
+#
+# Optional: the organization policy `iam.disableServiceAccountKeyCreation`
+# (enforced by default on new Google Cloud organizations) refuses HMAC keys,
+# and a project editor cannot lift it. With `enable_storage_hmac = false` the
+# rest of the platform applies; set-secrets.sh writes the "disabled"
+# placeholder, the API starts with photos reported as not configured, and
+# everything else works. Flip it on once an organization administrator has
+# exempted the project.
 resource "google_storage_hmac_key" "api" {
+  count                 = var.enable_storage_hmac ? 1 : 0
   service_account_email = google_service_account.api.email
 }
