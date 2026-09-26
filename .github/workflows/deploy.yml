@@ -66,20 +66,36 @@ jobs:
       # instead of a plain manifest, which writes the tag twice. Artifact
       # Registry has immutable tags, so the second write fails with "cannot
       # update tag" once the image has already been uploaded.
+      #
+      # An image that already exists for this commit is reused, not rebuilt:
+      # a manual re-run of the workflow on the same SHA (to pick up a service
+      # Terraform has just created, say) must not fail on the immutable tag.
       - name: Build and push API image
         run: |
+          if docker manifest inspect "${{ steps.images.outputs.api }}" >/dev/null 2>&1; then
+            echo "Image already exists for this commit — reusing it."
+            exit 0
+          fi
           docker build --provenance=false --sbom=false \
             -f apps/api/Dockerfile -t "${{ steps.images.outputs.api }}" .
           docker push "${{ steps.images.outputs.api }}"
 
       - name: Build and push dashboard image
         run: |
+          if docker manifest inspect "${{ steps.images.outputs.web }}" >/dev/null 2>&1; then
+            echo "Image already exists for this commit — reusing it."
+            exit 0
+          fi
           docker build --provenance=false --sbom=false \
             -f apps/admin-web/Dockerfile -t "${{ steps.images.outputs.web }}" .
           docker push "${{ steps.images.outputs.web }}"
 
       - name: Build and push booking site image
         run: |
+          if docker manifest inspect "${{ steps.images.outputs.book }}" >/dev/null 2>&1; then
+            echo "Image already exists for this commit — reusing it."
+            exit 0
+          fi
           docker build --provenance=false --sbom=false \
             -f apps/booking-web/Dockerfile -t "${{ steps.images.outputs.book }}" .
           docker push "${{ steps.images.outputs.book }}"
