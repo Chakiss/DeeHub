@@ -270,7 +270,13 @@
     "badgePHONE": "โทรศัพท์",
     "badgeEMAIL": "อีเมล",
     "badgeTRAVEL_AGENT": "เอเย่นต์",
-    "badgeUNKNOWN": "ไม่ทราบช่องทาง"
+    "badgeUNKNOWN": "ไม่ทราบช่องทาง",
+    "returningGuest": "ลูกค้าเก่า",
+    "searchGuests": "ค้นหาด้วยชื่อ เบอร์โทร หรืออีเมล",
+    "noGuestsFound": "ไม่พบแขกที่ตรงกัน",
+    "guestStays": "เคยพัก {count} ครั้ง",
+    "guestLastStay": "ล่าสุด {date}",
+    "unlinkGuest": "ไม่ใช่คนนี้"
   },
   "folio": {
     "title": "บัญชีของแขก",

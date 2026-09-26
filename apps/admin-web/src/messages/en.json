@@ -270,7 +270,13 @@
     "badgePHONE": "Phone",
     "badgeEMAIL": "Email",
     "badgeTRAVEL_AGENT": "Travel agent",
-    "badgeUNKNOWN": "Unknown source"
+    "badgeUNKNOWN": "Unknown source",
+    "returningGuest": "Returning guest",
+    "searchGuests": "Search by name, phone or email",
+    "noGuestsFound": "No guest matches that.",
+    "guestStays": "{count, plural, one {# stay} other {# stays}}",
+    "guestLastStay": "last {date}",
+    "unlinkGuest": "Not this guest"
   },
   "folio": {
     "title": "Guest account",
