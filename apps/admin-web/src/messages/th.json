@@ -276,7 +276,8 @@
     "noGuestsFound": "ไม่พบแขกที่ตรงกัน",
     "guestStays": "เคยพัก {count} ครั้ง",
     "guestLastStay": "ล่าสุด {date}",
-    "unlinkGuest": "ไม่ใช่คนนี้"
+    "unlinkGuest": "ไม่ใช่คนนี้",
+    "closePicker": "ปิด"
   },
   "folio": {
     "title": "บัญชีของแขก",

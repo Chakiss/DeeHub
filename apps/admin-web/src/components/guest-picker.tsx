@@ -22,16 +22,22 @@ export function guestDisplayName(guest: Pick<Guest, 'firstName' | 'lastName'>): 
 export function GuestPicker({
   propertyId,
   selected,
+  open,
+  onOpen,
+  onClose,
   onPick,
   onClear,
 }: {
   propertyId: string;
   selected: Guest | null;
+  /** The search panel is open. Owned by the form so it can place the button and the panel apart. */
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
   onPick: (guest: Guest) => void;
   onClear: () => void;
 }) {
   const t = useTranslations('reservations');
-  const [open, setOpen] = useState(false);
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<Guest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +83,6 @@ export function GuestPicker({
           type="button"
           onClick={() => {
             onClear();
-            setOpen(false);
             setTerm('');
             setResults(null);
           }}
@@ -93,7 +98,7 @@ export function GuestPicker({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={onOpen}
         className="text-sm font-medium text-brand-700 underline-offset-2 hover:underline"
       >
         {t('returningGuest')}
@@ -116,13 +121,13 @@ export function GuestPicker({
         <button
           type="button"
           onClick={() => {
-            setOpen(false);
+            onClose();
             setTerm('');
             setResults(null);
           }}
           className="shrink-0 text-xs text-stone-500 hover:text-ink-800"
         >
-          {t('cancelEdit')}
+          {t('closePicker')}
         </button>
       </div>
 
@@ -142,7 +147,6 @@ export function GuestPicker({
                 type="button"
                 onClick={() => {
                   onPick(guest);
-                  setOpen(false);
                   setTerm('');
                   setResults(null);
                 }}

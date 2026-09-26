@@ -115,8 +115,10 @@ export function BookingForm({
   // creating a new one. Editing the fields afterwards changes the booking's
   // contact only; the profile is corrected from the booking page if needed.
   const [guest, setGuest] = useState<Guest | null>(null);
+  const [pickingGuest, setPickingGuest] = useState(false);
   function pickGuest(picked: Guest) {
     setGuest(picked);
+    setPickingGuest(false);
     setBooker({
       name: guestDisplayName(picked),
       email: picked.email ?? '',
@@ -511,21 +513,30 @@ export function BookingForm({
         <Card
           title={t('bookerHeading')}
           action={
-            !guest && (
+            !guest &&
+            !pickingGuest && (
               <GuestPicker
                 propertyId={propertyId}
                 selected={null}
+                open={false}
+                onOpen={() => setPickingGuest(true)}
+                onClose={() => setPickingGuest(false)}
                 onPick={pickGuest}
                 onClear={() => setGuest(null)}
               />
             )
           }
         >
-          {guest && (
+          {/* The chip, or the search panel, sits under the heading at full
+              width: a search box beside a title is unusable on a phone. */}
+          {(guest || pickingGuest) && (
             <div className="mb-3">
               <GuestPicker
                 propertyId={propertyId}
                 selected={guest}
+                open={pickingGuest}
+                onOpen={() => setPickingGuest(true)}
+                onClose={() => setPickingGuest(false)}
                 onPick={pickGuest}
                 onClear={() => setGuest(null)}
               />

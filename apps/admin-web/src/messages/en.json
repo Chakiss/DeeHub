@@ -276,7 +276,8 @@
     "noGuestsFound": "No guest matches that.",
     "guestStays": "{count, plural, one {# stay} other {# stays}}",
     "guestLastStay": "last {date}",
-    "unlinkGuest": "Not this guest"
+    "unlinkGuest": "Not this guest",
+    "closePicker": "Close"
   },
   "folio": {
     "title": "Guest account",
