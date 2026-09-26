@@ -132,6 +132,7 @@ export interface ReservationListItem {
   status: string;
   source: string;
   bookingSource: { id: string; name: string } | null;
+  channelType: string | null;
   bookerName: string;
   checkIn: string | null;
   checkOut: string | null;
@@ -156,6 +157,7 @@ export interface ReservationDetail {
   currency: string;
   source: string;
   bookingSource: { id: string; name: string; kind: string } | null;
+  channelType: string | null;
   /** The CRM profile this booking is linked to, when there is one. */
   guestId: string | null;
   bookerName: string;
@@ -641,6 +643,10 @@ export interface StayViewOccupancy {
   checkIn: string;
   checkOut: string;
   upgraded: boolean;
+  /** How the booking arrived, for the badge on the bar. */
+  source: string;
+  bookingSourceName: string | null;
+  channelType: string | null;
 }
 
 export interface StayViewRoom {

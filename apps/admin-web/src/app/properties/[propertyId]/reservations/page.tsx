@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ChannelBadge } from '@/components/channel-badge';
 import { getTranslations } from 'next-intl/server';
 import { RESERVATION_SOURCES, api } from '@/lib/api';
 import { formatMoney } from '@/lib/dates';
@@ -119,6 +120,13 @@ export default async function ReservationsPage({
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-xs text-stone-500">
+                  <span className="mr-1.5 inline-flex align-middle">
+                    <ChannelBadge
+                      source={reservation.source}
+                      bookingSourceName={reservation.bookingSource?.name ?? null}
+                      channelType={reservation.channelType}
+                    />
+                  </span>
                   {t.has(`source${reservation.source}`)
                     ? t(`source${reservation.source}`)
                     : reservation.source}

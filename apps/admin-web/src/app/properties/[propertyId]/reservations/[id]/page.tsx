@@ -9,6 +9,7 @@ import { StayDeparture } from '@/components/stay-departure';
 import { FolioPanel } from '@/components/folio-panel';
 import { StayRoomPicker } from '@/components/stay-room-picker';
 import { BookerEditor } from '@/components/booker-editor';
+import { ChannelBadge } from '@/components/channel-badge';
 
 /** Bookings a modification can still take apart and re-hold. */
 const MODIFIABLE = ['PENDING', 'CONFIRMED'];
@@ -93,7 +94,13 @@ export default async function ReservationDetailPage({
           >
             {reservation.status.replace('_', ' ').toLowerCase()}
           </span>
-          <span className="text-xs text-stone-500">
+          <span className="flex items-center gap-1.5 text-xs text-stone-500">
+            <ChannelBadge
+              source={reservation.source}
+              bookingSourceName={reservation.bookingSource?.name ?? null}
+              channelType={reservation.channelType}
+              size="md"
+            />
             {t.has(`source${reservation.source}`)
               ? t(`source${reservation.source}`)
               : reservation.source}

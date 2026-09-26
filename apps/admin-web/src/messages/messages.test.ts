@@ -82,7 +82,13 @@ describe('message catalogues', () => {
     const thai = flatten(th);
 
     // Brand names and abbreviations are the same in both on purpose.
-    const sameByDesign = new Set(['app.name', 'app.tagline', 'login.subtitle', 'guests.never']);
+    const sameByDesign = new Set([
+      'app.name',
+      'app.tagline',
+      'login.subtitle',
+      'guests.never',
+      'reservations.badgeBOOKING_COM',
+    ]);
     const untranslated = [...english]
       .filter(([key, text]) => !sameByDesign.has(key) && thai.get(key) === text)
       // Short tokens like "ADR" and "RevPAR" stay as they are in Thai too.

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import type { AssignableRoom, StayViewOccupancy } from '@/lib/api';
 import { listAssignableRooms } from '@/app/properties/[propertyId]/reservations/actions';
+import { ChannelBadge } from '@/components/channel-badge';
 
 /** Nights between two calendar dates. */
 function nightsBetween(checkIn: string, checkOut: string): number {
@@ -48,8 +49,14 @@ export function StaySheet({
   onClose: () => void;
 }) {
   const t = useTranslations('stayView');
+  const tr = useTranslations('reservations');
   const name = stay.guestName ?? stay.reservationCode;
   const dueOut = stay.status === 'CHECKED_IN' && stay.checkOut <= today;
+  // Said in words as well as by the badge: "where did this come from" is
+  // the question the desk asked for on this sheet.
+  const sourceLabel =
+    stay.bookingSourceName ??
+    (tr.has(`source${stay.source}`) ? tr(`source${stay.source}`) : stay.source);
   const movable = canAssign && stay.status !== 'CHECKED_OUT' && stay.status !== 'CANCELLED';
 
   /*
@@ -114,7 +121,15 @@ export function StaySheet({
           <div className="min-w-0">
             <p className="text-xs text-stone-500">{t('stayDetails')}</p>
             <h2 className="truncate text-lg font-medium text-ink-900">{name}</h2>
-            <p className="tabular text-xs text-stone-500">
+            <p className="tabular flex items-center gap-1.5 text-xs text-stone-500">
+              <ChannelBadge
+                source={stay.source}
+                bookingSourceName={stay.bookingSourceName}
+                channelType={stay.channelType}
+                size="md"
+              />
+              <span className="font-medium text-ink-700">{sourceLabel}</span>
+              <span aria-hidden>·</span>
               {stay.reservationCode} · {roomNumber}
               {stay.upgraded && (
                 <span className="ml-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] uppercase text-violet-800">

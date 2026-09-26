@@ -7,10 +7,12 @@ import type {
   AssignableRoom,
   BookingSource,
   CreateReservationInput,
+  Guest,
   InventoryGrid,
   RatePlan,
   RoomType,
 } from '@/lib/api';
+import { GuestPicker, guestDisplayName } from '@/components/guest-picker';
 import {
   checkAvailability,
   createReservation,
@@ -109,6 +111,20 @@ export function BookingForm({
 
   const [stays, setStays] = useState<StayDraft[]>(() => [newStay(roomTypes, plansFor)]);
   const [booker, setBooker] = useState({ name: '', email: '', phone: '' });
+  // A returning guest: the booking is linked to their profile rather than
+  // creating a new one. Editing the fields afterwards changes the booking's
+  // contact only; the profile is corrected from the booking page if needed.
+  const [guest, setGuest] = useState<Guest | null>(null);
+  const [pickingGuest, setPickingGuest] = useState(false);
+  function pickGuest(picked: Guest) {
+    setGuest(picked);
+    setPickingGuest(false);
+    setBooker({
+      name: guestDisplayName(picked),
+      email: picked.email ?? '',
+      phone: picked.phone ?? '',
+    });
+  }
   const [sourceChoice, setSourceChoice] = useState<string>('WALK_IN');
   const [specialRequests, setSpecialRequests] = useState('');
 
@@ -242,6 +258,7 @@ export function BookingForm({
         ...(booker.email.trim() ? { email: booker.email.trim() } : {}),
         ...(booker.phone.trim() ? { phone: booker.phone.trim() } : {}),
       },
+      ...(guest ? { guestId: guest.id } : {}),
       stays: stays.map((stay) => ({
         roomTypeId: stay.roomTypeId,
         ratePlanId: stay.ratePlanId,
@@ -493,7 +510,38 @@ export function BookingForm({
           </button>
         </Card>
 
-        <Card title={t('bookerHeading')}>
+        <Card
+          title={t('bookerHeading')}
+          action={
+            !guest &&
+            !pickingGuest && (
+              <GuestPicker
+                propertyId={propertyId}
+                selected={null}
+                open={false}
+                onOpen={() => setPickingGuest(true)}
+                onClose={() => setPickingGuest(false)}
+                onPick={pickGuest}
+                onClear={() => setGuest(null)}
+              />
+            )
+          }
+        >
+          {/* The chip, or the search panel, sits under the heading at full
+              width: a search box beside a title is unusable on a phone. */}
+          {(guest || pickingGuest) && (
+            <div className="mb-3">
+              <GuestPicker
+                propertyId={propertyId}
+                selected={guest}
+                open={pickingGuest}
+                onOpen={() => setPickingGuest(true)}
+                onClose={() => setPickingGuest(false)}
+                onPick={pickGuest}
+                onClear={() => setGuest(null)}
+              />
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <Labelled label={t('bookerName')}>
               <input
@@ -740,10 +788,21 @@ function countNights(from: string, to: string): number {
   return Math.round((end - start) / 86_400_000);
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
-      <h2 className="mb-3 text-sm font-semibold text-ink-900">{title}</h2>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   );
