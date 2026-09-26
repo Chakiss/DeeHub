@@ -268,7 +268,7 @@ export function StayViewGrid({
       {/* Scrolling stays inside the grid: the page body must never move.
           Column widths are CSS variables so header and rows agree without
           measuring anything; a phone shows a week, a desk shows the fortnight. */}
-      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card [--col:44px] [--room:64px] sm:[--col:60px] sm:[--room:84px]">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card [--col:42px] [--room:74px] sm:[--col:60px] sm:[--room:88px]">
         <div
           role="table"
           aria-label={t('title')}
@@ -347,7 +347,7 @@ export function StayViewGrid({
                           every pixel here is a night the desk cannot see. */}
                       <div
                         role="rowheader"
-                        className="sticky left-0 z-10 flex w-[var(--room)] shrink-0 items-center gap-1.5 border-b border-r border-stone-200 bg-white px-2 text-xs font-semibold text-ink-800"
+                        className="sticky left-0 z-10 flex w-[var(--room)] shrink-0 items-center gap-1 border-b border-r border-stone-200 bg-white px-1.5 text-[11px] font-semibold text-ink-800 sm:text-xs"
                         style={{ height: `${String(lanes * LANE_PX + 4)}px` }}
                       >
                         <span
