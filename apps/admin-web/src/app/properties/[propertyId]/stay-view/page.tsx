@@ -21,7 +21,11 @@ export default async function StayViewPage({
   // from us-central1 must not open on yesterday.
   const properties = await api.properties();
   const property = properties.find((candidate) => candidate.id === propertyId);
-  const from = fromParam ?? businessDate(property?.timezone ?? 'Asia/Bangkok');
+  const today = businessDate(property?.timezone ?? 'Asia/Bangkok');
+  // Open on YESTERDAY: the desk's first question in the morning is who slept
+  // here last night and whether they have left yet, and a window that starts
+  // today cannot answer it.
+  const from = fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) ? fromParam : addDays(today, -1);
   const to = addDays(from, DEFAULT_WINDOW_DAYS);
 
   const [view, me] = await Promise.all([api.stayView(propertyId, from, to), api.me()]);
@@ -37,7 +41,7 @@ export default async function StayViewPage({
         propertyId={propertyId}
         view={view}
         from={from}
-        windowDays={DEFAULT_WINDOW_DAYS}
+        today={today}
         canAssign={me.capabilities.includes('reservation:update')}
       />
     </div>

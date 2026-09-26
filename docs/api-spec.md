@@ -485,8 +485,17 @@ hash of the request body for 24 hours:
 
 ```jsonc
 PATCH /properties/{pid}/reservations/{id}
-{ "version": 3, "specialRequests": "Late arrival, 23:00" }
+{ "version": 3, "bookerName": "Xiao Yu", "bookerPhone": "+66 81 234 5678",
+  "bookerEmail": null, "specialRequests": "Late arrival, 23:00" }
+// → 200 { id, version: 4, bookerName, bookerEmail, bookerPhone, specialRequests }
 ```
+
+This endpoint corrects contact text and nothing else: `null` (or `""`) clears
+an optional field, absent leaves it alone, and status, dates and money each
+have their own endpoint. Every status is allowed — fixing the name on a
+checked-out booking is an invoice correction. The linked guest profile is a
+separate record (`PATCH /guests/{guestId}`) and is not touched. Audited as
+`reservation.booker_updated` with the contact before and after.
 
 Stale version → `409 VERSION_MISMATCH`. This is what stops two front-desk
 staff silently overwriting each other.

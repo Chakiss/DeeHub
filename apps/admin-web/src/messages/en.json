@@ -247,7 +247,15 @@
     "priceNote": "Reason for this price",
     "priceNoteHint": "Required when below the plan, e.g. regular guest",
     "pricedFromMANUAL": "Price set at the desk",
-    "pricedFromCHANNEL": "OTA price"
+    "pricedFromCHANNEL": "OTA price",
+    "editBooker": "Edit",
+    "editBookerTitle": "Correct the booker",
+    "editBookerHint": "Contact details only. Dates, rooms and prices are changed on the room below.",
+    "bookerNameRequired": "A name is needed.",
+    "saveBooker": "Save",
+    "bookerSaved": "Contact details saved.",
+    "bookerUnchanged": "Nothing was changed.",
+    "guestProfile": "Guest profile"
   },
   "folio": {
     "title": "Guest account",
@@ -541,7 +549,23 @@
     "loadingRooms": "Finding free rooms…",
     "noRoomsFree": "No room is free for these nights. Release one, or change the dates.",
     "upgradeGroup": "Other room types (upgrade)",
-    "dirty": "not yet cleaned"
+    "dirty": "not yet cleaned",
+    "roomColumn": "Room",
+    "weekBack": "7 days back",
+    "weekForward": "7 days on",
+    "today": "Today",
+    "jumpTo": "Go to date",
+    "legend": "Legend",
+    "expected": "Booked",
+    "pendingHold": "Pending",
+    "dueOut": "Due out",
+    "dueOutHint": "Was due to leave on {date} and is still checked in.",
+    "startedBefore": "Arrived before this window, on {date}",
+    "continuesAfter": "Leaves after this window, on {date}",
+    "openReservation": "Open booking",
+    "close": "Close",
+    "stayDetails": "Stay details",
+    "noRoomForNights": "Release the room: the booking keeps its dates and goes back on the worklist."
   },
   "reports": {
     "title": "Performance",

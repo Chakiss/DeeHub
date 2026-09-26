@@ -24,6 +24,8 @@ export interface ReservationView {
     readonly name: string;
     readonly kind: string;
   } | null;
+  /** The CRM profile this booking is linked to, for a "guest profile" link. */
+  readonly guestId: string | null;
   readonly bookerName: string;
   readonly bookerEmail: string | null;
   readonly bookerPhone: string | null;
@@ -154,6 +156,7 @@ export class GetReservationQuery {
       bookingSource: bookingSourceRows[0] ?? null,
       // Who made the booking. The detail screen exists to answer "who is this
       // and what did they book", and the list only carries a name.
+      guestId: reservation.guestId,
       bookerName: reservation.bookerName,
       bookerEmail: reservation.bookerEmail,
       bookerPhone: reservation.bookerPhone,

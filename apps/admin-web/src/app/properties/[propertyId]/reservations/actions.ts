@@ -15,6 +15,8 @@ import {
   type Folio,
   type ShortenedStay,
   type ShortenStayInput,
+  type UpdateBookerInput,
+  type UpdatedBooker,
 } from '@/lib/api';
 import type { FolioChargeKind, FolioPaymentKind, FolioPaymentMethod } from '@/lib/folio-types';
 
@@ -188,6 +190,32 @@ export interface ModifyStayActionResult extends ReservationActionResult {
  * transaction, so a refusal here means the booking is untouched — never half
  * moved. `version` guards against a second clerk editing the same booking.
  */
+export interface UpdateBookerActionResult extends ReservationActionResult {
+  readonly booker?: UpdatedBooker;
+}
+
+/**
+ * Correct who booked and how to reach them.
+ *
+ * Contact text only, so nothing about availability changes — but the stay
+ * view prints the booker's name on the room's bar, so it is refreshed too.
+ */
+export async function updateBooker(
+  propertyId: string,
+  reservationId: string,
+  input: UpdateBookerInput,
+): Promise<UpdateBookerActionResult> {
+  try {
+    const booker = await api.updateBooker(propertyId, reservationId, input);
+    revalidatePath(`/properties/${propertyId}/reservations/${reservationId}`);
+    revalidatePath(`/properties/${propertyId}/reservations`);
+    revalidatePath(`/properties/${propertyId}/stay-view`);
+    return { ok: true, booker };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export async function modifyStay(
   propertyId: string,
   reservationId: string,

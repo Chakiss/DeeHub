@@ -247,7 +247,15 @@
     "priceNote": "เหตุผลของราคานี้",
     "priceNoteHint": "ต้องใส่เมื่อต่ำกว่าราคาแผน เช่น ลูกค้าประจำ",
     "pricedFromMANUAL": "ราคาที่ตกลงหน้าเคาน์เตอร์",
-    "pricedFromCHANNEL": "ราคา OTA"
+    "pricedFromCHANNEL": "ราคา OTA",
+    "editBooker": "แก้ไข",
+    "editBookerTitle": "แก้ไขข้อมูลผู้จอง",
+    "editBookerHint": "แก้เฉพาะข้อมูลติดต่อ วันเข้าพัก ห้อง และราคา แก้ได้ที่ห้องพักด้านล่าง",
+    "bookerNameRequired": "ต้องมีชื่อ",
+    "saveBooker": "บันทึก",
+    "bookerSaved": "บันทึกข้อมูลติดต่อแล้ว",
+    "bookerUnchanged": "ไม่มีอะไรเปลี่ยน",
+    "guestProfile": "โปรไฟล์แขก"
   },
   "folio": {
     "title": "บัญชีของแขก",
@@ -541,7 +549,23 @@
     "loadingRooms": "กำลังหาห้องว่าง…",
     "noRoomsFree": "ไม่มีห้องว่างสำหรับคืนที่เลือก ปล่อยห้องอื่นก่อน หรือเปลี่ยนวัน",
     "upgradeGroup": "ประเภทห้องอื่น (อัปเกรด)",
-    "dirty": "ยังไม่ได้ทำความสะอาด"
+    "dirty": "ยังไม่ได้ทำความสะอาด",
+    "roomColumn": "ห้อง",
+    "weekBack": "ย้อน 7 วัน",
+    "weekForward": "ถัดไป 7 วัน",
+    "today": "วันนี้",
+    "jumpTo": "ไปยังวันที่",
+    "legend": "สัญลักษณ์",
+    "expected": "จองแล้ว",
+    "pendingHold": "รอยืนยัน",
+    "dueOut": "ถึงกำหนดออก",
+    "dueOutHint": "กำหนดออกวันที่ {date} แต่ยังไม่ได้เช็คเอาต์",
+    "startedBefore": "เข้าพักก่อนช่วงที่แสดง ตั้งแต่ {date}",
+    "continuesAfter": "ออกหลังช่วงที่แสดง วันที่ {date}",
+    "openReservation": "เปิดการจอง",
+    "close": "ปิด",
+    "stayDetails": "รายละเอียดการเข้าพัก",
+    "noRoomForNights": "ปลดห้อง: การจองยังคงวันเดิม และกลับไปอยู่ในรายการรอจัดห้อง"
   },
   "reports": {
     "title": "ผลประกอบการ",

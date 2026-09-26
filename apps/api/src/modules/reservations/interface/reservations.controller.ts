@@ -15,6 +15,7 @@ import { ListReservationsQuery } from '../application/list-reservations.query';
 import { ExtendStayUseCase } from '../application/extend-stay.usecase';
 import { ShortenStayUseCase } from '../application/shorten-stay.usecase';
 import { ModifyStayUseCase } from '../application/modify-stay.usecase';
+import { UpdateBookerUseCase } from '../application/update-booker.usecase';
 
 // Format AND calendar validity: the regex alone accepts 2026-02-30, which
 // would then blow up in the domain as a 500 instead of a clean 422.
@@ -110,6 +111,25 @@ type CancelBody = z.infer<typeof cancelSchema>;
 type ModifyStayBody = z.infer<typeof modifyStaySchema>;
 
 /**
+ * Contact correction (api-spec.md §5 "Updates"). Exactly the booker block and
+ * the request note: status, money and dates each have their own endpoint with
+ * their own rules, and `.strict()` keeps a client from smuggling them in here.
+ * An OTA-masked address is text like any other — the desk may overwrite it
+ * with the real one the guest gave at reception.
+ */
+const updateBookerSchema = z
+  .object({
+    version: z.number().int().min(0),
+    bookerName: z.string().trim().min(1).max(200).optional(),
+    bookerEmail: z.string().trim().max(320).nullable().optional(),
+    bookerPhone: z.string().trim().max(40).nullable().optional(),
+    specialRequests: z.string().trim().max(2000).nullable().optional(),
+  })
+  .strict()
+  .refine((body) => Object.keys(body).length > 1, { message: 'No fields to update' });
+type UpdateBookerBody = z.infer<typeof updateBookerSchema>;
+
+/**
  * Extending takes only the new departure date.
  *
  * Nothing else about the stay may move: the moment a room type or an occupancy
@@ -170,6 +190,7 @@ export class ReservationsController {
     private readonly modifyStayUseCase: ModifyStayUseCase,
     private readonly extendStayUseCase: ExtendStayUseCase,
     private readonly shortenStayUseCase: ShortenStayUseCase,
+    private readonly updateBookerUseCase: UpdateBookerUseCase,
   ) {}
 
   @Get()
@@ -305,6 +326,36 @@ export class ReservationsController {
       throw errors.notFound('Reservation', id);
     }
     return reservation;
+  }
+
+  @Patch(':id')
+  @RequireCapability('reservation:update')
+  @ApiOperation({ summary: 'Correct who booked: name, email, phone, special requests' })
+  async updateBooker(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateBookerSchema)) body: UpdateBookerBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    // Empty strings arrive from cleared form fields; an empty email is no
+    // email, and storing '' would make "has an address" queries lie.
+    const blankToNull = (value: string | null | undefined) =>
+      value === undefined ? undefined : value === '' ? null : value;
+
+    return this.updateBookerUseCase.execute(
+      {
+        propertyId,
+        reservationId: id,
+        expectedVersion: body.version,
+        ...(body.bookerName === undefined ? {} : { bookerName: body.bookerName }),
+        ...(body.bookerEmail === undefined ? {} : { bookerEmail: blankToNull(body.bookerEmail) }),
+        ...(body.bookerPhone === undefined ? {} : { bookerPhone: blankToNull(body.bookerPhone) }),
+        ...(body.specialRequests === undefined
+          ? {}
+          : { specialRequests: blankToNull(body.specialRequests) }),
+      },
+      this.actor(request),
+    );
   }
 
   @Patch(':id/stays/:stayId')
