@@ -255,7 +255,9 @@
     "saveBooker": "บันทึก",
     "bookerSaved": "บันทึกข้อมูลติดต่อแล้ว",
     "bookerUnchanged": "ไม่มีอะไรเปลี่ยน",
-    "guestProfile": "โปรไฟล์แขก"
+    "guestProfile": "โปรไฟล์แขก",
+    "applyToGuest": "อัปเดตโปรไฟล์แขกด้วย",
+    "bookerAndGuestSaved": "บันทึกข้อมูลติดต่อแล้ว ทั้งบนการจองและโปรไฟล์แขก"
   },
   "folio": {
     "title": "บัญชีของแขก",

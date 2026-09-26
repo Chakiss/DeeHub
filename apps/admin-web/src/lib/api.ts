@@ -229,6 +229,8 @@ export interface UpdateBookerInput {
   bookerEmail?: string | null;
   bookerPhone?: string | null;
   specialRequests?: string | null;
+  /** Copy name, email and phone onto the linked guest profile too. */
+  applyToGuest?: boolean;
 }
 
 export interface UpdatedBooker {
@@ -238,6 +240,7 @@ export interface UpdatedBooker {
   bookerEmail: string | null;
   bookerPhone: string | null;
   specialRequests: string | null;
+  guestUpdated: boolean;
 }
 
 /** PATCH: absent means "leave it alone". null on guestName clears it. */

@@ -24,7 +24,7 @@ export function BookerEditor({
   propertyId: string;
   reservation: Pick<
     ReservationDetail,
-    'id' | 'version' | 'bookerName' | 'bookerEmail' | 'bookerPhone'
+    'id' | 'version' | 'bookerName' | 'bookerEmail' | 'bookerPhone' | 'guestId'
   >;
 }) {
   const t = useTranslations('reservations');
@@ -34,6 +34,9 @@ export function BookerEditor({
   const [name, setName] = useState(reservation.bookerName);
   const [email, setEmail] = useState(reservation.bookerEmail ?? '');
   const [phone, setPhone] = useState(reservation.bookerPhone ?? '');
+  // On by default: a walk-in's profile was created from this very booking, so
+  // fixing one without the other leaves the CRM with the typo.
+  const [applyToGuest, setApplyToGuest] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -72,9 +75,12 @@ export function BookerEditor({
     }
 
     startTransition(async () => {
-      const result = await updateBooker(propertyId, reservation.id, input);
+      const result = await updateBooker(propertyId, reservation.id, {
+        ...input,
+        ...(reservation.guestId && applyToGuest ? { applyToGuest: true } : {}),
+      });
       if (result.ok) {
-        setNotice(t('bookerSaved'));
+        setNotice(result.booker?.guestUpdated ? t('bookerAndGuestSaved') : t('bookerSaved'));
         setOpen(false);
         router.refresh();
         return;
@@ -154,6 +160,18 @@ export function BookerEditor({
           />
         </label>
       </div>
+
+      {reservation.guestId && (
+        <label className="flex items-center gap-2 text-sm text-ink-800">
+          <input
+            type="checkbox"
+            checked={applyToGuest}
+            onChange={(event) => setApplyToGuest(event.target.checked)}
+            className="h-4 w-4 rounded border-stone-300"
+          />
+          {t('applyToGuest')}
+        </label>
+      )}
 
       {error && (
         <p

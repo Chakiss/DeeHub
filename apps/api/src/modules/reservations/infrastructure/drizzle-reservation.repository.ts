@@ -200,6 +200,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
         id: reservations.id,
         propertyId: reservations.propertyId,
         version: reservations.version,
+        guestId: reservations.guestId,
         bookerName: reservations.bookerName,
         bookerEmail: reservations.bookerEmail,
         bookerPhone: reservations.bookerPhone,

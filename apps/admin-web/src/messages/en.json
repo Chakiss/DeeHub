@@ -255,7 +255,9 @@
     "saveBooker": "Save",
     "bookerSaved": "Contact details saved.",
     "bookerUnchanged": "Nothing was changed.",
-    "guestProfile": "Guest profile"
+    "guestProfile": "Guest profile",
+    "applyToGuest": "Also update the guest profile",
+    "bookerAndGuestSaved": "Contact details saved, on the booking and the guest profile."
   },
   "folio": {
     "title": "Guest account",

@@ -211,6 +211,11 @@ test.describe('reservations', () => {
 
     await page.goto(`/properties/${data.propertyId}/stay-view?from=2030-10-01`);
     await expect(page.getByRole('listitem').filter({ hasText: fixed })).toBeVisible();
+
+    // The profile was created from this booking, and the box was ticked.
+    await page.goto(`/properties/${data.propertyId}/guests?q=${encodeURIComponent(fixed)}`);
+    await expect(page.getByRole('row', { name: new RegExp(fixed) })).toBeVisible();
+    await expect(page.getByRole('row', { name: /\+66 81 234 5678/ })).toBeVisible();
   });
 
   test('a room taken on those nights is not offered', async ({ page, request }) => {
