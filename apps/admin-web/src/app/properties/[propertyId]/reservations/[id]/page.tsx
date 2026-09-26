@@ -8,6 +8,7 @@ import { StayEditor } from '@/components/stay-editor';
 import { StayDeparture } from '@/components/stay-departure';
 import { FolioPanel } from '@/components/folio-panel';
 import { StayRoomPicker } from '@/components/stay-room-picker';
+import { BookerEditor } from '@/components/booker-editor';
 
 /** Bookings a modification can still take apart and re-hold. */
 const MODIFIABLE = ['PENDING', 'CONFIRMED'];
@@ -128,6 +129,26 @@ export default async function ReservationDetailPage({
                 <Field label={t('cancellationReason')} value={reservation.cancellationReason} />
               )}
             </dl>
+            {/* Contact is the one thing on this card a desk gets wrong at
+                booking time and learns later; it rides on the same capability
+                as room assignment because both are front-desk corrections. */}
+            {canAssign && (
+              <BookerEditor
+                key={reservation.version}
+                propertyId={propertyId}
+                reservation={reservation}
+              />
+            )}
+            {reservation.guestId && (
+              <p className="mt-2 text-xs">
+                <Link
+                  href={`/properties/${propertyId}/guests?q=${encodeURIComponent(reservation.bookerName)}`}
+                  className="text-brand-700 underline-offset-2 hover:underline"
+                >
+                  {t('guestProfile')} →
+                </Link>
+              </p>
+            )}
             {reservation.specialRequests && (
               <div className="mt-4 rounded-md bg-amber-50 px-3 py-2 ring-1 ring-inset ring-amber-200">
                 <p className="text-xs font-medium text-amber-900">{t('specialRequests')}</p>

@@ -156,6 +156,8 @@ export interface ReservationDetail {
   currency: string;
   source: string;
   bookingSource: { id: string; name: string; kind: string } | null;
+  /** The CRM profile this booking is linked to, when there is one. */
+  guestId: string | null;
   bookerName: string;
   bookerEmail: string | null;
   bookerPhone: string | null;
@@ -214,6 +216,28 @@ export interface CreateReservationInput {
   }[];
   specialRequests?: string;
   guestId?: string;
+}
+
+/**
+ * PATCH /reservations/{id}: contact text only. Absent leaves a field alone,
+ * null (or an empty string) clears it. Status, dates and money have their own
+ * endpoints.
+ */
+export interface UpdateBookerInput {
+  version: number;
+  bookerName?: string;
+  bookerEmail?: string | null;
+  bookerPhone?: string | null;
+  specialRequests?: string | null;
+}
+
+export interface UpdatedBooker {
+  id: string;
+  version: number;
+  bookerName: string;
+  bookerEmail: string | null;
+  bookerPhone: string | null;
+  specialRequests: string | null;
 }
 
 /** PATCH: absent means "leave it alone". null on guestName clears it. */
@@ -1452,6 +1476,12 @@ export const api = {
   createReservation: (propertyId: string, input: CreateReservationInput) =>
     request<CreatedReservation>(`/properties/${propertyId}/reservations`, {
       method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateBooker: (propertyId: string, reservationId: string, input: UpdateBookerInput) =>
+    request<UpdatedBooker>(`/properties/${propertyId}/reservations/${reservationId}`, {
+      method: 'PATCH',
       body: JSON.stringify(input),
     }),
 
