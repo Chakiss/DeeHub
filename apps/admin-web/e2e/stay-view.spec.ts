@@ -303,6 +303,8 @@ test.describe('rooms and stay view', () => {
     // The bar is one tap; what it can do lives in the sheet it opens.
     await row.getByRole('button', { name: new RegExp(guest) }).click();
     const sheet = page.getByRole('dialog', { name: new RegExp(guest) });
+    // Where it came from, in words, on the sheet.
+    await expect(sheet).toContainText('Walk-in');
     await sheet.getByRole('button', { name: 'Check in' }).click();
     await expect.poll(async () => row.textContent()).toContain('In house');
 

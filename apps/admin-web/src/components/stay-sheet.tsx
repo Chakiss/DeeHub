@@ -49,8 +49,14 @@ export function StaySheet({
   onClose: () => void;
 }) {
   const t = useTranslations('stayView');
+  const tr = useTranslations('reservations');
   const name = stay.guestName ?? stay.reservationCode;
   const dueOut = stay.status === 'CHECKED_IN' && stay.checkOut <= today;
+  // Said in words as well as by the badge: "where did this come from" is
+  // the question the desk asked for on this sheet.
+  const sourceLabel =
+    stay.bookingSourceName ??
+    (tr.has(`source${stay.source}`) ? tr(`source${stay.source}`) : stay.source);
   const movable = canAssign && stay.status !== 'CHECKED_OUT' && stay.status !== 'CANCELLED';
 
   /*
@@ -122,6 +128,8 @@ export function StaySheet({
                 channelType={stay.channelType}
                 size="md"
               />
+              <span className="font-medium text-ink-700">{sourceLabel}</span>
+              <span aria-hidden>·</span>
               {stay.reservationCode} · {roomNumber}
               {stay.upgraded && (
                 <span className="ml-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] uppercase text-violet-800">
