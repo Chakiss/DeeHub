@@ -204,3 +204,9 @@ variable "enable_storage_hmac" {
   default     = true
 }
 
+variable "enable_book_armor" {
+  description = "Put a Cloud Armor rate-limit policy in front of the booking site. false while the project's SECURITY_POLICIES quota is 0; the API rate-limits the booking endpoints itself."
+  type        = bool
+  default     = true
+}
+
