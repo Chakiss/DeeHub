@@ -156,6 +156,7 @@ export class DrizzleGuestRepository implements GuestRepository {
         sql`(
           lower(${guests.firstName}) LIKE ${pattern}
           OR lower(coalesce(${guests.lastName}, '')) LIKE ${pattern}
+          OR lower(${guests.firstName} || ' ' || coalesce(${guests.lastName}, '')) LIKE ${pattern}
           OR lower(coalesce(${guests.email}, '')) LIKE ${pattern}
           OR coalesce(${guests.phone}, '') LIKE ${pattern}
         )`,

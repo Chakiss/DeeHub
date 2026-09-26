@@ -245,7 +245,8 @@ describeIfDb('Guests', () => {
   it('searches by name, email and phone', async () => {
     await book({ name: 'Somchai Prasert', email: 'somchai@example.com', phone: '0812345678' });
 
-    for (const term of ['prasert', 'SOMCHAI@EXAMPLE', '08123']) {
+    // The full name too: a desk types what is on the passport, not one half.
+    for (const term of ['prasert', 'Somchai Prasert', 'SOMCHAI@EXAMPLE', '08123']) {
       const response = await request(app.getHttpServer())
         .get(`/api/v1/properties/${propertyId}/guests?q=${encodeURIComponent(term)}`)
         .set(auth())

@@ -105,3 +105,25 @@ export function layoutStays<T extends StayLike>(
     return { ...bar, lane };
   });
 }
+
+/**
+ * How many rooms of a group are free on each night: rooms with no stay
+ * covering the night, out-of-service rooms excluded.
+ *
+ * This is the desk's number — "where can I put someone tonight" — and
+ * deliberately NOT the sellable count, which is allotment and lives on the
+ * inventory grid (ADR-0002). A hotel can be sold out with three rooms free
+ * here, or have a room free here on a night it chose not to sell.
+ */
+export function freeRoomsPerNight(
+  dates: readonly string[],
+  rooms: readonly { isActive: boolean; stays: readonly StayLike[] }[],
+): number[] {
+  return dates.map(
+    (date) =>
+      rooms.filter(
+        (room) =>
+          room.isActive && !room.stays.some((stay) => stay.checkIn <= date && stay.checkOut > date),
+      ).length,
+  );
+}
