@@ -255,7 +255,9 @@
     "saveBooker": "Save",
     "bookerSaved": "Contact details saved.",
     "bookerUnchanged": "Nothing was changed.",
-    "guestProfile": "Guest profile"
+    "guestProfile": "Guest profile",
+    "applyToGuest": "Also update the guest profile",
+    "bookerAndGuestSaved": "Contact details saved, on the booking and the guest profile."
   },
   "folio": {
     "title": "Guest account",
@@ -565,7 +567,14 @@
     "openReservation": "Open booking",
     "close": "Close",
     "stayDetails": "Stay details",
-    "noRoomForNights": "Release the room: the booking keeps its dates and goes back on the worklist."
+    "noRoomForNights": "Release the room: the booking keeps its dates and goes back on the worklist.",
+    "free": "Free",
+    "freeHint": "Rooms with nobody in them that night. Not what is for sale — that is the inventory grid.",
+    "moveRoom": "Move room",
+    "move": "Move",
+    "moveTo": "Move to {room}",
+    "currentRoom": "current",
+    "dragHint": "Drag a bar onto another room to move the guest."
   },
   "reports": {
     "title": "Performance",

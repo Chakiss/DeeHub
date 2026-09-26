@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { layoutStays } from './stay-layout';
+import { freeRoomsPerNight, layoutStays } from './stay-layout';
 
 const WINDOW = ['2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28'];
 
@@ -60,5 +60,22 @@ describe('layoutStays', () => {
 
   it('returns nothing for an empty window', () => {
     expect(layoutStays([], [{ checkIn: '2026-09-25', checkOut: '2026-09-26' }])).toEqual([]);
+  });
+});
+
+describe('freeRoomsPerNight', () => {
+  const rooms = [
+    { isActive: true, stays: [{ checkIn: '2026-09-25', checkOut: '2026-09-27' }] },
+    { isActive: true, stays: [] },
+    // Out of service: never counted, even with nothing in it.
+    { isActive: false, stays: [] },
+  ];
+
+  it('counts rooms with no stay covering the night, ignoring out-of-service rooms', () => {
+    expect(freeRoomsPerNight(WINDOW, rooms)).toEqual([1, 1, 2, 2]);
+  });
+
+  it('treats the check-out day as free: the guest leaves in the morning', () => {
+    expect(freeRoomsPerNight(['2026-09-27'], rooms)).toEqual([2]);
   });
 });

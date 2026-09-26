@@ -124,9 +124,13 @@ const updateBookerSchema = z
     bookerEmail: z.string().trim().max(320).nullable().optional(),
     bookerPhone: z.string().trim().max(40).nullable().optional(),
     specialRequests: z.string().trim().max(2000).nullable().optional(),
+    /** Copy name, email and phone onto the linked guest profile too. */
+    applyToGuest: z.boolean().optional(),
   })
   .strict()
-  .refine((body) => Object.keys(body).length > 1, { message: 'No fields to update' });
+  .refine((body) => Object.keys(body).some((key) => !['version', 'applyToGuest'].includes(key)), {
+    message: 'No fields to update',
+  });
 type UpdateBookerBody = z.infer<typeof updateBookerSchema>;
 
 /**
@@ -353,6 +357,7 @@ export class ReservationsController {
         ...(body.specialRequests === undefined
           ? {}
           : { specialRequests: blankToNull(body.specialRequests) }),
+        ...(body.applyToGuest === undefined ? {} : { applyToGuest: body.applyToGuest }),
       },
       this.actor(request),
     );

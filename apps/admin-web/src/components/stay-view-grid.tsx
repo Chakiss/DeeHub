@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { AssignableRoom, StayView, StayViewOccupancy } from '@/lib/api';
 import { assignRoom, checkIn, checkOut } from '@/app/properties/[propertyId]/rooms/actions';
 import { listAssignableRooms } from '@/app/properties/[propertyId]/reservations/actions';
 import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
-import { layoutStays, type StayBar } from '@/lib/stay-layout';
+import { freeRoomsPerNight, layoutStays, type StayBar } from '@/lib/stay-layout';
 import { StaySheet } from '@/components/stay-sheet';
 
 const HOUSEKEEPING_DOT: Record<string, string> = {
@@ -65,6 +65,82 @@ export function StayViewGrid({
   const [pending, startTransition] = useTransition();
 
   /*
+   * Dragging a bar onto another row moves the guest. Mouse only: on a touch
+   * screen a vertical drag is how the page scrolls, and the sheet offers a
+   * room picker instead. A press that never moves is a click and opens the
+   * sheet as before — the `moved` flag is what tells the two apart.
+   */
+  interface Drag {
+    stay: StayViewOccupancy;
+    fromRoomId: string;
+    /** Where the press began: a drag is a move of more than a few px from here. */
+    startY: number;
+    x: number;
+    y: number;
+    moved: boolean;
+    overRoomId: string | null;
+    overRoomNumber: string | null;
+  }
+  const [drag, setDrag] = useState<Drag | null>(null);
+  // The listeners below read and write through the ref so that the drop
+  // handler can act on the final position without doing work inside a state
+  // updater, and so a click that follows a drag can tell it was a drag.
+  const dragRef = useRef<Drag | null>(null);
+  const justDraggedRef = useRef(false);
+
+  function beginDrag(next: Drag) {
+    dragRef.current = next;
+    setDrag(next);
+  }
+
+  useEffect(() => {
+    if (!drag) return;
+    function onMove(event: PointerEvent) {
+      const current = dragRef.current;
+      if (!current) return;
+      const target = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLElement>('[data-room-id]');
+      const next: Drag = {
+        ...current,
+        x: event.clientX,
+        y: event.clientY,
+        moved: current.moved || Math.abs(event.clientY - current.startY) > 6,
+        overRoomId: target?.dataset.roomId ?? null,
+        overRoomNumber: target?.dataset.roomNumber ?? null,
+      };
+      dragRef.current = next;
+      setDrag(next);
+    }
+    function onUp() {
+      const current = dragRef.current;
+      dragRef.current = null;
+      setDrag(null);
+      if (!current?.moved) return;
+      // The click the browser may fire right after this release must not
+      // open the sheet. It fires in the same task, so the flag is cleared on
+      // the next tick — a drop onto another row fires no click at all, and
+      // a sticky flag would then swallow the next real tap.
+      justDraggedRef.current = true;
+      setTimeout(() => {
+        justDraggedRef.current = false;
+      }, 0);
+      if (current.overRoomId && current.overRoomId !== current.fromRoomId) {
+        move(current.stay, current.overRoomId);
+      }
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    // Re-armed when a drag starts, torn down when it ends.
+  }, [drag !== null]);
+
+  /*
    * Rooms grouped by type, the way a hotel thinks of its floors: "the
    * Deluxes" are one thing to look at, and a booking needing a Deluxe is
    * found under that heading rather than by scanning every row. Groups fold
@@ -79,6 +155,8 @@ export function StayViewGrid({
         roomTypeName: string;
         rooms: { room: StayView['rooms'][number]; bars: StayBar<StayViewOccupancy>[] }[];
         needing: number;
+        /** Rooms with nobody in them, per night. */
+        free: number[];
       }
     >();
     for (const room of view.rooms) {
@@ -87,9 +165,16 @@ export function StayViewGrid({
         roomTypeName: room.roomTypeName,
         rooms: [],
         needing: 0,
+        free: [],
       };
       group.rooms.push({ room, bars: layoutStays(view.dates, room.stays) });
       byType.set(room.roomTypeId, group);
+    }
+    for (const group of byType.values()) {
+      group.free = freeRoomsPerNight(
+        view.dates,
+        group.rooms.map(({ room }) => room),
+      );
     }
     for (const stay of view.unassigned) {
       const group = byType.get(stay.roomTypeId);
@@ -153,6 +238,15 @@ export function StayViewGrid({
     startTransition(async () => {
       const result = await checkOut(propertyId, stay.reservationId, stay.version);
       if (!result.ok) setError(result.error?.message ?? t('failed'));
+    });
+  }
+
+  function move(stay: StayViewOccupancy, roomId: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await assignRoom(propertyId, stay.stayId, roomId);
+      if (!result.ok) setError(result.error?.message ?? t('failed'));
+      else setOpened(null);
     });
   }
 
@@ -338,11 +432,52 @@ export function StayViewGrid({
                 </div>
               </div>
 
+              {/* The desk's count — nobody in the room that night — under the
+                  heading so it reads with the rooms it counts. Deliberately not
+                  the sellable number; see freeRoomsPerNight. */}
+              <div role="row" aria-label={`${group.roomTypeName} ${t('free')}`} className="flex">
+                <div
+                  role="rowheader"
+                  title={t('freeHint')}
+                  className="sticky left-0 z-10 flex w-[var(--room)] shrink-0 items-center border-b border-r border-stone-200 bg-sunk/40 px-1.5 text-[10px] uppercase tracking-wide text-stone-500"
+                >
+                  {t('free')}
+                </div>
+                {group.free.map((count, position) => (
+                  <div
+                    key={view.dates[position]}
+                    role="cell"
+                    className={`tabular flex h-6 w-[var(--col)] shrink-0 items-center justify-center border-b border-l border-stone-100 text-[11px] ${
+                      count === 0
+                        ? 'bg-rose-50 font-semibold text-rose-700'
+                        : view.dates[position] === today
+                          ? 'bg-brand-100/40 text-ink-700'
+                          : 'bg-sunk/40 text-stone-600'
+                    }`}
+                  >
+                    {count}
+                  </div>
+                ))}
+              </div>
+
               {!collapsed.has(group.roomTypeId) &&
                 group.rooms.map(({ room, bars }) => {
                   const lanes = Math.max(1, ...bars.map((bar) => bar.lane + 1));
                   return (
-                    <div key={room.roomId} role="row" aria-label={room.roomNumber} className="flex">
+                    <div
+                      key={room.roomId}
+                      role="row"
+                      aria-label={room.roomNumber}
+                      data-room-id={room.roomId}
+                      data-room-number={room.roomNumber}
+                      className={`flex ${
+                        drag?.moved && drag.overRoomId === room.roomId
+                          ? drag.fromRoomId === room.roomId
+                            ? ''
+                            : 'bg-brand-50 ring-2 ring-inset ring-brand-400'
+                          : ''
+                      }`}
+                    >
                       {/* Just the number: the type is the heading above, and
                           every pixel here is a night the desk cannot see. */}
                       <div
@@ -391,10 +526,32 @@ export function StayViewGrid({
                             key={bar.stay.stayId}
                             bar={bar}
                             today={today}
+                            dragging={drag?.moved === true && drag.stay.stayId === bar.stay.stayId}
                             onOpen={() => {
+                              // The click that follows a drop is not a tap.
+                              if (justDraggedRef.current) return;
                               setError(null);
                               setOpened({ stay: bar.stay, roomNumber: room.roomNumber });
                             }}
+                            onPointerDown={
+                              canAssign &&
+                              bar.stay.status !== 'CHECKED_OUT' &&
+                              bar.stay.status !== 'CANCELLED'
+                                ? (event) => {
+                                    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+                                    beginDrag({
+                                      stay: bar.stay,
+                                      fromRoomId: room.roomId,
+                                      startY: event.clientY,
+                                      x: event.clientX,
+                                      y: event.clientY,
+                                      moved: false,
+                                      overRoomId: room.roomId,
+                                      overRoomNumber: room.roomNumber,
+                                    });
+                                  }
+                                : undefined
+                            }
                           />
                         ))}
                       </div>
@@ -407,6 +564,19 @@ export function StayViewGrid({
       </div>
 
       <Legend />
+      {canAssign && <p className="hidden text-xs text-stone-400 sm:block">{t('dragHint')}</p>}
+
+      {drag?.moved && (
+        <div
+          aria-live="polite"
+          className="pointer-events-none fixed z-50 rounded-md bg-ink-900 px-2 py-1 text-xs font-medium text-white shadow-lg"
+          style={{ left: drag.x + 12, top: drag.y + 12 }}
+        >
+          {drag.overRoomNumber && drag.overRoomId !== drag.fromRoomId
+            ? t('moveTo', { room: drag.overRoomNumber })
+            : (drag.stay.guestName ?? drag.stay.reservationCode)}
+        </div>
+      )}
 
       {opened && (
         <StaySheet
@@ -420,6 +590,7 @@ export function StayViewGrid({
           onArrive={() => arrive(opened.stay)}
           onDepart={() => depart(opened.stay)}
           onRelease={() => release(opened.stay.stayId)}
+          onMove={(roomId) => move(opened.stay, roomId)}
           onClose={() => {
             setOpened(null);
             setError(null);
@@ -462,11 +633,15 @@ function barTone(stay: StayViewOccupancy, today: string): string {
 function Bar({
   bar,
   today,
+  dragging,
   onOpen,
+  onPointerDown,
 }: {
   bar: StayBar<StayViewOccupancy>;
   today: string;
+  dragging: boolean;
   onOpen: () => void;
+  onPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void;
 }) {
   const t = useTranslations('stayView');
   const { stay } = bar;
@@ -486,8 +661,11 @@ function Bar({
     <button
       type="button"
       onClick={onOpen}
+      onPointerDown={onPointerDown}
       title={`${stay.reservationCode} · ${stay.checkIn} → ${stay.checkOut}`}
       className={`absolute flex h-7 items-center overflow-hidden px-1.5 text-left text-xs font-medium ${
+        onPointerDown ? 'cursor-grab active:cursor-grabbing' : ''
+      } ${dragging ? 'opacity-50' : ''} ${
         bar.clippedStart
           ? 'rounded-l-none border-l-2 border-dashed border-current/40'
           : 'rounded-l-md'

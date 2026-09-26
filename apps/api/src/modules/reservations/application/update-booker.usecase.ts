@@ -8,6 +8,11 @@ import {
   type BookerFields,
   type ReservationRepository,
 } from '../domain/reservation.repository';
+import {
+  GUEST_REPOSITORY,
+  splitName,
+  type GuestRepository,
+} from '../../guests/domain/guest.repository';
 
 export interface UpdateBookerInput {
   readonly propertyId: string;
@@ -18,6 +23,13 @@ export interface UpdateBookerInput {
   readonly bookerEmail?: string | null;
   readonly bookerPhone?: string | null;
   readonly specialRequests?: string | null;
+  /**
+   * Also write the name, email and phone to the linked guest profile. Off by
+   * default: the booker and the guest are different people often enough (a
+   * travel agent, a parent booking for a child) that the copy must be asked
+   * for, not assumed.
+   */
+  readonly applyToGuest?: boolean;
 }
 
 export interface UpdateBookerResult {
@@ -27,6 +39,8 @@ export interface UpdateBookerResult {
   readonly bookerEmail: string | null;
   readonly bookerPhone: string | null;
   readonly specialRequests: string | null;
+  /** True when the linked guest profile was corrected as well. */
+  readonly guestUpdated: boolean;
 }
 
 /**
@@ -49,6 +63,7 @@ export class UpdateBookerUseCase {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(RESERVATION_REPOSITORY) private readonly reservations: ReservationRepository,
+    @Inject(GUEST_REPOSITORY) private readonly guests: GuestRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -103,6 +118,51 @@ export class UpdateBookerUseCase {
         },
       });
 
+      /*
+       * The guest profile, when asked. Only the contact fields that were
+       * corrected go across — a special request is about this stay, not the
+       * person — and a profile that has since been merged away is left alone:
+       * its reservations moved to the survivor, and rewriting a tombstone
+       * would put the correction where nobody reads it.
+       */
+      let guestUpdated = false;
+      if (input.applyToGuest && before.guestId) {
+        const guestBefore = await this.guests.findById(tx, before.guestId);
+        if (guestBefore) {
+          const guestFields = {
+            ...(fields.bookerName === undefined ? {} : splitName(fields.bookerName)),
+            ...(fields.bookerEmail === undefined ? {} : { email: fields.bookerEmail }),
+            ...(fields.bookerPhone === undefined ? {} : { phone: fields.bookerPhone }),
+          };
+          if (Object.keys(guestFields).length > 0) {
+            await this.guests.update(tx, before.guestId, guestFields);
+            const guestAfter = await this.guests.findById(tx, before.guestId);
+            await this.audit.record(tx, {
+              organizationId: tenant.organizationId,
+              propertyId: null,
+              actor,
+              action: 'guest.updated',
+              entityType: 'guest',
+              entityId: before.guestId,
+              before: {
+                firstName: guestBefore.firstName,
+                lastName: guestBefore.lastName,
+                email: guestBefore.email,
+                phone: guestBefore.phone,
+              },
+              after: {
+                firstName: guestAfter?.firstName ?? null,
+                lastName: guestAfter?.lastName ?? null,
+                email: guestAfter?.email ?? null,
+                phone: guestAfter?.phone ?? null,
+              },
+              reason: `Corrected with reservation ${input.reservationId}`,
+            });
+            guestUpdated = true;
+          }
+        }
+      }
+
       return {
         id: after.id,
         version: after.version,
@@ -110,6 +170,7 @@ export class UpdateBookerUseCase {
         bookerEmail: after.bookerEmail,
         bookerPhone: after.bookerPhone,
         specialRequests: after.specialRequests,
+        guestUpdated,
       };
     });
   }

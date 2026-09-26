@@ -387,6 +387,72 @@ test.describe('rooms and stay view', () => {
   });
 
   /**
+   * Moving a guest: by dragging the bar with a mouse, and from the sheet for
+   * anyone without one. The row under each heading counts rooms with nobody
+   * in them and must follow the move.
+   */
+  test('moves a guest by dragging the bar, and again from the sheet', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    await openForSale(request, token, '2030-11-01', '2030-11-06');
+    const guest = `Mover ${Date.now().toString(36)}`;
+    const { stayId } = await book(request, token, guest, '2030-11-02', '2030-11-04');
+    const rooms = (await (
+      await request.get(`${API}/properties/${data.propertyId}/rooms`, {
+        headers: { authorization: `Bearer ${token}` },
+      })
+    ).json()) as { items: { id: string; roomNumber: string }[] };
+    const placed = await request.patch(
+      `${API}/properties/${data.propertyId}/stays/${stayId}/room`,
+      {
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        data: { roomId: rooms.items.find((room) => room.roomNumber === '201')!.id },
+      },
+    );
+    expect(placed.ok(), await placed.text()).toBeTruthy();
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/stay-view?from=2030-11-01`);
+
+    const from = page.getByRole('row', { name: /^201$/ });
+    const to = page.getByRole('row', { name: /^202$/ });
+    const bar = from.getByRole('button', { name: new RegExp(guest) });
+    await expect(bar).toBeVisible();
+
+    // One room fewer free on the 2nd than on the 1st: this guest's. Other
+    // specs add rooms of this type, so the count is relative, not absolute.
+    const freeRow = page.getByRole('row', { name: /Deluxe Double Free/ });
+    const freeOnFirst = Number(await freeRow.getByRole('cell').nth(0).textContent());
+    await expect(freeRow.getByRole('cell').nth(1)).toHaveText(String(freeOnFirst - 1));
+
+    const barBox = (await bar.boundingBox())!;
+    const toBox = (await to.boundingBox())!;
+    await page.mouse.move(barBox.x + barBox.width / 2, barBox.y + barBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(barBox.x + barBox.width / 2, toBox.y + toBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(to.getByRole('button', { name: new RegExp(guest) })).toBeVisible();
+    await expect(from.getByRole('button', { name: new RegExp(guest) })).toHaveCount(0);
+    await expect(freeRow.getByRole('cell').nth(1)).toHaveText(String(freeOnFirst - 1));
+
+    // And back, without a mouse.
+    await to.getByRole('button', { name: new RegExp(guest) }).click();
+    const sheet = page.getByRole('dialog', { name: new RegExp(guest) });
+    await sheet.getByRole('button', { name: 'Move room' }).click();
+    const picker = sheet.getByRole('combobox');
+    await expect(picker.locator('option', { hasText: '201' })).toHaveCount(1);
+    await expect(picker.locator('option', { hasText: '202' })).toHaveCount(0);
+    await picker.selectOption(
+      (await picker.locator('option', { hasText: '201' }).getAttribute('value')) ?? '',
+    );
+    await sheet.getByRole('button', { name: 'Move', exact: true }).click();
+
+    await expect(from.getByRole('button', { name: new RegExp(guest) })).toBeVisible();
+    await expect(sheet).toHaveCount(0);
+  });
+
+  /**
    * The guarantee this whole module rests on. Rooms exist for housekeeping and
    * assignment; allotment is what the property chose to sell. Two rooms were
    * just added, and availability must be exactly what it was.

@@ -306,6 +306,48 @@ describeIfDb('Correcting the booker', () => {
     await patch(reservationId, { version, bookerName: 'Nope' }, readerToken).expect(403);
   });
 
+  it('leaves the guest profile alone unless asked, then corrects it too', async () => {
+    const { reservationId, version } = await book();
+    const detail = await request(app.getHttpServer())
+      .get(`/api/v1/properties/${propertyId}/reservations/${reservationId}`)
+      .set(auth())
+      .expect(200);
+    const guestId = detail.body.guestId as string;
+    expect(guestId).toBeTruthy();
+
+    // Without the flag the profile keeps what the booking was made with.
+    await patch(reservationId, { version, bookerName: 'Xiao Yu Wang' }).expect(200);
+    let guest = await request(app.getHttpServer())
+      .get(`/api/v1/properties/${propertyId}/guests/${guestId}`)
+      .set(auth())
+      .expect(200);
+    expect(guest.body.firstName).toBe('เสี่ยวหยู/Wechat');
+
+    const response = await patch(reservationId, {
+      version: version + 1,
+      bookerName: 'Xiao Yu Wang',
+      bookerPhone: '+66 81 234 5678',
+      applyToGuest: true,
+    }).expect(200);
+    expect(response.body.guestUpdated).toBe(true);
+
+    guest = await request(app.getHttpServer())
+      .get(`/api/v1/properties/${propertyId}/guests/${guestId}`)
+      .set(auth())
+      .expect(200);
+    expect(guest.body).toMatchObject({
+      firstName: 'Xiao Yu',
+      lastName: 'Wang',
+      phone: '+66 81 234 5678',
+    });
+
+    const { rows } = await pool.query<{ action: string }>(
+      `SELECT action FROM audit_logs WHERE organization_id = $1 AND entity_id = $2`,
+      [orgId, guestId],
+    );
+    expect(rows.map((row) => row.action)).toContain('guest.updated');
+  });
+
   it('writes an audit entry with the contact before and after', async () => {
     const { reservationId, version } = await book();
     await patch(reservationId, {

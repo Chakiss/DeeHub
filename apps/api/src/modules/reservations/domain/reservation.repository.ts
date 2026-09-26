@@ -107,6 +107,8 @@ export interface BookerRecord {
   readonly id: string;
   readonly propertyId: string;
   readonly version: number;
+  /** The CRM profile the booking is linked to, when there is one. */
+  readonly guestId: string | null;
   readonly bookerName: string;
   readonly bookerEmail: string | null;
   readonly bookerPhone: string | null;
