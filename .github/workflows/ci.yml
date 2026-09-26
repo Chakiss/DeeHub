@@ -107,22 +107,26 @@ jobs:
 
       # Photo uploads go browser → bucket on a URL the API signs, so the
       # browser suite needs a real S3 endpoint to PUT to. A step rather than a
-      # service container: the official image needs a command ("server /data")
-      # and service containers cannot pass one. The bucket is world-readable,
-      # the same shape production has (main.tf: allUsers objectViewer).
+      # service container: the image needs env the bucket is created from.
+      # The bucket is world-readable, the same shape production has
+      # (main.tf: allUsers objectViewer).
+      #
+      # Bitnami's frozen image rather than MinIO's own: quay.io/minio and
+      # docker.io/minio stopped serving public pulls in September 2026, and
+      # this one still does. It creates the bucket and its policy itself from
+      # MINIO_DEFAULT_BUCKETS, so no client image is needed either. Local dev
+      # uses the same image (infrastructure/docker-compose.yml).
       - name: Start MinIO for photo uploads
         run: |
           docker run -d --name minio -p 9000:9000 \
             -e MINIO_ROOT_USER=deehub -e MINIO_ROOT_PASSWORD=deehub-secret \
-            quay.io/minio/minio server /data
-          for i in $(seq 1 30); do
+            -e MINIO_DEFAULT_BUCKETS=deehub-test:download \
+            bitnamilegacy/minio:latest
+          for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:9000/minio/health/live >/dev/null && break
             sleep 1
           done
-          docker run --rm --network host --entrypoint sh quay.io/minio/mc -c \
-            "mc alias set local http://127.0.0.1:9000 deehub deehub-secret && \
-             mc mb --ignore-existing local/deehub-test && \
-             mc anonymous set download local/deehub-test"
+          docker exec minio sh -c 'for i in $(seq 1 30); do mc anonymous get local/deehub-test >/dev/null 2>&1 && exit 0; sleep 1; done; echo "bucket never appeared" >&2; exit 1'
 
       - name: Start API for end-to-end tests
         run: |
