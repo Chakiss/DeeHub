@@ -198,7 +198,7 @@ test.describe('rooms and stay view', () => {
     // type's heading, which is how the grid is now read.
     await expect(worklist).toHaveCount(0);
     await expect(page.getByRole('row', { name: /201/ })).toContainText(guest);
-    const heading = page.locator('tbody th[colspan]').first().getByRole('button');
+    const heading = page.getByRole('button', { name: /Deluxe Double/ }).first();
     await expect(heading).toHaveAttribute('aria-expanded', 'true');
     await heading.click();
     await expect(page.getByRole('row', { name: /201/ })).toHaveCount(0);
@@ -298,15 +298,92 @@ test.describe('rooms and stay view', () => {
     const row = page.getByRole('row', { name: /202/ });
     await expect(row).toContainText(guest);
 
-    await row.getByRole('button', { name: 'Check in' }).click();
-    await expect.poll(async () => row.textContent()).toContain('Check out');
+    // The bar is one tap; what it can do lives in the sheet it opens.
+    await row.getByRole('button', { name: new RegExp(guest) }).click();
+    const sheet = page.getByRole('dialog', { name: new RegExp(guest) });
+    await sheet.getByRole('button', { name: 'Check in' }).click();
+    await expect.poll(async () => row.textContent()).toContain('In house');
 
-    await row.getByRole('button', { name: 'Check out' }).click();
+    await sheet.getByRole('button', { name: 'Check out' }).click();
     await expect.poll(async () => row.textContent()).toContain('Departed');
+    await sheet.getByRole('button', { name: 'Close' }).click();
 
     // The handover that makes check-out worth modelling.
     await page.goto(`/properties/${data.propertyId}/rooms`);
     await expect(page.getByRole('row', { name: /202/ })).toContainText('Dirty');
+  });
+
+  /**
+   * The morning question: who slept here last night, and have they left? A
+   * window that opened on today could not answer it, and a stay that began
+   * before the first column used to vanish and shift the whole row.
+   */
+  test('opens on yesterday and draws a stay that began before the window', async ({
+    page,
+    request,
+  }) => {
+    const data = testData();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    const shift = (days: number) => {
+      const value = new Date(`${today}T00:00:00Z`);
+      value.setUTCDate(value.getUTCDate() + days);
+      return value.toISOString().slice(0, 10);
+    };
+    const token = await apiToken(request);
+    await openForSale(request, token, shift(-3), shift(3));
+    // Arrived two nights ago, leaves tomorrow: in a window opening on
+    // yesterday only its tail is visible, which is exactly the stay the old
+    // grid dropped.
+    const guest = `Overnight ${Date.now().toString(36)}`;
+    const made = await request.post(`${API}/properties/${data.propertyId}/reservations`, {
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      data: {
+        source: 'WALK_IN',
+        booker: { name: guest },
+        stays: [
+          {
+            roomTypeId: data.roomTypeId,
+            ratePlanId: data.ratePlanId,
+            checkIn: shift(-2),
+            checkOut: shift(1),
+            adults: 1,
+          },
+        ],
+      },
+    });
+    expect(made.ok(), await made.text()).toBeTruthy();
+    const stayId = ((await made.json()) as { stays: { id: string }[] }).stays[0]!.id;
+    const rooms = (await (
+      await request.get(`${API}/properties/${data.propertyId}/rooms`, {
+        headers: { authorization: `Bearer ${token}` },
+      })
+    ).json()) as { items: { id: string; roomNumber: string }[] };
+    const assigned = await request.patch(
+      `${API}/properties/${data.propertyId}/stays/${stayId}/room`,
+      {
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        data: { roomId: rooms.items.find((room) => room.roomNumber === '201')!.id },
+      },
+    );
+    expect(assigned.ok(), await assigned.text()).toBeTruthy();
+
+    await login(page, data.managerEmail);
+
+    // No ?from: the first column is yesterday and today is marked.
+    await page.goto(`/properties/${data.propertyId}/stay-view`);
+    await expect(page.getByLabel('Go to date')).toHaveValue(shift(-1));
+    await expect(page.locator('[role="columnheader"][aria-current="date"]')).toHaveCount(1);
+
+    // The stay began before the window and must still be on the row, cut at
+    // the left edge, on the right day.
+    const row = page.getByRole('row', { name: /201/ });
+    const bar = row.getByRole('button', { name: new RegExp(guest) });
+    await expect(bar).toBeVisible();
+    await expect(bar).toHaveClass(/rounded-l-none/);
+    // Bars are positioned by column: left edge 0 for a cut start, and its
+    // width covers last night, tonight, and half of tomorrow's check-out day.
+    await expect(bar).toHaveAttribute('style', /left: ?calc\(var\(--col\) \* 0 /);
+    await expect(bar).toHaveAttribute('style', /width: ?calc\(var\(--col\) \* 2\.5 /);
   });
 
   /**

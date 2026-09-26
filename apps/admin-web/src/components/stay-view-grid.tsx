@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import type { AssignableRoom, StayView, StayViewOccupancy } from '@/lib/api';
 import { assignRoom, checkIn, checkOut } from '@/app/properties/[propertyId]/rooms/actions';
 import { listAssignableRooms } from '@/app/properties/[propertyId]/reservations/actions';
 import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
+import { layoutStays, type StayBar } from '@/lib/stay-layout';
+import { StaySheet } from '@/components/stay-sheet';
 
 const HOUSEKEEPING_DOT: Record<string, string> = {
   CLEAN: 'bg-emerald-500',
@@ -15,33 +18,49 @@ const HOUSEKEEPING_DOT: Record<string, string> = {
   OUT_OF_ORDER: 'bg-rose-500',
 };
 
+/** One lane of bars is this tall; a row grows when stays overlap. */
+const LANE_PX = 32;
+
 /**
- * Room × date, with a bar per stay.
+ * Room × night, with a bar per stay.
  *
  * This is the screen the competitor calls "Stay View", and it is deliberately
  * not the inventory grid: nothing here feeds availability. A hotel can be sold
  * out with every room empty on this screen, because allotment is a commercial
  * decision and a room is a place to sleep (ADR-0002).
+ *
+ * Drawn with CSS grid and absolutely positioned bars rather than a table with
+ * colSpan, for two reasons the front desk feels directly. A table cell is a
+ * whole night, so a bar could not start in the middle of its check-in day the
+ * way every other PMS draws it, and two bookings turning over on one day were
+ * indistinguishable from one long stay. And a stay that began before the
+ * window's first night had no starting cell, so it was skipped — which
+ * removed cells from the row and shifted every later booking onto the wrong
+ * day. The geometry now lives in `layoutStays`, where it is tested.
  */
 export function StayViewGrid({
   propertyId,
   view,
   from,
-  windowDays,
+  today,
   canAssign,
 }: {
   propertyId: string;
   view: StayView;
   from: string;
-  windowDays: number;
+  today: string;
   canAssign: boolean;
 }) {
   const t = useTranslations('stayView');
   const housekeeping = useTranslations('housekeeping');
+  const router = useRouter();
 
   const [assigning, setAssigning] = useState<
     (StayViewOccupancy & { roomTypeId: string; roomTypeName: string }) | null
   >(null);
+  const [opened, setOpened] = useState<{ stay: StayViewOccupancy; roomNumber: string } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -55,7 +74,12 @@ export function StayViewGrid({
   const groups = useMemo(() => {
     const byType = new Map<
       string,
-      { roomTypeId: string; roomTypeName: string; rooms: StayView['rooms']; needing: number }
+      {
+        roomTypeId: string;
+        roomTypeName: string;
+        rooms: { room: StayView['rooms'][number]; bars: StayBar<StayViewOccupancy>[] }[];
+        needing: number;
+      }
     >();
     for (const room of view.rooms) {
       const group = byType.get(room.roomTypeId) ?? {
@@ -64,7 +88,7 @@ export function StayViewGrid({
         rooms: [],
         needing: 0,
       };
-      group.rooms.push(room);
+      group.rooms.push({ room, bars: layoutStays(view.dates, room.stays) });
       byType.set(room.roomTypeId, group);
     }
     for (const stay of view.unassigned) {
@@ -84,6 +108,23 @@ export function StayViewGrid({
       // Private mode or blocked storage: every group simply starts open.
     }
   }, [storageKey]);
+
+  // The sheet shows a stay as it was when tapped; once the server has moved
+  // it on (checked in, released) the fresh view arrives and the sheet must
+  // follow it or offer a button that no longer applies.
+  useEffect(() => {
+    if (!opened) return;
+    for (const room of view.rooms) {
+      const current = room.stays.find((stay) => stay.stayId === opened.stay.stayId);
+      if (current) {
+        if (current.version !== opened.stay.version || current.status !== opened.stay.status) {
+          setOpened({ stay: current, roomNumber: room.roomNumber });
+        }
+        return;
+      }
+    }
+    setOpened(null);
+  }, [view, opened]);
 
   function toggleGroup(roomTypeId: string) {
     setCollapsed((current) => {
@@ -120,6 +161,7 @@ export function StayViewGrid({
     startTransition(async () => {
       const result = await assignRoom(propertyId, stayId, null);
       if (!result.ok) setError(result.error?.message ?? t('failed'));
+      else setOpened(null);
     });
   }
 
@@ -138,45 +180,60 @@ export function StayViewGrid({
     );
   }
 
-  const index = new Map(view.dates.map((date, position) => [date, position]));
+  const columns = view.dates.length;
+  const navButton =
+    'rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-700 hover:bg-sunk/70';
 
   return (
     <div className="space-y-3">
+      {/* A week at a time, "today" to come back, and a date to jump to. The
+          window opens on yesterday so last night's guests — the ones the desk
+          is checking out this morning — are in the picture. */}
       <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href={`?from=${addDays(from, -windowDays)}`}
-          className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70"
-        >
-          ← {t('previous')}
+        <Link href={`?from=${addDays(from, -7)}`} className={navButton} aria-label={t('weekBack')}>
+          ‹ 7
+        </Link>
+        <Link href={`?from=${addDays(today, -1)}`} className={navButton}>
+          {t('today')}
         </Link>
         <Link
-          href={`?from=${addDays(from, windowDays)}`}
-          className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-sunk/70"
+          href={`?from=${addDays(from, 7)}`}
+          className={navButton}
+          aria-label={t('weekForward')}
         >
-          {t('next')} →
+          7 ›
         </Link>
+        <input
+          type="date"
+          aria-label={t('jumpTo')}
+          value={from}
+          onChange={(event) => {
+            if (event.target.value) router.push(`?from=${event.target.value}`);
+          }}
+          className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm text-ink-700"
+        />
       </div>
 
-      {error && (
+      {error && !opened && (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
 
-      {/* The front desk's worklist: booked, in the window, nowhere to sleep. */}
-      <section className="rounded-2xl border border-stone-200/70 bg-white shadow-card p-4">
-        <h2 className="text-sm font-medium text-ink-800">
-          {t('unassigned')}
-          {view.unassigned.length > 0 && (
+      {/* The front desk's worklist: booked, in the window, nowhere to sleep.
+          One quiet line when it is empty — the grid is the point of the page. */}
+      {view.unassigned.length === 0 ? (
+        <p className="text-xs text-stone-500">
+          {t('unassigned')}: {t('unassignedEmpty')}
+        </p>
+      ) : (
+        <section className="rounded-2xl border border-amber-200/70 bg-white shadow-card p-3">
+          <h2 className="text-sm font-medium text-ink-800">
+            {t('unassigned')}
             <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
               {view.unassigned.length}
             </span>
-          )}
-        </h2>
-
-        {view.unassigned.length === 0 ? (
-          <p className="mt-2 text-sm text-stone-500">{t('unassignedEmpty')}</p>
-        ) : (
+          </h2>
           <ul className="mt-2 space-y-1">
             {view.unassigned.map((stay) => (
               <li
@@ -205,44 +262,65 @@ export function StayViewGrid({
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* Scrolling stays inside the grid: the page body must never move. */}
-      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-10 min-w-[170px] border-b border-r border-stone-200 bg-sunk px-3 py-2 text-left font-medium text-stone-600">
-                {t('title')}
-              </th>
-              {view.dates.map((date) => (
-                <th
+      {/* Scrolling stays inside the grid: the page body must never move.
+          Column widths are CSS variables so header and rows agree without
+          measuring anything; a phone shows a week, a desk shows the fortnight. */}
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-card [--col:44px] [--room:64px] sm:[--col:60px] sm:[--room:84px]">
+        <div
+          role="table"
+          aria-label={t('title')}
+          className="text-sm"
+          style={{ width: `calc(var(--room) + var(--col) * ${String(columns)})` }}
+        >
+          <div role="row" className="flex">
+            <div
+              role="columnheader"
+              className="sticky left-0 z-20 w-[var(--room)] shrink-0 border-b border-r border-stone-200 bg-sunk px-2 py-1.5 text-left text-[11px] font-medium text-stone-500"
+            >
+              {t('roomColumn')}
+            </div>
+            {view.dates.map((date, position) => {
+              const isToday = date === today;
+              return (
+                <div
                   key={date}
-                  className={`min-w-[44px] border-b border-stone-200 px-1 py-2 text-center font-medium ${
-                    isWeekend(date) ? 'bg-sunk text-ink-700' : 'bg-sunk text-stone-600'
+                  role="columnheader"
+                  aria-current={isToday ? 'date' : undefined}
+                  className={`w-[var(--col)] shrink-0 border-b border-stone-200 py-1 text-center ${
+                    isToday
+                      ? 'bg-brand-100/70 text-brand-800'
+                      : isWeekend(date)
+                        ? 'bg-sunk text-ink-700'
+                        : 'bg-sunk text-stone-600'
                   }`}
                 >
-                  <div className="text-[10px] uppercase tracking-wide text-stone-400">
+                  <div className="text-[10px] uppercase tracking-wide opacity-70">
                     {weekdayLabel(date)}
                   </div>
-                  <div className="tabular text-xs">{dayLabel(date)}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((group) => [
-              <tr key={`type-${group.roomTypeId}`}>
-                <th
-                  colSpan={view.dates.length + 1}
-                  className="border-b border-stone-200 bg-sunk/80 px-3 py-1.5 text-left"
-                >
+                  <div className={`tabular text-xs ${isToday ? 'font-semibold' : ''}`}>
+                    {/* The month only where it changes, or the row would be
+                        twelve "Sep"s wide. */}
+                    {position === 0 || date.endsWith('-01')
+                      ? dayLabel(date)
+                      : String(Number(date.slice(8, 10)))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {groups.map((group) => (
+            <div key={group.roomTypeId} role="rowgroup">
+              <div role="row" className="flex border-b border-stone-200 bg-sunk/80">
+                <div role="cell" className="sticky left-0 z-10 max-w-full px-2 py-1">
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.roomTypeId)}
                     aria-expanded={!collapsed.has(group.roomTypeId)}
-                    className="flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-700"
+                    className="flex items-center gap-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-wide text-ink-700"
                   >
                     <span aria-hidden className="w-3 text-stone-400">
                       {collapsed.has(group.roomTypeId) ? '▸' : '▾'}
@@ -257,139 +335,97 @@ export function StayViewGrid({
                       </span>
                     )}
                   </button>
-                </th>
-              </tr>,
-              ...(collapsed.has(group.roomTypeId) ? [] : group.rooms).map((room) => (
-                <tr key={room.roomId} className="group">
-                  <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-3 py-2 text-left font-medium text-ink-800 group-hover:bg-sunk/70">
-                    <span className="flex items-center gap-2">
-                      <span
-                        aria-label={housekeeping(room.housekeepingStatus)}
-                        title={housekeeping(room.housekeepingStatus)}
-                        className={`h-2 w-2 shrink-0 rounded-full ${
-                          HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-stone-300'
-                        }`}
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate">
-                          {room.roomNumber}
-                          {!room.isActive && (
-                            <span className="ml-1 text-xs font-normal text-rose-600">
-                              {t('outOfService')}
-                            </span>
-                          )}
-                        </span>
-                        <span className="block truncate text-xs font-normal text-stone-400">
-                          {room.roomTypeName}
-                        </span>
-                      </span>
-                    </span>
-                  </th>
+                </div>
+              </div>
 
-                  {/* One cell per night, with the bar drawn on its first night.
-                    A table keeps the columns aligned with the header without
-                    measuring anything in JavaScript. */}
-                  {view.dates.map((date) => {
-                    const starting = room.stays.find((stay) => stay.checkIn === date);
-                    const covered = room.stays.find(
-                      (stay) => stay.checkIn < date && stay.checkOut > date,
-                    );
-
-                    if (covered) return null;
-
-                    if (!starting) {
-                      return (
-                        <td
-                          key={date}
-                          className={`border-b border-stone-100 px-1 py-2 ${
-                            isWeekend(date) ? 'bg-sunk/60' : ''
-                          }`}
-                        />
-                      );
-                    }
-
-                    // Clamp to the window: a stay running past the edge draws to
-                    // the edge rather than off it.
-                    const start = index.get(date) ?? 0;
-                    const end = index.get(starting.checkOut) ?? view.dates.length;
-                    const span = Math.max(1, end - start);
-
-                    return (
-                      <td
-                        key={date}
-                        colSpan={span}
-                        className="border-b border-stone-100 px-0.5 py-1.5"
+              {!collapsed.has(group.roomTypeId) &&
+                group.rooms.map(({ room, bars }) => {
+                  const lanes = Math.max(1, ...bars.map((bar) => bar.lane + 1));
+                  return (
+                    <div key={room.roomId} role="row" aria-label={room.roomNumber} className="flex">
+                      {/* Just the number: the type is the heading above, and
+                          every pixel here is a night the desk cannot see. */}
+                      <div
+                        role="rowheader"
+                        className="sticky left-0 z-10 flex w-[var(--room)] shrink-0 items-center gap-1.5 border-b border-r border-stone-200 bg-white px-2 text-xs font-semibold text-ink-800"
+                        style={{ height: `${String(lanes * LANE_PX + 4)}px` }}
                       >
                         <span
-                          title={`${starting.reservationCode} · ${starting.checkIn} → ${starting.checkOut}`}
-                          className={`flex items-center gap-1 truncate rounded px-2 py-1 text-xs font-medium ${
-                            starting.status === 'CHECKED_OUT'
-                              ? 'bg-sunk text-stone-500'
-                              : starting.status === 'CHECKED_IN'
-                                ? 'bg-emerald-100 text-emerald-900'
-                                : starting.upgraded
-                                  ? 'bg-violet-100 text-violet-800'
-                                  : 'bg-brand-100 text-brand-800'
+                          aria-label={housekeeping(room.housekeepingStatus)}
+                          title={housekeeping(room.housekeepingStatus)}
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                            HOUSEKEEPING_DOT[room.housekeepingStatus] ?? 'bg-stone-300'
                           }`}
-                        >
-                          <span className="truncate">
-                            {starting.guestName ?? starting.reservationCode}
-                          </span>
-                          {starting.upgraded && (
-                            <span className="shrink-0 text-[10px] uppercase">{t('upgraded')}</span>
-                          )}
-                          {canAssign && (
-                            <span className="ml-auto flex shrink-0 items-center gap-1">
-                              {/* The action the front desk needs on this row,
-                                driven by where the booking actually is. */}
-                              {starting.status === 'CONFIRMED' && (
-                                <button
-                                  type="button"
-                                  disabled={pending}
-                                  onClick={() => arrive(starting)}
-                                  className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-white disabled:opacity-60"
-                                >
-                                  {t('checkIn')}
-                                </button>
-                              )}
-                              {starting.status === 'CHECKED_IN' && (
-                                <button
-                                  type="button"
-                                  disabled={pending}
-                                  onClick={() => depart(starting)}
-                                  className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 hover:bg-white disabled:opacity-60"
-                                >
-                                  {t('checkOut')}
-                                </button>
-                              )}
-                              {starting.status === 'CHECKED_OUT' && (
-                                <span className="text-[10px] text-stone-500">{t('departed')}</span>
-                              )}
-                              {/* Releasing a room only makes sense before arrival;
-                                afterwards the assignment is history. */}
-                              {starting.status === 'CONFIRMED' && (
-                                <button
-                                  type="button"
-                                  disabled={pending}
-                                  onClick={() => release(starting.stayId)}
-                                  aria-label={`${t('release')} ${starting.reservationCode}`}
-                                  className="rounded px-1 text-[10px] text-stone-500 hover:bg-white/60 disabled:opacity-60"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                    );
-                  })}
-                </tr>
-              )),
-            ])}
-          </tbody>
-        </table>
+                        />
+                        <span className="truncate">{room.roomNumber}</span>
+                        {!room.isActive && <span className="sr-only">{t('outOfService')}</span>}
+                      </div>
+
+                      <div
+                        role="cell"
+                        className="relative border-b border-stone-100"
+                        style={{
+                          width: `calc(var(--col) * ${String(columns)})`,
+                          height: `${String(lanes * LANE_PX + 4)}px`,
+                        }}
+                      >
+                        {view.dates.map((date, position) => (
+                          <div
+                            key={date}
+                            aria-hidden
+                            className={`absolute inset-y-0 w-[var(--col)] border-l border-stone-100 ${
+                              date === today
+                                ? 'bg-brand-100/40'
+                                : isWeekend(date)
+                                  ? 'bg-sunk/60'
+                                  : !room.isActive
+                                    ? 'bg-rose-50/40'
+                                    : ''
+                            }`}
+                            style={{ left: `calc(var(--col) * ${String(position)})` }}
+                          />
+                        ))}
+
+                        {bars.map((bar) => (
+                          <Bar
+                            key={bar.stay.stayId}
+                            bar={bar}
+                            today={today}
+                            onOpen={() => {
+                              setError(null);
+                              setOpened({ stay: bar.stay, roomNumber: room.roomNumber });
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          ))}
+        </div>
       </div>
+
+      <Legend />
+
+      {opened && (
+        <StaySheet
+          propertyId={propertyId}
+          stay={opened.stay}
+          roomNumber={opened.roomNumber}
+          today={today}
+          canAssign={canAssign}
+          pending={pending}
+          error={error}
+          onArrive={() => arrive(opened.stay)}
+          onDepart={() => depart(opened.stay)}
+          onRelease={() => release(opened.stay.stayId)}
+          onClose={() => {
+            setOpened(null);
+            setError(null);
+          }}
+        />
+      )}
 
       {assigning && (
         <AssignDialog
@@ -400,6 +436,96 @@ export function StayViewGrid({
         />
       )}
     </div>
+  );
+}
+
+function barTone(stay: StayViewOccupancy, today: string): string {
+  if (stay.status === 'CHECKED_OUT') return 'bg-sunk text-stone-500';
+  if (stay.status === 'CHECKED_IN') {
+    // Still in the room past the morning they were due to leave: the one
+    // state a desk most needs to notice, and the colour says so.
+    return stay.checkOut <= today
+      ? 'bg-amber-200 text-amber-950 ring-1 ring-amber-400'
+      : 'bg-emerald-200 text-emerald-950';
+  }
+  if (stay.status === 'PENDING')
+    return 'bg-amber-50 text-amber-800 ring-1 ring-dashed ring-amber-300';
+  if (stay.upgraded) return 'bg-violet-100 text-violet-800';
+  return 'bg-brand-100 text-brand-800';
+}
+
+/**
+ * One stay on the grid. A button, because at 44px a night there is room for
+ * a name and nothing else — everything it can do lives in the sheet it opens.
+ * The status is read out (and matched by tests) but not printed.
+ */
+function Bar({
+  bar,
+  today,
+  onOpen,
+}: {
+  bar: StayBar<StayViewOccupancy>;
+  today: string;
+  onOpen: () => void;
+}) {
+  const t = useTranslations('stayView');
+  const { stay } = bar;
+  const name = stay.guestName ?? stay.reservationCode;
+  const status =
+    stay.status === 'CHECKED_IN'
+      ? stay.checkOut <= today
+        ? t('dueOut')
+        : t('inHouse')
+      : stay.status === 'CHECKED_OUT'
+        ? t('departed')
+        : stay.status === 'PENDING'
+          ? t('pendingHold')
+          : t('expected');
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={`${stay.reservationCode} · ${stay.checkIn} → ${stay.checkOut}`}
+      className={`absolute flex h-7 items-center overflow-hidden px-1.5 text-left text-xs font-medium ${
+        bar.clippedStart
+          ? 'rounded-l-none border-l-2 border-dashed border-current/40'
+          : 'rounded-l-md'
+      } ${bar.clippedEnd ? 'rounded-r-none' : 'rounded-r-md'} ${barTone(stay, today)}`}
+      style={{
+        left: `calc(var(--col) * ${String(bar.left)} + 1px)`,
+        width: `calc(var(--col) * ${String(bar.width)} - 2px)`,
+        top: `${String(bar.lane * LANE_PX + 4)}px`,
+      }}
+    >
+      <span className="truncate">{name}</span>
+      <span className="sr-only">
+        {' '}
+        · {status}
+        {stay.upgraded ? ` · ${t('upgraded')}` : ''}
+      </span>
+    </button>
+  );
+}
+
+function Legend() {
+  const t = useTranslations('stayView');
+  const items: [string, string][] = [
+    ['bg-brand-100 ring-1 ring-brand-200', t('expected')],
+    ['bg-emerald-200', t('inHouse')],
+    ['bg-amber-200 ring-1 ring-amber-400', t('dueOut')],
+    ['bg-sunk ring-1 ring-stone-200', t('departed')],
+    ['bg-violet-100', t('upgraded')],
+  ];
+  return (
+    <ul aria-label={t('legend')} className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
+      {items.map(([tone, label]) => (
+        <li key={label} className="flex items-center gap-1.5">
+          <span aria-hidden className={`inline-block h-3 w-5 rounded ${tone}`} />
+          {label}
+        </li>
+      ))}
+    </ul>
   );
 }
 
