@@ -6,6 +6,8 @@ import type { Executor } from '../../../database/executor';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import type { ReservationStatus } from '../domain/reservation-status';
 import type {
+  BookerFields,
+  BookerRecord,
   LoadedReservation,
   ModifiableStay,
   ReservationRecord,
@@ -178,6 +180,54 @@ export class DrizzleReservationRepository implements ReservationRepository {
         ...(patch?.cancellationReason ? { cancellationReason: patch.cancellationReason } : {}),
         ...(patch?.checkedInAt ? { checkedInAt: patch.checkedInAt } : {}),
         ...(patch?.checkedOutAt ? { checkedOutAt: patch.checkedOutAt } : {}),
+      })
+      .where(
+        and(
+          eq(reservations.id, reservationId),
+          eq(reservations.organizationId, organizationId),
+          eq(reservations.version, expectedVersion),
+        ),
+      );
+
+    return result.rowCount ?? 0;
+  }
+
+  async findBooker(tx: Executor, reservationId: string): Promise<BookerRecord | null> {
+    const organizationId = requireOrganizationId();
+
+    const rows = await tx
+      .select({
+        id: reservations.id,
+        propertyId: reservations.propertyId,
+        version: reservations.version,
+        bookerName: reservations.bookerName,
+        bookerEmail: reservations.bookerEmail,
+        bookerPhone: reservations.bookerPhone,
+        specialRequests: reservations.specialRequests,
+      })
+      .from(reservations)
+      .where(
+        and(eq(reservations.id, reservationId), eq(reservations.organizationId, organizationId)),
+      )
+      .limit(1);
+
+    return rows[0] ?? null;
+  }
+
+  async updateBooker(
+    tx: Executor,
+    reservationId: string,
+    expectedVersion: number,
+    fields: BookerFields,
+  ): Promise<number> {
+    const organizationId = requireOrganizationId();
+
+    const result = await tx
+      .update(reservations)
+      .set({
+        ...fields,
+        version: expectedVersion + 1,
+        updatedAt: new Date(),
       })
       .where(
         and(

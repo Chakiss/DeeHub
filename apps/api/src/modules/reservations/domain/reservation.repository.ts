@@ -102,6 +102,25 @@ export interface ModifiableStay {
   readonly nightDates: readonly IsoDate[];
 }
 
+/** The contact block of a reservation, read before and after a correction. */
+export interface BookerRecord {
+  readonly id: string;
+  readonly propertyId: string;
+  readonly version: number;
+  readonly bookerName: string;
+  readonly bookerEmail: string | null;
+  readonly bookerPhone: string | null;
+  readonly specialRequests: string | null;
+}
+
+/** What a correction may change. Absent leaves a field alone; null clears it. */
+export interface BookerFields {
+  readonly bookerName?: string;
+  readonly bookerEmail?: string | null;
+  readonly bookerPhone?: string | null;
+  readonly specialRequests?: string | null;
+}
+
 export interface ReservationTotals {
   readonly subtotalMinor: number;
   readonly taxMinor: number;
@@ -198,6 +217,19 @@ export interface ReservationRepository {
    * booking is not PENDING or already holds longer.
    */
   extendHold(tx: Executor, reservationId: string, until: Date): Promise<number>;
+
+  findBooker(tx: Executor, reservationId: string): Promise<BookerRecord | null>;
+
+  /**
+   * Contact correction guarded by `version`, like `updateStatus`. Returns the
+   * number of rows written: 0 means somebody else changed the booking first.
+   */
+  updateBooker(
+    tx: Executor,
+    reservationId: string,
+    expectedVersion: number,
+    fields: BookerFields,
+  ): Promise<number>;
 
   /**
    * Status change guarded by `version` (optimistic locking).

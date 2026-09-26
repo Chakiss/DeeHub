@@ -15,6 +15,7 @@ import { ShortenStayUseCase } from './application/shorten-stay.usecase';
 import { GetReservationQuery } from './application/get-reservation.query';
 import { ListReservationsQuery } from './application/list-reservations.query';
 import { ModifyStayUseCase } from './application/modify-stay.usecase';
+import { UpdateBookerUseCase } from './application/update-booker.usecase';
 import { PlanStayService } from './application/plan-stay.service';
 import { RESERVATION_REPOSITORY } from './domain/reservation.repository';
 import { DrizzleReservationRepository } from './infrastructure/drizzle-reservation.repository';
@@ -51,6 +52,7 @@ import { ReservationsController } from './interface/reservations.controller';
     PlanStayService,
     CreateReservationUseCase,
     ModifyStayUseCase,
+    UpdateBookerUseCase,
     ExtendStayUseCase,
     ShortenStayUseCase,
     CancelReservationUseCase,
