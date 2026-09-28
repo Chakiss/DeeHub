@@ -27,6 +27,9 @@ test.describe('guest booking', () => {
     await expect(page.getByText('฿900')).toBeVisible();
     await expect(page.getByText('Walk-in special')).toHaveCount(0);
     await expect(page.getByText('Free cancellation')).toBeVisible();
+    // How many are left is shown always, not only when scarce: the guest sees
+    // the number the desk sees.
+    await expect(page.getByText(/^(Only )?\d+ left$/).first()).toBeVisible();
   });
 
   test("turns Google's landing link into the hotel's rooms page", async ({ page }) => {
