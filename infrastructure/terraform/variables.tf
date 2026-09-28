@@ -197,3 +197,16 @@ variable "line_staff_target" {
   type        = string
   default     = ""
 }
+
+variable "enable_storage_hmac" {
+  description = "Mint the HMAC key the API signs photo uploads with. false when the organization policy iam.disableServiceAccountKeyCreation blocks it; photos are then reported as not configured until it is lifted."
+  type        = bool
+  default     = true
+}
+
+variable "enable_book_armor" {
+  description = "Put a Cloud Armor rate-limit policy in front of the booking site. false while the project's SECURITY_POLICIES quota is 0; the API rate-limits the booking endpoints itself."
+  type        = bool
+  default     = true
+}
+

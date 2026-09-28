@@ -251,6 +251,21 @@ Order on first setup: `terraform apply`, then `set-secrets.sh`, then a deploy �
 until the two secrets have a version the API starts with photos reported as
 "not configured" and everything else works.
 
+**If Cloud Armor is refused** (`Quota 'SECURITY_POLICIES' exceeded. Limit: 0.0`
+— new projects start at zero): set `enable_book_armor = false`, apply, and
+request the quota increase under IAM & Admin → Quotas (metric
+`compute.googleapis.com/security_policies`); flip the variable back once it
+is granted. The API rate-limits the booking endpoints itself meanwhile.
+
+**If the organization policy refuses the key** (`Error 412 … constraints/iam.disableServiceAccountKeyCreation`,
+enforced by default on new organizations, and a project editor cannot lift
+it): set `enable_storage_hmac = false` in `terraform.tfvars` and apply. The
+rest of the platform comes up, `set-secrets.sh` writes the "disabled"
+placeholder, and photos stay "not configured" until an organization
+administrator runs
+`gcloud resource-manager org-policies disable-enforce iam.disableServiceAccountKeyCreation --project=<project>`,
+after which flip the variable back, apply, and run `set-secrets.sh` again.
+
 ### Notification delivery
 
 All optional, and all absent by default:

@@ -172,8 +172,13 @@ resource "google_compute_region_network_endpoint_group" "book" {
   }
 }
 
+# Optional: new projects start with a Cloud Armor quota of ZERO security
+# policies ("Quota 'SECURITY_POLICIES' exceeded. Limit: 0.0"), and raising it
+# is a support request. The API rate-limits the booking endpoints itself
+# (api-spec.md §6.8b), so the site can run without this edge layer until the
+# quota is granted; then set enable_book_armor = true and apply.
 resource "google_compute_security_policy" "book" {
-  count = local.lb_enabled
+  count = local.lb_enabled * (var.enable_book_armor ? 1 : 0)
   name  = "deehub-book-armor-${local.suffix}"
 
   rule {
@@ -215,7 +220,7 @@ resource "google_compute_backend_service" "book" {
   name                  = "deehub-book-${local.suffix}"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   protocol              = "HTTPS"
-  security_policy       = google_compute_security_policy.book[0].id
+  security_policy       = var.enable_book_armor ? google_compute_security_policy.book[0].id : null
 
   backend {
     group = google_compute_region_network_endpoint_group.book[0].id
@@ -237,11 +242,13 @@ resource "google_compute_backend_service" "book" {
 #
 # create_before_destroy because a certificate cannot be updated in place: adding
 # a domain replaces it, and without this the replacement is destroyed first and
-# the site serves nothing in between.
+# the site serves nothing in between. The name carries a hash of the domain
+# list so the replacement can exist beside the old one — with a fixed name the
+# create step answers 409 alreadyExists and nothing is replaced at all.
 
 resource "google_compute_managed_ssl_certificate" "main" {
   count = local.lb_enabled
-  name  = "deehub-cert-${local.suffix}"
+  name  = "deehub-cert-${local.suffix}-${substr(md5(join(",", local.lb_domains)), 0, 6)}"
 
   managed {
     domains = local.lb_domains
