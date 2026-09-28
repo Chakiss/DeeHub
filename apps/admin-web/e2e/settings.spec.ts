@@ -28,11 +28,16 @@ test.describe('property settings', () => {
 
     await page.getByLabel('Longitude').fill('100.8825');
     await page.getByLabel('Description (English)').fill('A quiet resort near Huai Yai.');
+    // Where guests transfer to, while there is no card gateway. Typed the
+    // way it is copied off a bank app; stored as digits.
+    await page.getByLabel('PromptPay number').fill('081-234-5678');
+    await page.getByLabel('Payee name shown to guests').fill('Sea Breeze Resort');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByRole('status')).toContainText('Saved');
 
     await page.reload();
     await expect(page.getByLabel('City / district')).toHaveValue('Bang Lamung');
+    await expect(page.getByLabel('PromptPay number')).toHaveValue('0812345678');
     await expect(page.getByLabel('Latitude')).toHaveValue('12.9236');
     await expect(page.getByRole('link', { name: 'Check the pin on Google Maps' })).toBeVisible();
   });

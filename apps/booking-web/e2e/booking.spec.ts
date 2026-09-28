@@ -95,8 +95,12 @@ test.describe('guest booking', () => {
     await page.getByRole('button', { name: 'Continue to payment' }).click();
 
     await expect(page).toHaveURL(/\/pay\/DH-[A-Z0-9]+\?email=/);
-    await expect(page.getByText('This hotel does not take online payment yet.')).toBeVisible();
-    await expect(page.getByText(/ploy@example\.test/)).toBeVisible();
+    // No card gateway, but the hotel takes PromptPay: a QR with the amount in
+    // it, the target, and the booking code to put in the transfer note.
+    await expect(page.getByRole('heading', { name: 'Pay by PromptPay' })).toBeVisible();
+    await expect(page.getByRole('img', { name: /PromptPay QR for/ })).toBeVisible();
+    await expect(page.getByText('0635485456')).toBeVisible();
+    await expect(page.getByText('฿450').first()).toBeVisible();
 
     await page.getByRole('link', { name: 'Back to booking' }).click();
     await expect(page.getByRole('heading', { name: 'Booking received' })).toBeVisible();

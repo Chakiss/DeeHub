@@ -141,6 +141,13 @@
       "when": 1790631388932,
       "tag": "0019_free_red_shift",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790633380572,
+      "tag": "0020_needy_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }

@@ -46,6 +46,15 @@ export const properties = pgTable(
      * sellable through the desk long before anyone writes its blurb.
      */
     website: text('website'),
+    /**
+     * The hotel's PromptPay target (a phone, national id or e-wallet id, digits
+     * only) and the payee name printed under the QR. The booking site shows a
+     * transfer QR for a booking paying at the hotel while no card gateway is
+     * configured; the hotel confirms by hand once the money lands. Null = no
+     * transfer option offered.
+     */
+    promptpayId: text('promptpay_id'),
+    promptpayName: text('promptpay_name'),
     /** WGS84, six decimals (about 10 cm). Google matches on these. */
     latitude: numeric('latitude', { precision: 9, scale: 6, mode: 'number' }),
     longitude: numeric('longitude', { precision: 9, scale: 6, mode: 'number' }),

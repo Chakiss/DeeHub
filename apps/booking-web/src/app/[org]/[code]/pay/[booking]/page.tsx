@@ -7,6 +7,7 @@ import { loadHotel } from '@/lib/hotel';
 import type { Locale } from '@/i18n/locale';
 import { PaymentPanel } from '@/components/payment-panel';
 import { Shell } from '@/components/shell';
+import { TransferPanel } from '@/components/transfer-panel';
 
 type Params = Promise<{ org: string; code: string; booking: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;
@@ -99,6 +100,17 @@ export default async function PayPage({
               initialIntent={pendingIntent}
             />
           </div>
+        ) : hotel.promptPay ? (
+          /* No card gateway, but the hotel takes PromptPay: a transfer QR with
+             the amount baked in, and the hotel confirms by hand. */
+          <TransferPanel
+            promptPay={hotel.promptPay}
+            amountMinor={booking.total}
+            currency={booking.currency}
+            bookingCode={booking.code}
+            hotelPhone={hotel.phone}
+            backHref={confirmation}
+          />
         ) : (
           <div className="rounded-2xl bg-success-50 p-5 text-sm text-success-700">
             <p className="font-medium">{t('noOnline')}</p>

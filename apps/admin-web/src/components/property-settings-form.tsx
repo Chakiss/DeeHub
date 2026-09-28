@@ -35,6 +35,8 @@ export function PropertySettingsForm({
   const [phone, setPhone] = useState(property.phone ?? '');
   const [email, setEmail] = useState(property.email ?? '');
   const [website, setWebsite] = useState(property.website ?? '');
+  const [promptpayId, setPromptpayId] = useState(property.promptpayId ?? '');
+  const [promptpayName, setPromptpayName] = useState(property.promptpayName ?? '');
   const [latitude, setLatitude] = useState(
     property.latitude === null ? '' : String(property.latitude),
   );
@@ -77,6 +79,8 @@ export function PropertySettingsForm({
       phone: phone.trim() || null,
       email: email.trim() || null,
       website: website.trim() || null,
+      promptpayId: promptpayId.trim() || null,
+      promptpayName: promptpayName.trim() || null,
       latitude: lat,
       longitude: lng,
       descriptionTh: descriptionTh.trim() || null,
@@ -148,6 +152,33 @@ export function PropertySettingsForm({
                 onChange={(event) => setWebsite(event.target.value)}
                 maxLength={500}
                 placeholder="https://"
+                className={INPUT}
+              />
+            </Field>
+          </div>
+        </Section>
+
+        <Section title={t('payment')}>
+          <p className="mb-3 text-sm text-stone-500">{t('paymentHint')}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="ps-promptpay-id" label={t('promptpayId')} hint={t('promptpayIdHint')}>
+              <input
+                id="ps-promptpay-id"
+                type="text"
+                inputMode="numeric"
+                value={promptpayId}
+                onChange={(event) => setPromptpayId(event.target.value)}
+                maxLength={20}
+                className={INPUT}
+              />
+            </Field>
+            <Field id="ps-promptpay-name" label={t('promptpayName')}>
+              <input
+                id="ps-promptpay-name"
+                type="text"
+                value={promptpayName}
+                onChange={(event) => setPromptpayName(event.target.value)}
+                maxLength={120}
                 className={INPUT}
               />
             </Field>

@@ -274,6 +274,21 @@ describeIfDb('Booking engine', () => {
     expect(response.body).not.toHaveProperty('organizationId');
     // No provider is configured in tests, and the page needs to know.
     expect(response.body.paymentAvailable).toBe(false);
+    // No transfer target set either: the page offers nothing rather than a
+    // QR to nowhere.
+    expect(response.body.promptPay).toBeNull();
+
+    // Once the hotel sets one, the page can draw the transfer QR.
+    await pool.query(
+      `UPDATE properties SET promptpay_id = '0812345678', promptpay_name = 'Booking Engine Hotel' WHERE id = $1`,
+      [propertyId],
+    );
+    const withTarget = await request(app.getHttpServer()).get(publicUrl()).expect(200);
+    expect(withTarget.body.promptPay).toEqual({ id: '0812345678', name: 'Booking Engine Hotel' });
+    await pool.query(
+      `UPDATE properties SET promptpay_id = NULL, promptpay_name = NULL WHERE id = $1`,
+      [propertyId],
+    );
   });
 
   it('answers the same way for a wrong slug, a wrong code and a real one', async () => {
