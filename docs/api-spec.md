@@ -1369,3 +1369,13 @@ retries and duplicate deliveries.
    should follow the same grid convention as inventory.
 4. Webhook _outbound_ (DeeHub → customer systems) is not planned for
    Milestone 1.
+
+### PromptPay transfer (bridge until a card gateway)
+
+`PATCH /properties/{pid}` accepts `promptpayId` (a 10-digit mobile number, a
+13-digit national id or a 15-digit e-wallet id; dashes and spaces dropped) and
+`promptpayName`. The public catalog then carries `promptPay: { id, name }`
+(null when unset), and the booking site draws a Thai QR Payment code with the
+booking's total for a booking paying at the hotel. The hotel confirms with
+`POST /reservations/{id}/confirm` once the transfer arrives; nothing reconciles
+automatically. Ignored while `paymentAvailable` is true.
