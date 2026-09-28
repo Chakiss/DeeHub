@@ -26,6 +26,8 @@ const PROFILE_COLUMNS = {
   phone: properties.phone,
   email: properties.email,
   website: properties.website,
+  promptpayId: properties.promptpayId,
+  promptpayName: properties.promptpayName,
   latitude: properties.latitude,
   longitude: properties.longitude,
   descriptionTh: properties.descriptionTh,

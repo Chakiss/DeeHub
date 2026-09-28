@@ -32,6 +32,8 @@ export interface PropertyProfile {
   readonly phone: string | null;
   readonly email: string | null;
   readonly website: string | null;
+  readonly promptpayId: string | null;
+  readonly promptpayName: string | null;
   readonly latitude: number | null;
   readonly longitude: number | null;
   readonly descriptionTh: string | null;
@@ -56,6 +58,8 @@ export type UpdatePropertyFields = Partial<
     | 'phone'
     | 'email'
     | 'website'
+    | 'promptpayId'
+    | 'promptpayName'
     | 'latitude'
     | 'longitude'
     | 'descriptionTh'

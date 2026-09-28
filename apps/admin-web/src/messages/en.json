@@ -973,6 +973,11 @@
     "tooLarge": "That photo is larger than 5 MB even after shrinking.",
     "tooManyPhotos": "A gallery holds at most {max} photos; the rest were skipped.",
     "uploadFailed": "The upload did not finish. Try again.",
-    "storageMissing": "Photo storage is not configured for this deployment yet."
+    "storageMissing": "Photo storage is not configured for this deployment yet.",
+    "payment": "Payment",
+    "paymentHint": "While no card gateway is connected, the booking site shows guests a PromptPay QR with the amount filled in. You confirm the booking from the stay view once the transfer arrives.",
+    "promptpayId": "PromptPay number",
+    "promptpayIdHint": "Mobile number, national id or e-wallet id registered for PromptPay. Empty means no transfer option is offered.",
+    "promptpayName": "Payee name shown to guests"
   }
 }

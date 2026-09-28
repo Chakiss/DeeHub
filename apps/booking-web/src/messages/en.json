@@ -1,5 +1,8 @@
 {
-  "app": { "name": "DeeHub", "poweredBy": "Booking by DeeHub" },
+  "app": {
+    "name": "DeeHub",
+    "poweredBy": "Booking by DeeHub"
+  },
   "common": {
     "language": "Language",
     "back": "Back",
@@ -95,7 +98,14 @@
     "secure": "Your card details go straight to our payment provider and never touch this site.",
     "cardInvalid": "Check the card details.",
     "redirecting": "Taking you to your bank to confirm…",
-    "back": "Back to booking"
+    "back": "Back to booking",
+    "transferTitle": "Pay by PromptPay",
+    "transferBody": "Scan the QR with your bank app — the amount ({amount}) is already filled in. The hotel confirms your booking once the transfer arrives, usually within a few hours.",
+    "transferQrAlt": "PromptPay QR for {amount}",
+    "transferTo": "PromptPay",
+    "transferAmount": "Amount",
+    "transferNote": "Reference",
+    "transferThen": "After you transfer, keep the slip. If you have not heard from the hotel within 24 hours, call {phone}. Your room is held for 24 hours."
   },
   "confirm": {
     "title": "Booking confirmed",

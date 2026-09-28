@@ -96,6 +96,8 @@ export interface Catalog {
   phone: string | null;
   email: string | null;
   website: string | null;
+  /** Bank-transfer target for a booking paying at the hotel; null when none is offered. */
+  promptPay: { id: string; name: string | null } | null;
   address: {
     line1: string | null;
     line2: string | null;

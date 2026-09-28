@@ -52,6 +52,8 @@ export interface PublicCatalog {
   readonly phone: string | null;
   readonly email: string | null;
   readonly website: string | null;
+  /** Bank-transfer target for a booking paying at the hotel; null when the hotel offers none. */
+  readonly promptPay: { readonly id: string; readonly name: string | null } | null;
   readonly address: {
     readonly line1: string | null;
     readonly line2: string | null;
@@ -120,6 +122,9 @@ export class PublicCatalogQuery {
       phone: profile.phone,
       email: profile.email,
       website: profile.website,
+      promptPay: profile.promptpayId
+        ? { id: profile.promptpayId, name: profile.promptpayName }
+        : null,
       address: {
         line1: profile.addressLine1,
         line2: profile.addressLine2,

@@ -22,6 +22,22 @@ const text = (max: number) => z.string().trim().max(max).nullable().optional();
 /** "14:00" — Postgres `time`, no seconds so the form and the column agree. */
 const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM');
 
+/**
+ * A PromptPay target: a Thai mobile number (10 digits, leading 0), a national
+ * id (13) or an e-wallet id (15). Dashes and spaces are tolerated and
+ * dropped, because that is how people copy them off a bank app.
+ */
+const promptpayId = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/[\s-]/g, ''))
+  .refine((value) => /^0\d{9}$|^\d{13}$|^\d{15}$/.test(value), {
+    message:
+      'A PromptPay id is a 10-digit mobile number, a 13-digit national id or a 15-digit e-wallet id',
+  })
+  .nullable()
+  .optional();
+
 const updateSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
@@ -32,6 +48,8 @@ const updateSchema = z
     phone: text(40),
     email: z.string().trim().email().max(320).nullable().optional(),
     website: z.string().trim().url().max(500).nullable().optional(),
+    promptpayId,
+    promptpayName: text(120),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
     descriptionTh: text(4000),
@@ -90,6 +108,7 @@ export class PropertiesController {
             // Empty strings arrive from cleared inputs; they mean "none".
             ...(body.website === '' ? { website: null } : {}),
             ...(body.email === '' ? { email: null } : {}),
+            ...(body.promptpayName === '' ? { promptpayName: null } : {}),
           },
         },
         actorFrom(request),
@@ -113,6 +132,8 @@ function present(profile: PropertyProfile) {
     phone: profile.phone,
     email: profile.email,
     website: profile.website,
+    promptpayId: profile.promptpayId,
+    promptpayName: profile.promptpayName,
     latitude: profile.latitude,
     longitude: profile.longitude,
     descriptionTh: profile.descriptionTh,

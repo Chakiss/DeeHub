@@ -218,6 +218,38 @@ describeIfDb('Properties API', () => {
       .expect(422);
   });
 
+  it('takes a PromptPay target in the forms people copy it, and refuses anything else', async () => {
+    const token = await managerToken();
+    const saved = await request(app.getHttpServer())
+      .patch(`/api/v1/properties/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ promptpayId: '081-234-5678', promptpayName: "The Let's Chill" })
+      .expect(200);
+    expect(saved.body.promptpayId).toBe('0812345678');
+    expect(saved.body.promptpayName).toBe("The Let's Chill");
+
+    for (const bad of ['812345678', '12345', 'abc', '1234567890123456']) {
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ promptpayId: bad })
+        .expect(422);
+    }
+    // A national id and an e-wallet id are the other two shapes.
+    for (const good of ['1234567890123', '123456789012345']) {
+      await request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ promptpayId: good })
+        .expect(200);
+    }
+    await request(app.getHttpServer())
+      .patch(`/api/v1/properties/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ promptpayId: null })
+      .expect(200);
+  });
+
   it('lets a READ_ONLY user read but not write', async () => {
     const token = await tokenFor(`reader-${orgSlug}@e2e.test`, orgSlug);
     await request(app.getHttpServer())

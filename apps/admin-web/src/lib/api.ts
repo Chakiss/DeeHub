@@ -404,6 +404,9 @@ export interface PropertyProfile {
   phone: string | null;
   email: string | null;
   website: string | null;
+  /** PromptPay target and payee name for the booking site's transfer QR. */
+  promptpayId: string | null;
+  promptpayName: string | null;
   latitude: number | null;
   longitude: number | null;
   descriptionTh: string | null;
@@ -428,6 +431,8 @@ export type UpdatePropertyInput = Partial<
     | 'phone'
     | 'email'
     | 'website'
+    | 'promptpayId'
+    | 'promptpayName'
     | 'latitude'
     | 'longitude'
     | 'descriptionTh'
