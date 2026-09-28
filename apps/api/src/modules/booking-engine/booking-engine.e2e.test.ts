@@ -330,6 +330,10 @@ describeIfDb('Booking engine', () => {
     expect(response.body.status).toBe('PENDING');
     expect(response.body.code).toBeTruthy();
     expect(response.body.holdExpiresInSeconds).toBeGreaterThan(0);
+    // No gateway in this environment, so the booking is a request the hotel
+    // answers by hand: it must outlive a working day, not fifteen minutes.
+    expect(response.body.paymentAvailable).toBe(false);
+    expect(response.body.holdExpiresInSeconds).toBe(24 * 60 * 60);
     // The code, never the id: it is the only handle the payment step accepts.
     expect(response.body).not.toHaveProperty('id');
   });

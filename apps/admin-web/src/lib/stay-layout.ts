@@ -56,6 +56,12 @@ function nextDay(date: string): string {
 export function layoutStays<T extends StayLike>(
   dates: readonly string[],
   stays: readonly T[],
+  /**
+   * When the ROOM is free, if earlier than check-out: a guest who left early
+   * has a bar that ends the morning they left, not the morning they booked.
+   * Equal to check-in for a day use, which draws a half-column marker.
+   */
+  endOf: (stay: T) => string = (stay) => stay.checkOut,
 ): StayBar<T>[] {
   const first = dates[0];
   if (first === undefined) return [];
@@ -68,20 +74,22 @@ export function layoutStays<T extends StayLike>(
   const sorted = [...stays].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
 
   for (const stay of sorted) {
-    if (stay.checkOut <= first || stay.checkIn >= end) continue;
-    if (stay.checkOut <= stay.checkIn) continue;
+    const until = endOf(stay);
+    if (until < stay.checkIn) continue;
+    // A day use (until === checkIn) is still shown on its day.
+    if (until < first || (until === first && stay.checkIn < first) || stay.checkIn >= end) continue;
 
     const clippedStart = stay.checkIn < first;
-    const clippedEnd = stay.checkOut > end;
+    const clippedEnd = until > end;
 
     const left = clippedStart ? 0 : (index.get(stay.checkIn) ?? 0) + 0.5;
     // Check-out on the morning after the last column is the window's own edge,
     // not a cut; only a later date is.
     const right = clippedEnd
       ? columns
-      : stay.checkOut === end
+      : until === end
         ? columns
-        : (index.get(stay.checkOut) ?? columns) + 0.5;
+        : (index.get(until) ?? columns) + 0.5;
 
     bars.push({
       stay,
@@ -115,15 +123,16 @@ export function layoutStays<T extends StayLike>(
  * inventory grid (ADR-0002). A hotel can be sold out with three rooms free
  * here, or have a room free here on a night it chose not to sell.
  */
-export function freeRoomsPerNight(
+export function freeRoomsPerNight<T extends StayLike>(
   dates: readonly string[],
-  rooms: readonly { isActive: boolean; stays: readonly StayLike[] }[],
+  rooms: readonly { isActive: boolean; stays: readonly T[] }[],
+  endOf: (stay: T) => string = (stay) => stay.checkOut,
 ): number[] {
   return dates.map(
     (date) =>
       rooms.filter(
         (room) =>
-          room.isActive && !room.stays.some((stay) => stay.checkIn <= date && stay.checkOut > date),
+          room.isActive && !room.stays.some((stay) => stay.checkIn <= date && endOf(stay) > date),
       ).length,
   );
 }

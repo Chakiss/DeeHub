@@ -642,6 +642,8 @@ export interface StayViewOccupancy {
   version: number;
   checkIn: string;
   checkOut: string;
+  /** The morning the ROOM came free: check-out, or earlier when the guest left early. */
+  roomUntil: string;
   upgraded: boolean;
   /** How the booking arrived, for the badge on the bar. */
   source: string;
@@ -1356,6 +1358,13 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ roomId }),
     }),
+
+  /** The hotel says yes to a site booking that is waiting on it (PENDING → CONFIRMED). */
+  confirmReservation: (propertyId: string, reservationId: string, version: number) =>
+    request<{ id: string; status: string; version: number }>(
+      `/properties/${propertyId}/reservations/${reservationId}/confirm`,
+      { method: 'POST', body: JSON.stringify({ version }) },
+    ),
 
   checkIn: (propertyId: string, reservationId: string, version: number) =>
     request<{ id: string; status: string; rooms: string[] }>(

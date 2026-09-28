@@ -146,8 +146,10 @@ export class AssignRoomUseCase {
           eq(reservationStays.propertyId, propertyId),
           eq(reservationStays.assignedRoomId, roomId),
           ne(reservationStays.id, stayId),
-          sql`daterange(${reservationStays.checkIn}, ${reservationStays.checkOut}, '[)') && (
-            SELECT daterange(check_in, check_out, '[)') FROM reservation_stays WHERE id = ${stayId}
+          // A room a departed guest has walked out of is free from that
+          // morning (room_released_on), whatever the booking's check-out says.
+          sql`daterange(${reservationStays.checkIn}, COALESCE(${reservationStays.roomReleasedOn}, ${reservationStays.checkOut}), '[)') && (
+            SELECT daterange(check_in, COALESCE(room_released_on, check_out), '[)') FROM reservation_stays WHERE id = ${stayId}
           )`,
         ),
       )

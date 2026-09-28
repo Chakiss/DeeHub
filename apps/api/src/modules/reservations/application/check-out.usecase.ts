@@ -140,13 +140,11 @@ export class CheckOutUseCase {
 
     const now = new Date();
 
-    const property = input.releaseRemainingNights
-      ? await this.properties.findProperty(this.db, input.propertyId)
-      : null;
-    if (input.releaseRemainingNights && !property) {
-      throw errors.notFound('Property', input.propertyId);
-    }
-    const today = property ? businessDate(property.timezone, now) : null;
+    // Today in the property's timezone: it decides which nights are unslept,
+    // both for handing inventory back and for freeing the room itself.
+    const property = await this.properties.findProperty(this.db, input.propertyId);
+    if (!property) throw errors.notFound('Property', input.propertyId);
+    const today = businessDate(property.timezone, now);
 
     return this.db.transaction(async (tx) => {
       // Read before the status changes, and inside the transaction, so the
@@ -164,9 +162,18 @@ export class CheckOutUseCase {
         throw errors.versionMismatch(input.expectedVersion, reservation.version);
       }
 
-      const nightsReleased = today
+      const nightsReleased = input.releaseRemainingNights
         ? await this.releaseUnusedNights(tx, stays, today, tenant.organizationId, input.propertyId)
         : [];
+
+      /*
+       * The room itself comes free today, whether or not the nights go back
+       * on sale. A guest who has walked out is not in the room; keeping the
+       * room blocked until the booked check-out was the pilot's complaint
+       * ("checked out at noon, could not put anyone in it until tomorrow").
+       * Inventory is the commercial decision above; this is the physical one.
+       */
+      const roomsReleased = await this.releaseRooms(tx, stays, today, tenant.organizationId);
 
       // The housekeeping handover, and the reason check-out is worth modelling
       // rather than leaving as a status flip: a departed room needs cleaning
@@ -205,6 +212,7 @@ export class CheckOutUseCase {
           // guest paid for without occupying. The question "why was room 3
           // sold twice on the 13th" has to be answerable from here.
           nightsReleased,
+          roomsReleasedOn: roomsReleased,
         },
       });
 
@@ -220,6 +228,42 @@ export class CheckOutUseCase {
         nightsReleased,
       };
     });
+  }
+
+  /**
+   * Free the physical room for the nights the guest will not be in it.
+   *
+   * `room_released_on` = today (or check-in, for a day use, which makes the
+   * guarded range empty): the room-overlap guard then lets the next guest be
+   * assigned from today. The booking's dates are not touched.
+   */
+  private async releaseRooms(
+    tx: Executor,
+    stays: readonly {
+      id: string;
+      checkIn: string;
+      checkOut: string;
+      assignedRoomId: string | null;
+    }[],
+    today: IsoDate,
+    organizationId: string,
+  ): Promise<Record<string, string>> {
+    const released: Record<string, string> = {};
+    for (const stay of stays) {
+      if (stay.assignedRoomId === null || stay.checkOut <= today) continue;
+      const on = (stay.checkIn > today ? stay.checkIn : today) as IsoDate;
+      await tx
+        .update(reservationStays)
+        .set({ roomReleasedOn: on, updatedAt: new Date() })
+        .where(
+          and(
+            eq(reservationStays.organizationId, organizationId),
+            eq(reservationStays.id, stay.id),
+          ),
+        );
+      released[stay.id] = on;
+    }
+    return released;
   }
 
   /**

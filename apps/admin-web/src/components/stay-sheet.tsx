@@ -29,8 +29,10 @@ export function StaySheet({
   canAssign,
   pending,
   error,
+  onConfirm,
   onArrive,
   onDepart,
+  onCancel,
   onRelease,
   onMove,
   onClose,
@@ -42,8 +44,12 @@ export function StaySheet({
   canAssign: boolean;
   pending: boolean;
   error: string | null;
+  /** The hotel says yes to a site booking waiting on it. */
+  onConfirm: () => void;
   onArrive: () => void;
-  onDepart: () => void;
+  /** Check out; `releaseNights` puts the unslept nights back on sale. */
+  onDepart: (releaseNights: boolean) => void;
+  onCancel: (reason: string) => void;
   onRelease: () => void;
   onMove: (roomId: string) => void;
   onClose: () => void;
@@ -65,6 +71,12 @@ export function StaySheet({
    * opened, not when the sheet is: most taps are a check-in, not a move.
    */
   const [picking, setPicking] = useState(false);
+  // Two-step choices, each spelled out where it is made: cancelling is not
+  // undoable, and leaving early is a decision about tonight's sale.
+  const [cancelling, setCancelling] = useState(false);
+  const [reason, setReason] = useState('');
+  const [departing, setDeparting] = useState(false);
+  const leavingEarly = stay.status === 'CHECKED_IN' && stay.checkOut > today;
   const [rooms, setRooms] = useState<AssignableRoom[] | null>(null);
   const [roomId, setRoomId] = useState('');
   useEffect(() => {
@@ -202,7 +214,85 @@ export function StaySheet({
           </form>
         )}
 
+        {stay.status === 'PENDING' && canAssign && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {t('confirmHint')}
+          </p>
+        )}
+
+        {departing && (
+          <div className="space-y-2 rounded-lg bg-sky-50 p-3 ring-1 ring-inset ring-sky-200">
+            <p className="text-sm font-medium text-sky-900">{t('earlyTitle')}</p>
+            <p className="text-xs text-sky-800">{t('earlyHint')}</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => onDepart(true)}
+                className="rounded-md bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-60"
+              >
+                {t('earlyRelease')}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => onDepart(false)}
+                className="rounded-md border border-sky-300 bg-white px-3 py-2 text-sm text-sky-900 hover:bg-sky-100 disabled:opacity-60"
+              >
+                {t('earlyKeep')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {cancelling && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onCancel(reason.trim());
+            }}
+            className="space-y-2 rounded-lg bg-rose-50 p-3 ring-1 ring-inset ring-rose-200"
+          >
+            <label className="block">
+              <span className="mb-1 block text-xs text-rose-900">{t('cancelReason')}</span>
+              <input
+                type="text"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                className="w-full rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-md bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+              >
+                {t('cancelConfirm')}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setCancelling(false)}
+                className="rounded-md border border-rose-300 bg-white px-3 py-2 text-sm text-rose-900 hover:bg-rose-100 disabled:opacity-60"
+              >
+                {t('cancelDismiss')}
+              </button>
+            </div>
+          </form>
+        )}
+
         <div className="flex flex-wrap gap-2">
+          {canAssign && stay.status === 'PENDING' && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={onConfirm}
+              className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {t('confirmBooking')}
+            </button>
+          )}
           {canAssign && stay.status === 'CONFIRMED' && (
             <button
               type="button"
@@ -213,11 +303,11 @@ export function StaySheet({
               {t('checkIn')}
             </button>
           )}
-          {canAssign && stay.status === 'CHECKED_IN' && (
+          {canAssign && stay.status === 'CHECKED_IN' && !departing && (
             <button
               type="button"
               disabled={pending}
-              onClick={onDepart}
+              onClick={() => (leavingEarly ? setDeparting(true) : onDepart(false))}
               className="rounded-md bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60"
             >
               {t('checkOut')}
@@ -252,6 +342,18 @@ export function StaySheet({
               {t('release')}
             </button>
           )}
+          {canAssign &&
+            (stay.status === 'PENDING' || stay.status === 'CONFIRMED') &&
+            !cancelling && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setCancelling(true)}
+                className="rounded-md px-3 py-2 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+              >
+                {t('cancelBooking')}
+              </button>
+            )}
           <button
             type="button"
             onClick={onClose}

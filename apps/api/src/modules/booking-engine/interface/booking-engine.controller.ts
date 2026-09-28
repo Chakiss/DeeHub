@@ -32,6 +32,13 @@ import {
  * extends it (start-payment.usecase).
  */
 const HOLD_TTL_SECONDS = 15 * 60;
+/**
+ * Without a payment gateway a site booking is a request the hotel answers
+ * by hand — "pay at the hotel" — and fifteen minutes is not a working day.
+ * The hotel gets a day to confirm it from the dashboard; the per-email cap
+ * on open holds is what bounds the damage a bot could do with it.
+ */
+const REQUEST_TTL_SECONDS = 24 * 60 * 60;
 
 /** Enough for a family; small enough that nobody books out a hotel by accident. */
 const MAX_ROOMS_PER_BOOKING = 5;
@@ -293,7 +300,7 @@ export class BookingEngineController {
           // says yes. A CONFIRMED booking nobody has paid for is a room given
           // away.
           status: 'PENDING',
-          holdTtlSeconds: HOLD_TTL_SECONDS,
+          holdTtlSeconds: this.gateway.isConfigured() ? HOLD_TTL_SECONDS : REQUEST_TTL_SECONDS,
           booker: {
             name: body.guest.name,
             email: body.guest.email,
@@ -321,7 +328,7 @@ export class BookingEngineController {
       status: result.status,
       currency: result.currency,
       total: result.total.amount,
-      holdExpiresInSeconds: HOLD_TTL_SECONDS,
+      holdExpiresInSeconds: this.gateway.isConfigured() ? HOLD_TTL_SECONDS : REQUEST_TTL_SECONDS,
       paymentAvailable: this.gateway.isConfigured(),
       paymentMethods: this.gateway.methods(),
     };

@@ -277,7 +277,9 @@
     "guestStays": "{count, plural, one {# stay} other {# stays}}",
     "guestLastStay": "last {date}",
     "unlinkGuest": "Not this guest",
-    "closePicker": "Close"
+    "closePicker": "Close",
+    "confirmBooking": "Confirm booking",
+    "confirmHint": "Booked on the website and waiting for the hotel to say yes. Confirming keeps the room and the hold no longer expires."
   },
   "folio": {
     "title": "Guest account",
@@ -595,7 +597,18 @@
     "moveTo": "Move to {room}",
     "currentRoom": "current",
     "dragHint": "Drag a bar onto another room to move the guest.",
-    "channels": "Where bookings came from"
+    "channels": "Where bookings came from",
+    "confirmBooking": "Confirm booking",
+    "confirmHint": "Booked on the website and waiting for the hotel to say yes. Confirming keeps the room; the hold no longer expires.",
+    "cancelBooking": "Cancel booking",
+    "cancelReason": "Reason (optional)",
+    "cancelConfirm": "Yes, cancel",
+    "cancelDismiss": "Keep booking",
+    "earlyTitle": "Leaving before the booked date",
+    "earlyRelease": "Check out and put the nights back on sale",
+    "earlyKeep": "Check out, keep the nights sold",
+    "earlyHint": "The bill does not change either way. Putting the nights back lets the room be sold again tonight; the room itself is free for the next guest from now in both cases.",
+    "holdExpires": "Hold expires {when}"
   },
   "reports": {
     "title": "Performance",

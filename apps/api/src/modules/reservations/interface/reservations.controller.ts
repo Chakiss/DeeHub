@@ -16,6 +16,7 @@ import { ExtendStayUseCase } from '../application/extend-stay.usecase';
 import { ShortenStayUseCase } from '../application/shorten-stay.usecase';
 import { ModifyStayUseCase } from '../application/modify-stay.usecase';
 import { UpdateBookerUseCase } from '../application/update-booker.usecase';
+import { ConfirmReservationUseCase } from '../application/confirm-reservation.usecase';
 
 // Format AND calendar validity: the regex alone accepts 2026-02-30, which
 // would then blow up in the domain as a 500 instead of a clean 422.
@@ -195,6 +196,7 @@ export class ReservationsController {
     private readonly extendStayUseCase: ExtendStayUseCase,
     private readonly shortenStayUseCase: ShortenStayUseCase,
     private readonly updateBookerUseCase: UpdateBookerUseCase,
+    private readonly confirmReservation: ConfirmReservationUseCase,
   ) {}
 
   @Get()
@@ -505,6 +507,28 @@ export class ReservationsController {
       refundedAmount: presentMoney(result.refundedAmount),
       total: presentMoney(result.total),
     };
+  }
+
+  @Post(':id/confirm')
+  @HttpCode(200)
+  @RequireCapability('reservation:update')
+  @ApiOperation({
+    summary: 'Confirm a booking that is waiting on the hotel',
+    description:
+      'A site booking without a payment gateway is PENDING until the hotel says yes. This is ' +
+      'that yes: status becomes CONFIRMED and the hold no longer expires. Inventory does not ' +
+      'move — the booking already holds its nights. Refused for anything not PENDING.',
+  })
+  async confirm(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(versionSchema)) body: VersionBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.confirmReservation.execute(
+      { propertyId, reservationId: id, expectedVersion: body.version },
+      this.actor(request),
+    );
   }
 
   @Post(':id/check-in')
