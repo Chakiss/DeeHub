@@ -58,6 +58,18 @@ describe('layoutStays', () => {
     expect(bars.map((bar) => bar.lane)).toEqual([0, 1]);
   });
 
+  it('ends a bar the morning the room came free, before the booked check-out', () => {
+    const stays = [{ checkIn: '2026-09-25', checkOut: '2026-09-28', roomUntil: '2026-09-26' }];
+    const [bar] = layoutStays(WINDOW, stays, (stay) => stay.roomUntil);
+    expect(bar).toMatchObject({ left: 0.5, width: 1, clippedEnd: false });
+  });
+
+  it('draws a day use — in and out the same day — as a half-column marker', () => {
+    const stays = [{ checkIn: '2026-09-26', checkOut: '2026-09-27', roomUntil: '2026-09-26' }];
+    const [bar] = layoutStays(WINDOW, stays, (stay) => stay.roomUntil);
+    expect(bar).toMatchObject({ left: 1.5, width: 0.5 });
+  });
+
   it('returns nothing for an empty window', () => {
     expect(layoutStays([], [{ checkIn: '2026-09-25', checkOut: '2026-09-26' }])).toEqual([]);
   });
@@ -77,5 +89,15 @@ describe('freeRoomsPerNight', () => {
 
   it('treats the check-out day as free: the guest leaves in the morning', () => {
     expect(freeRoomsPerNight(['2026-09-27'], rooms)).toEqual([2]);
+  });
+
+  it('counts a room free from the morning its guest left early', () => {
+    const early = [
+      {
+        isActive: true,
+        stays: [{ checkIn: '2026-09-25', checkOut: '2026-09-28', roomUntil: '2026-09-26' }],
+      },
+    ];
+    expect(freeRoomsPerNight(WINDOW, early, (stay) => stay.roomUntil)).toEqual([0, 1, 1, 1]);
   });
 });

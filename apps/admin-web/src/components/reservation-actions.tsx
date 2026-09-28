@@ -7,6 +7,7 @@ import type { ReservationDetail } from '@/lib/api';
 import {
   cancelReservation,
   checkInReservation,
+  confirmReservation,
   checkOutReservation,
 } from '@/app/properties/[propertyId]/reservations/actions';
 
@@ -46,7 +47,11 @@ export function ReservationActions({
 
   const { status, version, id } = reservation;
 
-  const showCheckIn = canCheckIn && (status === 'CONFIRMED' || status === 'PENDING');
+  // A PENDING booking is one the hotel has not said yes to (a site booking
+  // paying at the hotel). The API refuses to check it in; the step it wants
+  // is the confirmation, offered here in its place.
+  const showConfirm = canCheckIn && status === 'PENDING';
+  const showCheckIn = canCheckIn && status === 'CONFIRMED';
   const showCheckOut = canCheckOut && status === 'CHECKED_IN';
   const showCancel = canCancel && ['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(status);
 
@@ -90,7 +95,7 @@ export function ReservationActions({
     });
   }
 
-  if (!showCheckIn && !showCheckOut && !showCancel) {
+  if (!showConfirm && !showCheckIn && !showCheckOut && !showCancel) {
     const anyPermission = canCancel || canCheckIn || canCheckOut;
     return (
       <p className="text-sm text-stone-500">{anyPermission ? t('noActions') : t('readOnly')}</p>
@@ -99,7 +104,18 @@ export function ReservationActions({
 
   return (
     <div className="space-y-3">
+      {showConfirm && <p className="text-sm text-amber-800">{t('confirmHint')}</p>}
       <div className="flex flex-wrap gap-2">
+        {showConfirm && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => confirmReservation(propertyId, id, version))}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {pending ? t('working') : t('confirmBooking')}
+          </button>
+        )}
         {showCheckIn && (
           <button
             type="button"

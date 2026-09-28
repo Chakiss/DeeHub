@@ -316,6 +316,66 @@ describeIfDb('Checking out early and returning the room to sale', () => {
     expect(await booked(today)).toBe(1);
   });
 
+  /**
+   * The pilot's complaint, exactly: a guest checks out at noon and the desk
+   * cannot put the next guest in the same room until tomorrow. The room is
+   * free from the morning the guest left; the booking's dates stay as taken.
+   */
+  it('frees the room the same day, so the next guest can be assigned to it', async () => {
+    const { reservationId, stayId } = await arrive(today, addDays(today, 2));
+    await checkOut(reservationId, {
+      version: await currentVersion(reservationId),
+      releaseRemainingNights: true,
+    }).expect(200);
+
+    const { rows } = await pool.query<{ room_released_on: string; check_out: string }>(
+      'SELECT room_released_on::text, check_out::text FROM reservation_stays WHERE id = $1',
+      [stayId],
+    );
+    expect(rows[0]!.room_released_on).toBe(today);
+    expect(rows[0]!.check_out).toBe(addDays(today, 2));
+
+    // The only room, given to the next guest for tonight — refused before.
+    const next = await book(today, addDays(today, 1));
+    await request(app.getHttpServer())
+      .patch(`/api/v1/properties/${propertyId}/stays/${next.stayId}/room`)
+      .set(auth())
+      .send({ roomId })
+      .expect(200);
+
+    // And the stay view shows the room held only until the departure.
+    const view = await request(app.getHttpServer())
+      .get(`/api/v1/properties/${propertyId}/stay-view?from=${today}&to=${addDays(today, 3)}`)
+      .set(auth())
+      .expect(200);
+    const room = view.body.rooms.find((row: { roomId: string }) => row.roomId === roomId);
+    const departed = room.stays.find((stay: { stayId: string }) => stay.stayId === stayId);
+    expect(departed).toMatchObject({ checkOut: addDays(today, 2), roomUntil: today });
+  });
+
+  it('frees the room for a day use — in and out the same day — once the night is released', async () => {
+    const { reservationId, stayId } = await arrive(today, addDays(today, 1));
+    await checkOut(reservationId, {
+      version: await currentVersion(reservationId),
+      releaseRemainingNights: true,
+    }).expect(200);
+    expect(await booked(today)).toBe(0);
+
+    // Released on the check-in day: the guarded range is empty.
+    const { rows } = await pool.query<{ room_released_on: string }>(
+      'SELECT room_released_on::text FROM reservation_stays WHERE id = $1',
+      [stayId],
+    );
+    expect(rows[0]!.room_released_on).toBe(today);
+
+    const next = await book(today, addDays(today, 1));
+    await request(app.getHttpServer())
+      .patch(`/api/v1/properties/${propertyId}/stays/${next.stayId}/room`)
+      .set(auth())
+      .send({ roomId })
+      .expect(200);
+  });
+
   it('hands the room to housekeeping, so it cannot be given away unclean', async () => {
     const { reservationId } = await arrive(today, addDays(today, 1));
     await checkOut(reservationId, {

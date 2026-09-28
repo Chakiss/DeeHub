@@ -143,11 +143,25 @@ export const reservationStays = pgTable(
      * — a count cannot tell a report grouped by date what to subtract.
      */
     nightsReleasedEarly: smallint('nights_released_early').notNull().default(0),
+    /**
+     * The morning the PHYSICAL room came free, when that is before check-out:
+     * set by check-out when the guest leaves early. Null means the room is
+     * held to check-out. The room-overlap guard (migration 0001, re-stated in
+     * 0019) uses `COALESCE(room_released_on, check_out)`, so a room a guest
+     * has walked out of can be given to the next guest the same day — the
+     * booking's own dates and money are untouched. Equal to check_in for a
+     * day use: the range is then empty and blocks nothing.
+     */
+    roomReleasedOn: date('room_released_on'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check('stays_date_order_ck', sql`${t.checkOut} > ${t.checkIn}`),
+    check(
+      'stays_room_released_ck',
+      sql`${t.roomReleasedOn} IS NULL OR (${t.roomReleasedOn} >= ${t.checkIn} AND ${t.roomReleasedOn} <= ${t.checkOut})`,
+    ),
     check('stays_adults_ck', sql`${t.adults} >= 1`),
     check('stays_children_ck', sql`${t.children} >= 0`),
     check('stays_priced_from_ck', sql`${t.pricedFrom} IN ('PROPERTY_RATES','CHANNEL','MANUAL')`),

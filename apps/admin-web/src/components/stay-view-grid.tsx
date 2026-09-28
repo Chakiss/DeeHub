@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { AssignableRoom, StayView, StayViewOccupancy } from '@/lib/api';
-import { assignRoom, checkIn, checkOut } from '@/app/properties/[propertyId]/rooms/actions';
+import {
+  assignRoom,
+  cancel,
+  checkIn,
+  checkOut,
+  confirm,
+} from '@/app/properties/[propertyId]/rooms/actions';
 import { listAssignableRooms } from '@/app/properties/[propertyId]/reservations/actions';
 import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
 import { freeRoomsPerNight, layoutStays, type StayBar } from '@/lib/stay-layout';
@@ -169,13 +175,17 @@ export function StayViewGrid({
         needing: 0,
         free: [],
       };
-      group.rooms.push({ room, bars: layoutStays(view.dates, room.stays) });
+      group.rooms.push({
+        room,
+        bars: layoutStays(view.dates, room.stays, (stay) => stay.roomUntil),
+      });
       byType.set(room.roomTypeId, group);
     }
     for (const group of byType.values()) {
       group.free = freeRoomsPerNight(
         view.dates,
         group.rooms.map(({ room }) => room),
+        (stay) => stay.roomUntil,
       );
     }
     for (const stay of view.unassigned) {
@@ -235,11 +245,33 @@ export function StayViewGrid({
     });
   }
 
-  function depart(stay: StayViewOccupancy) {
+  function depart(stay: StayViewOccupancy, releaseNights: boolean) {
     setError(null);
     startTransition(async () => {
-      const result = await checkOut(propertyId, stay.reservationId, stay.version);
+      const result = await checkOut(propertyId, stay.reservationId, stay.version, releaseNights);
       if (!result.ok) setError(result.error?.message ?? t('failed'));
+    });
+  }
+
+  function accept(stay: StayViewOccupancy) {
+    setError(null);
+    startTransition(async () => {
+      const result = await confirm(propertyId, stay.reservationId, stay.version);
+      if (!result.ok) setError(result.error?.message ?? t('failed'));
+    });
+  }
+
+  function callOff(stay: StayViewOccupancy, reason: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await cancel(
+        propertyId,
+        stay.reservationId,
+        stay.version,
+        reason || undefined,
+      );
+      if (!result.ok) setError(result.error?.message ?? t('failed'));
+      else setOpened(null);
     });
   }
 
@@ -589,8 +621,10 @@ export function StayViewGrid({
           canAssign={canAssign}
           pending={pending}
           error={error}
+          onConfirm={() => accept(opened.stay)}
           onArrive={() => arrive(opened.stay)}
-          onDepart={() => depart(opened.stay)}
+          onDepart={(releaseNights) => depart(opened.stay, releaseNights)}
+          onCancel={(reason) => callOff(opened.stay, reason)}
           onRelease={() => release(opened.stay.stayId)}
           onMove={(roomId) => move(opened.stay, roomId)}
           onClose={() => {

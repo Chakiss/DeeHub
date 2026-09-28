@@ -98,6 +98,24 @@ Everything else follows from leaving the booking alone:
 | Occupancy      | Reports count `nights − nights_released_early` for the stay                                                                           |
 | The constraint | Untouched, and still true                                                                                                             |
 
+**Revised again after the pilot's first week (2026-09-29).** Releasing the
+_inventory_ was not enough: the physical room stayed blocked. The room-overlap
+guard (migration 0001) is on `[check_in, check_out)`, so a guest who left at
+noon still held the room until the next morning and the desk could not put
+anyone in it — the exact complaint, reported again against DeeHub. One more
+column, on `reservation_stays`:
+
+```
+room_released_on  date  null     -- the morning the ROOM came free, if early
+```
+
+Check-out sets it to today (or check-in, for a day use) on every stay leaving
+before its booked check-out, whether or not the nights go back on sale — a
+guest who has walked out is not in the room. Migration 0019 restates the guard
+on `COALESCE(room_released_on, check_out)`; the two advisory lookups (assign a
+room, list free rooms) and the stay view's `roomUntil` read the same column.
+The booking's own dates and money are still untouched.
+
 **This is smaller, and it is also more honest.** The booking really was for one
 night, it really was paid in full, and the room really was handed back. Three
 facts, three fields, no compensating entry that has to be kept in step with

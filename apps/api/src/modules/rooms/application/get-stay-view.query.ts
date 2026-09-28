@@ -22,6 +22,12 @@ export interface StayViewOccupancy {
   readonly version: number;
   readonly checkIn: IsoDate;
   readonly checkOut: IsoDate;
+  /**
+   * The morning the ROOM came free — check-out, or earlier when the guest
+   * left early. The bar on a room's row ends here; the booking's own dates
+   * are checkIn → checkOut.
+   */
+  readonly roomUntil: IsoDate;
   /** True when the guest is in a different room type than they booked. */
   readonly upgraded: boolean;
   /** How the booking arrived: WALK_IN, PHONE, EMAIL, DIRECT, OTA, TRAVEL_AGENT. */
@@ -115,6 +121,7 @@ export class GetStayViewQuery {
         channelType: channels.type,
         checkIn: reservationStays.checkIn,
         checkOut: reservationStays.checkOut,
+        roomReleasedOn: reservationStays.roomReleasedOn,
         assignedRoomId: reservationStays.assignedRoomId,
         stayRoomTypeId: reservationStays.roomTypeId,
         stayRoomTypeName: roomTypes.name,
@@ -156,6 +163,7 @@ export class GetStayViewQuery {
         version: row.version,
         checkIn: toIsoDate(row.checkIn),
         checkOut: toIsoDate(row.checkOut),
+        roomUntil: toIsoDate(row.roomReleasedOn ?? row.checkOut),
         upgraded: row.assignedRoomTypeId !== null && row.assignedRoomTypeId !== row.stayRoomTypeId,
         source: row.source,
         bookingSourceName: row.bookingSourceName,

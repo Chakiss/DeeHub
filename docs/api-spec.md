@@ -765,21 +765,21 @@ staff can see _why_ the system won't sell a room and fix the restriction.
 
 ### 6.6 Reservations
 
-| Method  | Path                                                      | Capability                                         |
-| ------- | --------------------------------------------------------- | -------------------------------------------------- |
-| `GET`   | `/properties/{pid}/reservations`                          | `reservation:read`                                 |
-| `POST`  | `/properties/{pid}/reservations`                          | `reservation:create`                               |
-| `GET`   | `/properties/{pid}/reservations/{id}`                     | `reservation:read`                                 |
-| `PATCH` | `/properties/{pid}/reservations/{id}`                     | `reservation:update` — contact/notes only          |
-| `PATCH` | `/properties/{pid}/reservations/{id}/stays/{sid}`         | `reservation:modify` — dates, room type, occupancy |
-| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/extend`  | `reservation:modify` — add nights at the end       |
-| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/shorten` | `reservation:modify` — drop nights from the end    |
-| `POST`  | `/properties/{pid}/reservations/{id}/confirm`             | `reservation:update`                               |
-| `POST`  | `/properties/{pid}/reservations/{id}/cancel`              | `reservation:cancel`                               |
-| `POST`  | `/properties/{pid}/reservations/{id}/check-in`            | `reservation:checkin`                              |
-| `POST`  | `/properties/{pid}/reservations/{id}/check-out`           | `reservation:checkout`                             |
-| `POST`  | `/properties/{pid}/reservations/{id}/no-show`             | `reservation:update`                               |
-| `GET`   | `/properties/{pid}/reservations/{id}/audit`               | `audit:read`                                       |
+| Method  | Path                                                      | Capability                                                          |
+| ------- | --------------------------------------------------------- | ------------------------------------------------------------------- |
+| `GET`   | `/properties/{pid}/reservations`                          | `reservation:read`                                                  |
+| `POST`  | `/properties/{pid}/reservations`                          | `reservation:create`                                                |
+| `GET`   | `/properties/{pid}/reservations/{id}`                     | `reservation:read`                                                  |
+| `PATCH` | `/properties/{pid}/reservations/{id}`                     | `reservation:update` — contact/notes only                           |
+| `PATCH` | `/properties/{pid}/reservations/{id}/stays/{sid}`         | `reservation:modify` — dates, room type, occupancy                  |
+| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/extend`  | `reservation:modify` — add nights at the end                        |
+| `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/shorten` | `reservation:modify` — drop nights from the end                     |
+| `POST`  | `/properties/{pid}/reservations/{id}/confirm`             | `reservation:update` — a PENDING site booking the hotel says yes to |
+| `POST`  | `/properties/{pid}/reservations/{id}/cancel`              | `reservation:cancel`                                                |
+| `POST`  | `/properties/{pid}/reservations/{id}/check-in`            | `reservation:checkin`                                               |
+| `POST`  | `/properties/{pid}/reservations/{id}/check-out`           | `reservation:checkout`                                              |
+| `POST`  | `/properties/{pid}/reservations/{id}/no-show`             | `reservation:update`                                                |
+| `GET`   | `/properties/{pid}/reservations/{id}/audit`               | `audit:read`                                                        |
 
 **Modification** is `PATCH` on ONE STAY, not `POST .../modify-stay` as this
 document originally planned. A reservation can hold twenty rooms and the

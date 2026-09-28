@@ -67,7 +67,7 @@ export class ListAssignableRoomsQuery {
             INNER JOIN ${reservations} ON ${reservations.id} = ${reservationStays.reservationId}
             WHERE ${reservationStays.assignedRoomId} = ${physicalRooms.id}
               AND ${reservations.status} <> 'CANCELLED'
-              AND daterange(${reservationStays.checkIn}, ${reservationStays.checkOut}, '[)')
+              AND daterange(${reservationStays.checkIn}, COALESCE(${reservationStays.roomReleasedOn}, ${reservationStays.checkOut}), '[)')
                   && daterange(${checkIn}::date, ${checkOut}::date, '[)')
           )`,
         ),

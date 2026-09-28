@@ -83,14 +83,47 @@ export async function checkIn(
   }
 }
 
-/** Check out, which also hands the rooms to housekeeping as DIRTY. */
-export async function checkOut(
+export async function confirm(
   propertyId: string,
   reservationId: string,
   version: number,
 ): Promise<AssignResult> {
   try {
-    await api.checkOut(propertyId, reservationId, version);
+    await api.confirmReservation(propertyId, reservationId, version);
+    revalidate(propertyId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function cancel(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+  reason?: string,
+): Promise<AssignResult> {
+  try {
+    await api.cancelReservation(propertyId, reservationId, version, reason);
+    revalidate(propertyId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * Check out, which also hands the rooms to housekeeping as DIRTY. With
+ * `releaseRemainingNights` the unslept nights go back on sale too.
+ */
+export async function checkOut(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+  releaseRemainingNights = false,
+): Promise<AssignResult> {
+  try {
+    await api.checkOut(propertyId, reservationId, version, releaseRemainingNights);
     revalidate(propertyId);
     return { ok: true };
   } catch (error) {

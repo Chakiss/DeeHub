@@ -164,6 +164,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
       cancellationReason?: string;
       checkedInAt?: Date;
       checkedOutAt?: Date;
+      clearHold?: boolean;
     },
   ): Promise<number> {
     const organizationId = requireOrganizationId();
@@ -180,6 +181,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
         ...(patch?.cancellationReason ? { cancellationReason: patch.cancellationReason } : {}),
         ...(patch?.checkedInAt ? { checkedInAt: patch.checkedInAt } : {}),
         ...(patch?.checkedOutAt ? { checkedOutAt: patch.checkedOutAt } : {}),
+        ...(patch?.clearHold ? { holdExpiresAt: null } : {}),
       })
       .where(
         and(

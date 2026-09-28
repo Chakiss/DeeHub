@@ -308,13 +308,94 @@ test.describe('rooms and stay view', () => {
     await sheet.getByRole('button', { name: 'Check in' }).click();
     await expect.poll(async () => row.textContent()).toContain('In house');
 
+    // Leaving before the booked morning: the choice is made in the sheet, and
+    // putting the night back on sale is what lets the room be sold again.
     await sheet.getByRole('button', { name: 'Check out' }).click();
+    await sheet.getByRole('button', { name: 'Check out and put the nights back on sale' }).click();
     await expect.poll(async () => row.textContent()).toContain('Departed');
     await sheet.getByRole('button', { name: 'Close' }).click();
+
+    // The same room, the same night, the next guest — the pilot's complaint.
+    const nextGuest = `Resell ${Date.now().toString(36)}`;
+    await book(request, token, nextGuest, today, stop);
+    await page.reload();
+    await page
+      .getByRole('listitem')
+      .filter({ hasText: nextGuest })
+      .getByRole('button', { name: 'Assign' })
+      .click();
+    const again = page.getByRole('dialog', { name: new RegExp(nextGuest) });
+    await expect(again.locator('option', { hasText: '202' })).toHaveCount(1);
+    await selectRoom(again, '202');
+    await again.getByRole('button', { name: 'Assign' }).click();
+    await expect(row).toContainText(nextGuest);
 
     // The handover that makes check-out worth modelling.
     await page.goto(`/properties/${data.propertyId}/rooms`);
     await expect(page.getByRole('row', { name: /202/ })).toContainText('Dirty');
+  });
+
+  /**
+   * A booking from the website, paying at the hotel, waits for the hotel to
+   * say yes. Until now the sheet offered nothing for it; the desk could only
+   * watch it expire.
+   */
+  test('confirms a pending website booking from the sheet, then checks it in', async ({
+    page,
+    request,
+  }) => {
+    const data = testData();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    const tomorrow = new Date(`${today}T00:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const stop = tomorrow.toISOString().slice(0, 10);
+    const token = await apiToken(request);
+    await openForSale(request, token, today, stop);
+
+    const guest = `Website ${Date.now().toString(36)}`;
+    const made = await request.post(`${API}/properties/${data.propertyId}/reservations`, {
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      data: {
+        source: 'DIRECT',
+        status: 'PENDING',
+        booker: { name: guest },
+        stays: [
+          {
+            roomTypeId: data.roomTypeId,
+            ratePlanId: data.ratePlanId,
+            checkIn: today,
+            checkOut: stop,
+            adults: 1,
+          },
+        ],
+      },
+    });
+    expect(made.ok(), await made.text()).toBeTruthy();
+    const stayId = ((await made.json()) as { stays: { id: string }[] }).stays[0]!.id;
+    const rooms = (await (
+      await request.get(`${API}/properties/${data.propertyId}/rooms`, {
+        headers: { authorization: `Bearer ${token}` },
+      })
+    ).json()) as { items: { id: string; roomNumber: string }[] };
+    await request.patch(`${API}/properties/${data.propertyId}/stays/${stayId}/room`, {
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      data: { roomId: rooms.items.find((room) => room.roomNumber === 'X9')!.id },
+    });
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/stay-view?from=${today}`);
+    // X9, not 201: the previous-night case below needs 201 free tonight.
+    const row = page.getByRole('row', { name: /^X9$/ });
+    await expect.poll(async () => row.textContent()).toContain('Pending');
+
+    await row.getByRole('button', { name: new RegExp(guest) }).click();
+    const sheet = page.getByRole('dialog', { name: new RegExp(guest) });
+    await sheet.getByRole('button', { name: 'Confirm booking' }).click();
+    await expect.poll(async () => row.textContent()).toContain('Booked');
+
+    await sheet.getByRole('button', { name: 'Check in' }).click();
+    await expect.poll(async () => row.textContent()).toContain('In house');
+    await sheet.getByRole('button', { name: 'Close' }).click();
   });
 
   /**

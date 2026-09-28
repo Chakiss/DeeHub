@@ -68,6 +68,21 @@ export async function cancelReservation(
 }
 
 /** Check in. The API refuses unless every room is assigned and arrival is due. */
+/** The hotel confirms a site booking that was waiting on it. */
+export async function confirmReservation(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+): Promise<ReservationActionResult> {
+  try {
+    await api.confirmReservation(propertyId, reservationId, version);
+    revalidate(propertyId, reservationId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export async function checkInReservation(
   propertyId: string,
   reservationId: string,

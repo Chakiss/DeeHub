@@ -275,6 +275,46 @@ test.describe('reservations', () => {
     await expect(rows.first()).toContainText('2');
   });
 
+  test('offers to confirm a pending website booking, not to check it in', async ({
+    page,
+    request,
+  }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    await openForSale(request, token, '2031-01-01', '2031-01-04');
+    const guest = `Pending ${Date.now().toString(36)}`;
+    const made = await request.post(
+      `${process.env.DEEHUB_API_URL ?? 'http://127.0.0.1:3001/api/v1'}/properties/${data.propertyId}/reservations`,
+      {
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        data: {
+          source: 'DIRECT',
+          status: 'PENDING',
+          booker: { name: guest },
+          stays: [
+            {
+              roomTypeId: data.roomTypeId,
+              ratePlanId: data.ratePlanId,
+              checkIn: '2031-01-01',
+              checkOut: '2031-01-02',
+              adults: 1,
+            },
+          ],
+        },
+      },
+    );
+    expect(made.ok(), await made.text()).toBeTruthy();
+    const id = ((await made.json()) as { id: string }).id;
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${id}`);
+    await expect(page.getByText('pending', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Check-in' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Confirm booking' }).click();
+    await expect(page.getByText('confirmed', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Confirm booking' })).toHaveCount(0);
+  });
+
   test('a room taken on those nights is not offered', async ({ page, request }) => {
     const data = testData();
     const token = await apiToken(request);
