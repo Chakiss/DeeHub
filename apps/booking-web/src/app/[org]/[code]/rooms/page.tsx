@@ -142,11 +142,17 @@ export default async function RoomsPage({
                           {roomDescription(details, locale)}
                         </p>
                       )}
-                      {room.availableUnits <= 2 && (
-                        <p className="mt-1 text-xs font-medium text-accent-500">
-                          {t('left', { count: room.availableUnits })}
-                        </p>
-                      )}
+                      {/* Always, not only when scarce: the hotel wants the
+                          guest to see the same number the desk sees. Amber
+                          once it is down to two, so "nearly gone" still reads
+                          at a glance. */}
+                      <p
+                        className={`mt-1 text-xs font-medium ${
+                          room.availableUnits <= 2 ? 'text-accent-500' : 'text-stone-500'
+                        }`}
+                      >
+                        {t('left', { count: room.availableUnits })}
+                      </p>
                     </div>
                     <ul className="divide-y divide-stone-200/70">
                       {room.ratePlans.map((plan) => {
