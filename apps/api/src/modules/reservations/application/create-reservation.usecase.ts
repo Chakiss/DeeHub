@@ -384,6 +384,9 @@ export class CreateReservationUseCase {
             code,
             status,
             channelId: input.channelId ?? null,
+            // Where it came from: the relay alerts the desk about bookings it
+            // did not type itself (a channel's, or the website's).
+            source: input.source,
             affectedDates: stays.flatMap((stay) => stay.nights.map((night) => night.date)),
           },
         },

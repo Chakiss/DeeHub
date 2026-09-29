@@ -1,15 +1,17 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { nightsBetween, toIsoDate } from '@deehub/shared';
 import type { Executor } from '../../../database/executor';
 import { ENV, type Env } from '../../../config/env';
 import { newId } from '../../../common/ids';
 import {
   channels,
+  memberships,
   notifications,
   properties,
   reservationStays,
   reservations,
+  users,
 } from '../../../database/schema';
 import {
   dedupeKey,
@@ -55,7 +57,17 @@ export class ComposeNotificationsUseCase {
 
     const composed =
       input.kind === 'BOOKING_RECEIVED'
-        ? this.forStaff(input.kind, booking.summary, booking.locale, booking.staffEmail)
+        ? this.forStaff(
+            input.kind,
+            booking.summary,
+            booking.locale,
+            await this.staffEmails(
+              tx,
+              input.organizationId,
+              booking.propertyId,
+              booking.staffEmail,
+            ),
+          )
         : this.forGuest(input.kind, booking.summary, booking.locale, booking.bookerEmail);
 
     if (composed.length === 0) return 0;
@@ -127,7 +139,7 @@ export class ComposeNotificationsUseCase {
     kind: NotificationKind,
     summary: BookingSummary,
     locale: 'en' | 'th',
-    staffEmail: string | null,
+    staffEmails: readonly string[],
   ): ComposedNotification[] {
     const message = render(kind, summary, locale);
     const out: ComposedNotification[] = [];
@@ -137,13 +149,42 @@ export class ComposeNotificationsUseCase {
     if (this.env.LINE_STAFF_TARGET) {
       out.push({ ...base, channel: 'LINE', recipient: this.env.LINE_STAFF_TARGET });
     }
-    if (staffEmail) {
-      out.push({ ...base, channel: 'EMAIL', recipient: staffEmail });
+    for (const recipient of staffEmails) {
+      out.push({ ...base, channel: 'EMAIL', recipient });
     }
     if (out.length === 0) {
       out.push({ ...base, channel: 'EMAIL', recipient: '' });
     }
     return out;
+  }
+
+  /**
+   * Who at the hotel hears about a booking: the property's own address when
+   * it has one, otherwise everyone who works there. The pilot never filled
+   * in the address, and a website booking that nobody is told about is one
+   * that expires unseen — so silence is not an acceptable default.
+   */
+  private async staffEmails(
+    tx: Executor,
+    organizationId: string,
+    propertyId: string,
+    propertyEmail: string | null,
+  ): Promise<string[]> {
+    if (propertyEmail) return [propertyEmail];
+
+    const rows = await tx
+      .select({ email: users.email })
+      .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .where(
+        and(
+          eq(memberships.organizationId, organizationId),
+          or(isNull(memberships.propertyId), eq(memberships.propertyId, propertyId)),
+          inArray(memberships.role, ['OWNER', 'ADMIN', 'MANAGER', 'FRONT_DESK']),
+          eq(users.status, 'ACTIVE'),
+        ),
+      );
+    return [...new Set(rows.map((row) => row.email.trim().toLowerCase()))].filter(Boolean);
   }
 
   private async loadBooking(tx: Executor, reservationId: string) {
@@ -221,5 +262,5 @@ export class ComposeNotificationsUseCase {
 function skipReason(audience: 'GUEST' | 'STAFF'): string {
   return audience === 'GUEST'
     ? 'No email address on file for this booker'
-    : 'No staff recipient: the property has no email address and LINE_STAFF_TARGET is not set';
+    : 'No staff recipient: the property has no email address, no active staff user, and LINE_STAFF_TARGET is not set';
 }

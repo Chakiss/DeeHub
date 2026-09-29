@@ -134,7 +134,7 @@ export function PropertySettingsForm({
                 className={INPUT}
               />
             </Field>
-            <Field id="ps-email" label={t('email')}>
+            <Field id="ps-email" label={t('email')} hint={t('emailHint')}>
               <input
                 id="ps-email"
                 type="email"

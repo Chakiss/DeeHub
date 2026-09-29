@@ -34,6 +34,8 @@ interface ReservationPayload {
   reservationId?: string;
   status?: string;
   channelId?: string | null;
+  /** How the booking arrived (WALK_IN, DIRECT, OTA…); absent on older events. */
+  source?: string;
 }
 
 interface InventoryChangedPayload {
@@ -197,7 +199,13 @@ export class OutboxRelayService {
     // the guest can rely on, and that arrives as a status change.
     if (payload.status === 'CONFIRMED') kinds.push('BOOKING_CONFIRMED');
 
-    if (eventType === EVENT_TYPES.RESERVATION_CREATED && payload.channelId) {
+    // The desk is told about bookings it did not make itself: an OTA's, or
+    // one from the hotel's own booking site. A walk-in or a phone booking the
+    // desk just typed needs no alert about itself.
+    if (
+      eventType === EVENT_TYPES.RESERVATION_CREATED &&
+      (payload.channelId || payload.source === 'DIRECT')
+    ) {
       kinds.push('BOOKING_RECEIVED');
     }
 
