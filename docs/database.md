@@ -187,6 +187,11 @@ CREATE TABLE properties (
   -- What a guest and Google see (0016). Nullable: a property sells through
   -- the desk long before anyone writes its blurb.
   website               text,
+  -- Bank-transfer bridge (0020) and where the guest sends the slip (0021).
+  -- line_url is https on lin.ee / line.me / page.line.me only (checked at the
+  -- API); the booking site shows a LINE button only when it is set.
+  promptpay_id          text, promptpay_name text,
+  line_id               text, line_url text,
   latitude              numeric(9,6) CHECK (latitude  IS NULL OR latitude  BETWEEN -90  AND 90),
   longitude             numeric(9,6) CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
   description_th        text, description_en text,
