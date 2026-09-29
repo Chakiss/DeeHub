@@ -63,11 +63,11 @@ export async function seed(): Promise<TestData> {
       `INSERT INTO properties (id, organization_id, code, name, timezone, currency, country,
                                tax_rate_bp, service_charge_rate_bp, prices_include_tax,
                                address_line1, city, latitude, longitude, description_en, description_th, amenities, phone,
-                               promptpay_id, promptpay_name)
+                               promptpay_id, promptpay_name, line_id, line_url)
        VALUES ($1, $2, $3, 'Sea Breeze Resort', 'Asia/Bangkok', 'THB', 'TH', 0, 0, true,
                '60/11 Huai Yai', 'Bang Lamung', 12.9236, 100.8825,
                'A quiet resort near Huai Yai.', 'รีสอร์ตเงียบสงบใกล้ห้วยใหญ่', '["Free Wi-Fi","Parking"]', '063 548 5456',
-               '0635485456', 'Sea Breeze Resort')`,
+               '0635485456', 'Sea Breeze Resort', '@seabreeze', 'https://lin.ee/WK13vLF')`,
       [data.propertyId, organizationId, data.propertyCode],
     );
     await pool.query(

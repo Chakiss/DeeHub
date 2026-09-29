@@ -109,6 +109,7 @@ export default async function PayPage({
             currency={booking.currency}
             bookingCode={booking.code}
             hotelPhone={hotel.phone}
+            line={hotel.line}
             backHref={confirmation}
           />
         ) : (
