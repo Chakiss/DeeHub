@@ -163,3 +163,19 @@ Decisions made by the founder that constrain design (see `docs/adr/` for rationa
   day one. ([ADR-0003](docs/adr/0003-thailand-first-i18n-ready.md))
 - **Google Cloud** — Cloud Run + Cloud SQL (PostgreSQL) + Memorystore (Redis) +
   GCS; Docker Compose for local dev. ([ADR-0004](docs/adr/0004-google-cloud.md))
+
+## Model Routing
+
+Spend the expensive model on judgement, the cheap ones on volume. Details and
+the reasoning in `docs/ai-workflow.md`; agents in `.claude/agents/`.
+
+- **Main session (Fable / Opus):** diagnosis from a bug report, architecture,
+  data model, production infra, money and inventory logic, PR planning and the
+  founder-facing summary.
+- **`builder` (Sonnet):** implement a decided plan — code, tests, th/en
+  strings, docs. Reports changed files and the exact test summary line.
+- **`scout` (Haiku):** read-only search of code, logs and test output;
+  returns only the lines that matter.
+- **`reviewer` (Opus):** adversarial diff review before a PR.
+- Filter every tool output; run targeted tests while iterating and the full
+  suites once before the PR; one screenshot per feature, not per iteration.
