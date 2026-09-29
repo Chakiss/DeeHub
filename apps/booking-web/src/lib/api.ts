@@ -98,6 +98,8 @@ export interface Catalog {
   website: string | null;
   /** Bank-transfer target for a booking paying at the hotel; null when none is offered. */
   promptPay: { id: string; name: string | null } | null;
+  /** Where a guest sends the transfer slip; null unless the hotel set a LINE link. */
+  line: { id: string | null; url: string } | null;
   address: {
     line1: string | null;
     line2: string | null;

@@ -54,6 +54,8 @@ export interface PublicCatalog {
   readonly website: string | null;
   /** Bank-transfer target for a booking paying at the hotel; null when the hotel offers none. */
   readonly promptPay: { readonly id: string; readonly name: string | null } | null;
+  /** Where a guest sends the transfer slip; null unless the hotel set a LINE link. */
+  readonly line: { readonly id: string | null; readonly url: string } | null;
   readonly address: {
     readonly line1: string | null;
     readonly line2: string | null;
@@ -125,6 +127,7 @@ export class PublicCatalogQuery {
       promptPay: profile.promptpayId
         ? { id: profile.promptpayId, name: profile.promptpayName }
         : null,
+      line: profile.lineUrl ? { id: profile.lineId, url: profile.lineUrl } : null,
       address: {
         line1: profile.addressLine1,
         line2: profile.addressLine2,

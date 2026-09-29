@@ -55,6 +55,14 @@ export const properties = pgTable(
      */
     promptpayId: text('promptpay_id'),
     promptpayName: text('promptpay_name'),
+    /**
+     * Where a guest sends the transfer slip: the hotel's LINE official-account
+     * id (shown as text) and its add-friend link (https on a LINE host, see the
+     * properties controller). The booking site shows the link beside the
+     * transfer QR. Null url = no LINE button offered.
+     */
+    lineId: text('line_id'),
+    lineUrl: text('line_url'),
     /** WGS84, six decimals (about 10 cm). Google matches on these. */
     latitude: numeric('latitude', { precision: 9, scale: 6, mode: 'number' }),
     longitude: numeric('longitude', { precision: 9, scale: 6, mode: 'number' }),

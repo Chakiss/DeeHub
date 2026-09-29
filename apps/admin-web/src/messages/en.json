@@ -979,6 +979,9 @@
     "promptpayId": "PromptPay number",
     "promptpayIdHint": "Mobile number, national id or e-wallet id registered for PromptPay. Empty means no transfer option is offered.",
     "promptpayName": "Payee name shown to guests",
+    "lineId": "LINE ID",
+    "lineUrl": "LINE link",
+    "lineUrlHint": "Your LINE add-friend link (lin.ee or line.me). When set, guests paying by transfer get a button to send the slip on LINE. A LINE ID without a link is not shown to guests. A slip sent over LINE can be faked, so confirm a booking only after the money shows in your bank account.",
     "emailHint": "New website bookings are announced here. Empty means every staff user of the hotel gets the email instead."
   }
 }

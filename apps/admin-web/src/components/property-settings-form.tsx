@@ -37,6 +37,8 @@ export function PropertySettingsForm({
   const [website, setWebsite] = useState(property.website ?? '');
   const [promptpayId, setPromptpayId] = useState(property.promptpayId ?? '');
   const [promptpayName, setPromptpayName] = useState(property.promptpayName ?? '');
+  const [lineId, setLineId] = useState(property.lineId ?? '');
+  const [lineUrl, setLineUrl] = useState(property.lineUrl ?? '');
   const [latitude, setLatitude] = useState(
     property.latitude === null ? '' : String(property.latitude),
   );
@@ -81,6 +83,8 @@ export function PropertySettingsForm({
       website: website.trim() || null,
       promptpayId: promptpayId.trim() || null,
       promptpayName: promptpayName.trim() || null,
+      lineId: lineId.trim() || null,
+      lineUrl: lineUrl.trim() || null,
       latitude: lat,
       longitude: lng,
       descriptionTh: descriptionTh.trim() || null,
@@ -179,6 +183,28 @@ export function PropertySettingsForm({
                 value={promptpayName}
                 onChange={(event) => setPromptpayName(event.target.value)}
                 maxLength={120}
+                className={INPUT}
+              />
+            </Field>
+            <Field id="ps-line-id" label={t('lineId')}>
+              <input
+                id="ps-line-id"
+                type="text"
+                value={lineId}
+                onChange={(event) => setLineId(event.target.value)}
+                maxLength={40}
+                placeholder="@yourhotel"
+                className={INPUT}
+              />
+            </Field>
+            <Field id="ps-line-url" label={t('lineUrl')} hint={t('lineUrlHint')}>
+              <input
+                id="ps-line-url"
+                type="url"
+                value={lineUrl}
+                onChange={(event) => setLineUrl(event.target.value)}
+                maxLength={200}
+                placeholder="https://lin.ee/..."
                 className={INPUT}
               />
             </Field>

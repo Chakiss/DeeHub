@@ -19,6 +19,7 @@ export async function TransferPanel({
   currency,
   bookingCode,
   hotelPhone,
+  line,
   backHref,
 }: {
   promptPay: { id: string; name: string | null };
@@ -26,6 +27,8 @@ export async function TransferPanel({
   currency: string;
   bookingCode: string;
   hotelPhone: string | null;
+  /** Where to send the slip; absent when the hotel gave no LINE link. */
+  line?: { id: string | null; url: string } | null;
   backHref: string;
 }) {
   const [t, locale] = await Promise.all([getTranslations('pay'), getLocale()]);
@@ -64,8 +67,26 @@ export async function TransferPanel({
       </dl>
 
       <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-        {t('transferThen', { phone: hotelPhone ?? '' })}
+        {line
+          ? t('transferThenLine', { code: bookingCode, phone: hotelPhone ?? '' })
+          : t('transferThen', { phone: hotelPhone ?? '' })}
       </p>
+
+      {line && (
+        <div className="mt-3">
+          <a
+            href={line.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-[#047a35] px-4 py-2 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"
+          >
+            {t('lineSendSlip')}
+          </a>
+          {line.id && (
+            <p className="mt-1 text-center text-xs text-ink-700">{t('lineId', { id: line.id })}</p>
+          )}
+        </div>
+      )}
 
       <a href={backHref} className="mt-4 inline-block text-sm font-medium underline">
         {t('back')}

@@ -101,6 +101,12 @@ test.describe('guest booking', () => {
     await expect(page.getByRole('img', { name: /PromptPay QR for/ })).toBeVisible();
     await expect(page.getByText('0635485456')).toBeVisible();
     await expect(page.getByText('฿450').first()).toBeVisible();
+    // The hotel gave a LINE link: the guest can send the slip there.
+    const line = page.getByRole('link', { name: 'Send the slip on LINE' });
+    await expect(line).toHaveAttribute('href', 'https://lin.ee/WK13vLF');
+    await expect(line).toHaveAttribute('target', '_blank');
+    await expect(line).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(page.getByText('LINE ID: @seabreeze')).toBeVisible();
 
     await page.getByRole('link', { name: 'Back to booking' }).click();
     await expect(page.getByRole('heading', { name: 'Booking received' })).toBeVisible();

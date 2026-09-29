@@ -105,7 +105,10 @@
     "transferTo": "PromptPay",
     "transferAmount": "Amount",
     "transferNote": "Reference",
-    "transferThen": "After you transfer, keep the slip. If you have not heard from the hotel within 24 hours, call {phone}. Your room is held for 24 hours."
+    "transferThen": "After you transfer, keep the slip. If you have not heard from the hotel within 24 hours, call {phone}. Your room is held for 24 hours.",
+    "transferThenLine": "After you transfer, send the slip on LINE and quote your reference {code}. If you have not heard from the hotel within 24 hours, call {phone}. Your room is held for 24 hours.",
+    "lineSendSlip": "Send the slip on LINE",
+    "lineId": "LINE ID: {id}"
   },
   "confirm": {
     "title": "Booking confirmed",

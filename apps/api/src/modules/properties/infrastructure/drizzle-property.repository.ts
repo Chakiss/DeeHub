@@ -28,6 +28,8 @@ const PROFILE_COLUMNS = {
   website: properties.website,
   promptpayId: properties.promptpayId,
   promptpayName: properties.promptpayName,
+  lineId: properties.lineId,
+  lineUrl: properties.lineUrl,
   latitude: properties.latitude,
   longitude: properties.longitude,
   descriptionTh: properties.descriptionTh,
