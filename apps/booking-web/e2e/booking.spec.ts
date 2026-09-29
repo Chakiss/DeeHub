@@ -13,6 +13,20 @@ function data(): TestData {
  * booking is held and the page says the hotel will be in touch.
  */
 test.describe('guest booking', () => {
+  test('lets a guest who arrived with a later date move it back to tonight', async ({ page }) => {
+    const d = data();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    await page.goto(
+      `/${d.organizationSlug}/${d.propertyCode}/rooms?checkIn=${d.dates[4]!}&nights=1&adults=2&lang=en`,
+    );
+    // The picker refuses anything before `min`, so `min` is what decides it.
+    await expect(page.locator('input[name="checkIn"]')).toHaveAttribute('min', today);
+
+    // With no dates at all the stay starts tonight.
+    await page.goto(`/${d.organizationSlug}/${d.propertyCode}/rooms?lang=en`);
+    await expect(page.locator('input[name="checkIn"]')).toHaveValue(today);
+  });
+
   test('lands from Google with the dates and language it sent', async ({ page }) => {
     const d = data();
     const checkIn = d.dates[2]!;

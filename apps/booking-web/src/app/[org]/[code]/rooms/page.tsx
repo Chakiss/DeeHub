@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { api } from '@/lib/api';
-import { formatDate, formatMoney, nightsBetween } from '@/lib/format';
+import { formatDate, formatMoney, nightsBetween, todayInBangkok } from '@/lib/format';
 import { loadHotel, roomDescription } from '@/lib/hotel';
 import { parseStay, stayToSearch } from '@/lib/stay-query';
 import type { Locale } from '@/i18n/locale';
@@ -95,7 +95,9 @@ export default async function RoomsPage({
             {t('change')}
           </summary>
           <div className="px-4 pb-4">
-            <StayForm org={org} code={code} stay={stay} min={stay.checkIn} />
+            {/* Today, not the stay's own check-in: a guest who arrived with a
+                later date must be able to move it back to tonight. */}
+            <StayForm org={org} code={code} stay={stay} min={todayInBangkok()} />
           </div>
         </details>
 
