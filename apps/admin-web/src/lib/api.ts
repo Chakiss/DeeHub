@@ -407,6 +407,9 @@ export interface PropertyProfile {
   /** PromptPay target and payee name for the booking site's transfer QR. */
   promptpayId: string | null;
   promptpayName: string | null;
+  /** LINE official-account id and add-friend link the booking site offers for sending a slip. */
+  lineId: string | null;
+  lineUrl: string | null;
   latitude: number | null;
   longitude: number | null;
   descriptionTh: string | null;
@@ -433,6 +436,8 @@ export type UpdatePropertyInput = Partial<
     | 'website'
     | 'promptpayId'
     | 'promptpayName'
+    | 'lineId'
+    | 'lineUrl'
     | 'latitude'
     | 'longitude'
     | 'descriptionTh'
