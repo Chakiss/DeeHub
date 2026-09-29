@@ -78,7 +78,7 @@ export async function TransferPanel({
             href={line.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-[#06C755] px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"
+            className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-[#047a35] px-4 py-2 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"
           >
             {t('lineSendSlip')}
           </a>

@@ -1383,9 +1383,10 @@ automatically. Ignored while `paymentAvailable` is true.
 **LINE for the slip.** `PATCH /properties/{pid}` also accepts `lineId` and
 `lineUrl` (both nullable; an empty string means none). `lineUrl` is trimmed,
 at most 200 characters, and must be `https` on exactly `lin.ee`, `line.me` or
-`page.line.me` with no credentials in it (`http://`, look-alike hosts such as
-`lin.ee.evil.com`, and `javascript:` are refused with 422). `lineId` is at
-most 40 characters: an optional `@` then 1-38 of letters, digits, `.`, `_`, `-`.
+`page.line.me` with no credentials and no port in it, written out with
+`https://` (`http://`, `https:lin.ee/x`, look-alike hosts such as
+`lin.ee.evil.com`, and `javascript:` are refused with 422). `lineId` is an
+optional `@` then 1-38 of letters, digits, `.`, `_`, `-`.
 The public catalog then carries `line: { id, url }`, non-null only when
 `lineUrl` is set (`id` may be null), and the transfer panel shows a "send the
 slip on LINE" button with the booking code in the note. A slip sent over LINE

@@ -54,11 +54,15 @@ const lineUrl = z
   .refine(
     (value) => {
       if (value === '') return true;
+      // The value is stored as typed and a browser resolves it against the
+      // page, so `https:lin.ee/x` would parse here yet link back to our site.
+      if (!value.startsWith('https://')) return false;
       try {
         const url = new URL(value);
         return (
           url.protocol === 'https:' &&
           LINE_HOSTS.has(url.hostname) &&
+          url.port === '' &&
           url.username === '' &&
           url.password === ''
         );
