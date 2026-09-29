@@ -250,6 +250,63 @@ describeIfDb('Properties API', () => {
       .expect(200);
   });
 
+  it('takes only an https LINE link on a LINE host, and audits the change', async () => {
+    const token = await managerToken();
+    const patch = (body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .patch(`/api/v1/properties/${propertyId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body);
+
+    for (const good of ['https://lin.ee/WK13vLF', 'https://line.me/R/ti/p/@094gjdpc']) {
+      const saved = await patch({ lineUrl: good, lineId: '@094gjdpc' }).expect(200);
+      expect(saved.body.lineUrl).toBe(good);
+      expect(saved.body.lineId).toBe('@094gjdpc');
+    }
+
+    // The last save is on record, with the new fields, and only those.
+    const audit = await pool.query(
+      `SELECT before, after FROM audit_logs
+        WHERE organization_id = $1 AND action = 'property.updated'
+        ORDER BY created_at DESC LIMIT 1`,
+      [orgId],
+    );
+    const entry = audit.rows[0] as {
+      before: Record<string, unknown>;
+      after: Record<string, unknown>;
+    };
+    expect(entry.after['lineUrl']).toBe('https://line.me/R/ti/p/@094gjdpc');
+    expect(entry.before['lineUrl']).toBe('https://lin.ee/WK13vLF');
+    expect(entry.after).not.toHaveProperty('lineId');
+
+    for (const bad of [
+      'http://lin.ee/x',
+      'https://evil.com/lin.ee',
+      'https://lin.ee.evil.com/x',
+      'https://evil-lin.ee/x',
+      'javascript:alert(1)',
+      'https://user:pw@lin.ee/x',
+      'not a url',
+      `https://lin.ee/${'a'.repeat(200)}`,
+    ]) {
+      await patch({ lineUrl: bad }).expect(422);
+    }
+    for (const bad of ['has space', '@@x', 'a'.repeat(40)]) {
+      await patch({ lineId: bad }).expect(422);
+    }
+    // The stored link survived every refusal.
+    const still = await request(app.getHttpServer())
+      .get(`/api/v1/properties/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(still.body.lineUrl).toBe('https://line.me/R/ti/p/@094gjdpc');
+
+    // A cleared input arrives as an empty string and means "none".
+    const cleared = await patch({ lineUrl: '', lineId: '' }).expect(200);
+    expect(cleared.body.lineUrl).toBeNull();
+    expect(cleared.body.lineId).toBeNull();
+  });
+
   it('lets a READ_ONLY user read but not write', async () => {
     const token = await tokenFor(`reader-${orgSlug}@e2e.test`, orgSlug);
     await request(app.getHttpServer())

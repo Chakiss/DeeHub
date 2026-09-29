@@ -38,6 +38,48 @@ const promptpayId = z
   .nullable()
   .optional();
 
+/** Hosts LINE serves add-friend links from. Exact match: `evil-lin.ee` and `lin.ee.evil.com` are not LINE. */
+const LINE_HOSTS: ReadonlySet<string> = new Set(['lin.ee', 'line.me', 'page.line.me']);
+
+/**
+ * The hotel's LINE add-friend link, shown as a button on the booking site, so
+ * it must be https on a LINE host and carry no credentials. Anything else
+ * would let a settings typo (or a hijacked account) send guests, mid-payment,
+ * to a look-alike site. An empty string means "none" and is mapped to null.
+ */
+const lineUrl = z
+  .string()
+  .trim()
+  .max(200)
+  .refine(
+    (value) => {
+      if (value === '') return true;
+      try {
+        const url = new URL(value);
+        return (
+          url.protocol === 'https:' &&
+          LINE_HOSTS.has(url.hostname) &&
+          url.username === '' &&
+          url.password === ''
+        );
+      } catch {
+        return false;
+      }
+    },
+    { message: 'A LINE link is an https link on lin.ee, line.me or page.line.me' },
+  )
+  .nullable()
+  .optional();
+
+/** An official-account id: optional leading @, then letters, digits, dot, underscore, dash. */
+const lineId = z
+  .string()
+  .trim()
+  .max(40)
+  .regex(/^(@?[A-Za-z0-9._-]{1,38})?$/, 'A LINE ID is letters, digits, . _ - with an optional @')
+  .nullable()
+  .optional();
+
 const updateSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
@@ -50,6 +92,8 @@ const updateSchema = z
     website: z.string().trim().url().max(500).nullable().optional(),
     promptpayId,
     promptpayName: text(120),
+    lineId,
+    lineUrl,
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
     descriptionTh: text(4000),
@@ -109,6 +153,8 @@ export class PropertiesController {
             ...(body.website === '' ? { website: null } : {}),
             ...(body.email === '' ? { email: null } : {}),
             ...(body.promptpayName === '' ? { promptpayName: null } : {}),
+            ...(body.lineId === '' ? { lineId: null } : {}),
+            ...(body.lineUrl === '' ? { lineUrl: null } : {}),
           },
         },
         actorFrom(request),
@@ -134,6 +180,8 @@ function present(profile: PropertyProfile) {
     website: profile.website,
     promptpayId: profile.promptpayId,
     promptpayName: profile.promptpayName,
+    lineId: profile.lineId,
+    lineUrl: profile.lineUrl,
     latitude: profile.latitude,
     longitude: profile.longitude,
     descriptionTh: profile.descriptionTh,

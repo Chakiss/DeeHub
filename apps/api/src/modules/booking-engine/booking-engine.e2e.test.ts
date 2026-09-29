@@ -289,6 +289,21 @@ describeIfDb('Booking engine', () => {
       `UPDATE properties SET promptpay_id = NULL, promptpay_name = NULL WHERE id = $1`,
       [propertyId],
     );
+
+    // Slips go to the hotel over LINE when it has given a link; the id alone
+    // is not enough to draw a button.
+    expect(response.body.line).toBeNull();
+    await pool.query(`UPDATE properties SET line_id = '@deehub' WHERE id = $1`, [propertyId]);
+    const idOnly = await request(app.getHttpServer()).get(publicUrl()).expect(200);
+    expect(idOnly.body.line).toBeNull();
+    await pool.query(`UPDATE properties SET line_url = 'https://lin.ee/WK13vLF' WHERE id = $1`, [
+      propertyId,
+    ]);
+    const withLine = await request(app.getHttpServer()).get(publicUrl()).expect(200);
+    expect(withLine.body.line).toEqual({ id: '@deehub', url: 'https://lin.ee/WK13vLF' });
+    await pool.query(`UPDATE properties SET line_id = NULL, line_url = NULL WHERE id = $1`, [
+      propertyId,
+    ]);
   });
 
   it('answers the same way for a wrong slug, a wrong code and a real one', async () => {
