@@ -24,13 +24,14 @@ function count(value: string | undefined, fallback: number, max: number): number
  *
  * Google's landing template sends `checkin=YYYY-MM-DD&nights=N`; the site's
  * own form sends `checkIn`/`checkOut`. Anything unparseable becomes a
- * sensible default — tomorrow for one night, two adults — rather than a
- * broken page, because the person who arrived here came to book.
+ * sensible default — tonight for one night, two adults — rather than a
+ * broken page, because the person who arrived here came to book. Tonight
+ * stays on sale until the date turns over in Bangkok.
  */
 export function parseStay(params: Params): StayQuery {
   const today = todayInBangkok();
   const rawIn = one(params, 'checkIn') ?? one(params, 'checkin');
-  const checkIn = isIsoDate(rawIn) && rawIn >= today ? rawIn : addDays(today, 1);
+  const checkIn = isIsoDate(rawIn) && rawIn >= today ? rawIn : today;
 
   const rawOut = one(params, 'checkOut') ?? one(params, 'checkout');
   const nights = count(one(params, 'nights'), 0, 30);
