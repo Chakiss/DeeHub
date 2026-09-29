@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { dateRange, toIsoDate, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
@@ -104,9 +104,11 @@ export class GetStayViewQuery {
         asc(physicalRooms.roomNumber),
       );
 
-    // Everything overlapping the window, assigned or not. Cancelled bookings
-    // are excluded: they are not arriving, and showing them would make the
-    // hotel look fuller than it is.
+    // Everything overlapping the window, assigned or not. Only bookings that
+    // are (or were) actually in the building: cancelled, expired and no-show
+    // bookings are not arriving, and showing them would make the hotel look
+    // fuller than it is — an expired website hold drawn as "booked" is how
+    // a room stays unsold.
     const overlapping = await this.db
       .select({
         stayId: reservationStays.id,
@@ -139,7 +141,7 @@ export class GetStayViewQuery {
         and(
           eq(reservationStays.organizationId, organizationId),
           eq(reservationStays.propertyId, propertyId),
-          ne(reservations.status, 'CANCELLED'),
+          inArray(reservations.status, ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT']),
           // Half-open on both sides: a stay leaving on `from` does not appear,
           // and one arriving on `to` does not either.
           sql`daterange(${reservationStays.checkIn}, ${reservationStays.checkOut}, '[)')

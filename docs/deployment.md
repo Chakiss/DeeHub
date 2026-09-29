@@ -270,12 +270,12 @@ after which flip the variable back, apply, and run `set-secrets.sh` again.
 
 All optional, and all absent by default:
 
-| Variable             | What it is                                               |
-| -------------------- | -------------------------------------------------------- |
-| `EMAIL_API_KEY`      | Resend API key. Email is HTTP, not SMTP — see below.     |
-| `EMAIL_FROM`         | Verified sender, e.g. `Baan Suan <bookings@example.com>` |
-| `LINE_CHANNEL_TOKEN` | LINE Messaging API channel access token                  |
-| `LINE_STAFF_TARGET`  | LINE user or group id the staff alerts are pushed to     |
+| Variable             | What it is                                                                                                                                                                                                                                                                   |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EMAIL_API_KEY`      | Resend API key. Email is HTTP, not SMTP — see below.                                                                                                                                                                                                                         |
+| `EMAIL_FROM`         | Verified sender, e.g. `Baan Suan <bookings@example.com>`                                                                                                                                                                                                                     |
+| `LINE_CHANNEL_TOKEN` | LINE Messaging API channel access token                                                                                                                                                                                                                                      |
+| `LINE_STAFF_TARGET`  | LINE user or group id the staff alerts are pushed to. Staff email goes to the property's email address, or, when that is empty, to every active OWNER/ADMIN/MANAGER/FRONT_DESK user of the hotel. Alerts fire for channel and website bookings, not for ones the desk typed. |
 
 With none of them set, messages are still composed, stored and shown in the
 dashboard — marked `SKIPPED` with the reason. Nothing is lost and nothing is

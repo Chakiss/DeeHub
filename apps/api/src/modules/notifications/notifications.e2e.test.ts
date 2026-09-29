@@ -400,6 +400,61 @@ describeIfDb('Notifications', () => {
     });
   });
 
+  describe('website bookings', () => {
+    async function bookFromSite(): Promise<string> {
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations`)
+        .set(auth())
+        .send({
+          source: 'DIRECT',
+          status: 'PENDING',
+          booker: { name: 'Krissada Laohongkiat', email: 'krissada@example.test' },
+          stays: [{ roomTypeId, ratePlanId, checkIn: NIGHTS[0], checkOut: NIGHTS[1], adults: 2 }],
+        })
+        .expect(201);
+      return response.body.id as string;
+    }
+
+    /**
+     * The pilot's first website booking arrived and nobody was told: the
+     * desk alert fired only for channel bookings. A booking the desk did not
+     * type itself is exactly the one it must hear about.
+     */
+    it('tells the desk about a booking made on the website', async () => {
+      const reservationId = await bookFromSite();
+      await drain();
+
+      const staff = (await rows(reservationId)).filter((row) => row.audience === 'STAFF');
+      expect(staff).toHaveLength(1);
+      expect(staff[0]).toMatchObject({
+        kind: 'BOOKING_RECEIVED',
+        channel: 'EMAIL',
+        recipient: 'desk@baansuan.test',
+      });
+    });
+
+    it('stays quiet about a booking the desk typed itself', async () => {
+      const reservationId = await book();
+      await drain();
+      expect((await rows(reservationId)).filter((row) => row.audience === 'STAFF')).toHaveLength(0);
+    });
+
+    it("falls back to the hotel's own users when the property has no email address", async () => {
+      await pool.query(`UPDATE properties SET email = NULL WHERE id = $1`, [propertyId]);
+      try {
+        const reservationId = await bookFromSite();
+        await drain();
+
+        const staff = (await rows(reservationId)).filter((row) => row.audience === 'STAFF');
+        expect(staff.map((row) => row.recipient)).toEqual([`manager-${orgSlug}@e2e.test`]);
+      } finally {
+        await pool.query(`UPDATE properties SET email = 'desk@baansuan.test' WHERE id = $1`, [
+          propertyId,
+        ]);
+      }
+    });
+  });
+
   describe('dispatching', () => {
     it('sends what is pending and records when', async () => {
       const reservationId = await book();

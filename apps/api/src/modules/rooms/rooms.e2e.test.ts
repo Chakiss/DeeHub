@@ -829,6 +829,32 @@ describeIfDb('Rooms and stay view', () => {
       expect(response.body.unassigned).toHaveLength(0);
     });
 
+    it('leaves expired and no-show bookings out too — nobody is coming', async () => {
+      const expired = await createStay('2027-11-10', '2027-11-12');
+      const noShow = await createStay('2027-11-10', '2027-11-12');
+      const kept = await createStay('2027-11-10', '2027-11-12');
+      await pool.query(`UPDATE reservations SET status = 'EXPIRED' WHERE id = $1`, [
+        expired.reservationId,
+      ]);
+      await pool.query(`UPDATE reservations SET status = 'NO_SHOW' WHERE id = $1`, [
+        noShow.reservationId,
+      ]);
+      await pool.query(
+        `UPDATE reservations SET status = 'PENDING', hold_expires_at = now() + interval '1 hour' WHERE id = $1`,
+        [kept.reservationId],
+      );
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/properties/${propertyId}/stay-view?from=2027-11-10&to=2027-11-13`)
+        .set(auth())
+        .expect(200);
+
+      // The pending one is a live hold and stays; the other two are gone.
+      expect(response.body.unassigned.map((stay: { stayId: string }) => stay.stayId)).toEqual([
+        kept.stayId,
+      ]);
+    });
+
     it('excludes a stay that departs before the window opens', async () => {
       await createStay('2027-12-01', '2027-12-05');
       const response = await request(app.getHttpServer())
