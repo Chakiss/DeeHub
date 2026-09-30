@@ -12,6 +12,7 @@ import { ENV, type Env } from '../../../config/env';
 import { newId } from '../../../common/ids';
 import {
   channels,
+  folioPayments,
   memberships,
   notifications,
   properties,
@@ -31,6 +32,8 @@ export interface ComposeInput {
   readonly organizationId: string;
   readonly reservationId: string;
   readonly kind: NotificationKind;
+  /** The folio REFUND row the cancellation recorded, from the event payload. */
+  readonly refundPaymentId?: string | null;
 }
 
 /**
@@ -53,7 +56,12 @@ export class ComposeNotificationsUseCase {
 
   /** Returns how many rows were written; 0 when they already existed. */
   async execute(tx: Executor, input: ComposeInput): Promise<number> {
-    const booking = await this.loadBooking(tx, input.reservationId);
+    const booking = await this.loadBooking(
+      tx,
+      input.reservationId,
+      input.organizationId,
+      input.refundPaymentId ?? null,
+    );
     if (!booking) {
       // The booking was deleted between the event and this pass. Nothing to
       // say to anyone, and not an error worth failing the relay over.
@@ -213,7 +221,12 @@ export class ComposeNotificationsUseCase {
     };
   }
 
-  private async loadBooking(tx: Executor, reservationId: string) {
+  private async loadBooking(
+    tx: Executor,
+    reservationId: string,
+    organizationId: string,
+    refundPaymentId: string | null,
+  ) {
     const rows = await tx
       .select({
         reservationId: reservations.id,
@@ -262,6 +275,28 @@ export class ComposeNotificationsUseCase {
       .where(eq(reservationStays.reservationId, reservationId));
     const policy = strictestPolicy(stayPolicies.map(policyOf));
 
+    // The event names the exact REFUND row; a voided one is not money that moved.
+    const refundRows = refundPaymentId
+      ? await tx
+          .select({ method: folioPayments.method, amountMinor: folioPayments.amountMinor })
+          .from(folioPayments)
+          .where(
+            and(
+              eq(folioPayments.organizationId, organizationId),
+              eq(folioPayments.reservationId, reservationId),
+              eq(folioPayments.id, refundPaymentId),
+              eq(folioPayments.kind, 'REFUND'),
+              isNull(folioPayments.voidedAt),
+            ),
+          )
+      : [];
+    const refundTotal = refundRows.reduce((sum, refund) => sum + refund.amountMinor, 0);
+    const refundMethod = refundRows.reduce<{ method: string; amountMinor: number } | null>(
+      (largest, refund) =>
+        largest === null || refund.amountMinor > largest.amountMinor ? refund : largest,
+      null,
+    )?.method;
+
     const span = spans[0];
     if (!span?.checkIn || !span.checkOut) return null;
 
@@ -287,6 +322,8 @@ export class ComposeNotificationsUseCase {
       cancellationReason: row.cancellationReason,
       timeZone: row.timeZone,
       cancellation: this.policyFor(policy, checkIn, row),
+      refund:
+        refundTotal > 0 && refundMethod ? { amountMinor: refundTotal, method: refundMethod } : null,
     };
 
     return {

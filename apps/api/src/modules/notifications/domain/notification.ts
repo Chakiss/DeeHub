@@ -50,6 +50,15 @@ export interface BookingSummary {
    * message is composed. Null when we recorded none (OTA, travel agent, or a
    * booking that pre-dates the policy).
    */
+  /**
+   * The refund the desk recorded when cancelling (a folio REFUND row with
+   * reference `cancel:<code>`), summed. Absent or null when there was none.
+   */
+  readonly refund?: {
+    readonly amountMinor: number;
+    /** Folio payment method of the largest such row, e.g. `PROMPTPAY`. */
+    readonly method: string;
+  } | null;
   readonly cancellation: {
     readonly noticeHours: number;
     readonly refundPercent: number;

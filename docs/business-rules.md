@@ -47,5 +47,31 @@ where it is enforced.
   confirmation page and the guest confirmation email repeat the frozen terms.
 - **Google Hotels.** Its `Refundable` flag means fully refundable, so we send it
   only for a refundable plan at 100%.
-- **Not yet built (phase B).** Cancelling does not yet compute or post a refund;
-  the desk still decides and records it by hand.
+- **Cancelling quotes the refund (phase B).** When the desk cancels, the system
+  suggests a refund; staff may override it, and the refund is posted to the folio
+  in the same transaction as the cancellation.
+  - **Quoted from what was PAID, never from the booking total alone.**
+    `paid = folio paid − refunded` (voided rows excluded).
+    `suggested = inTime ? min(paid, floor(total × refundPercent / 100)) : 0`, in
+    integer minor units and never negative. A guest who paid a ฿300 deposit on a
+    ฿900 booking at 50% is quoted ฿300, not ฿450.
+  - The policy is the strictest across the stays (`strictestPolicy`). The
+    deadline is the property's CURRENT check-in time on the check-in date, in the
+    property timezone, minus the notice hours; exactly at the deadline is in time.
+  - **No policy of ours** (OTA, travel agent, pre-policy booking) → no quote:
+    policy `null`, suggestion 0. Staff may still enter a refund by hand.
+  - The refund method defaults to that of the largest live PAYMENT; staff can
+    change it.
+  - **The server requotes on cancel** and never trusts a client figure. If the
+    amount differs from the quote a note is required (`REFUND_NOTE_REQUIRED`,
+    422). An amount above `paid − refunded` fails the WHOLE cancellation (422)
+    through the folio's own refund rule. The refund is a folio REFUND with
+    reference `cancel:<code>`; the audit entry records `quotedRefundMinor`,
+    `refundMinor`, `method` and `note`. Every cancel made through the admin panel records what
+    was quoted and what was refunded, including when the desk chose 0 (the panel always sends the
+    `refund` block once a quote was shown). The email reads the specific refund row named by the
+    cancellation event, not its free-text reference.
+  - Recording a refund needs `folio:post` in addition to `reservation:cancel`.
+  - The guest's cancellation email carries one line about a recorded refund
+    (amount, method, "contact the hotel if it has not arrived within 7 days");
+    none when there was no refund.

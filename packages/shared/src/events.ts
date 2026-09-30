@@ -63,4 +63,6 @@ export interface ReservationEventPayload {
   readonly status: string;
   readonly channelId: string | null;
   readonly affectedDates: readonly string[];
+  /** RESERVATION_CANCELLED only: the folio REFUND posted with the cancel, if any. */
+  readonly refundPaymentId?: string | null;
 }

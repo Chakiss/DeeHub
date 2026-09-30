@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
 import { businessDate, errors } from '@deehub/shared';
+import { reservations } from '../../../database/schema';
 import { DATABASE, type Database } from '../../../database/database.module';
+import type { Executor } from '../../../database/executor';
 import { newId } from '../../../common/ids';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
 import { requireTenant } from '../../../common/tenant/tenant-context';
@@ -52,70 +55,93 @@ export class RecordPaymentUseCase {
     actor: AuditActor,
     now: Date = new Date(),
   ): Promise<Folio> {
-    const tenant = requireTenant();
-
     return this.db.transaction(async (tx) => {
-      const subject = await this.repo.findSubject(tx, input.reservationId);
-      if (!subject || subject.propertyId !== input.propertyId) {
-        throw errors.notFound('Reservation', input.reservationId);
-      }
-
-      const property = await this.propertyRepo.findProperty(tx, input.propertyId);
-      if (!property) throw errors.notFound('Property', input.propertyId);
-
-      if (input.kind === 'REFUND') {
-        /*
-         * Read inside the transaction, and the row lock the insert takes is
-         * not enough on its own — two refunds racing could each see the same
-         * "paid" figure. Accepted: the window is milliseconds, the operators
-         * are two people at one desk, and the alternative is locking every
-         * payment row on a booking to record one. The folio shows both, and
-         * either can be voided.
-         */
-        const current = await this.folio.load(tx, input.propertyId, input.reservationId);
-        if (exceedsRefundable(input.amountMinor, current.totals)) {
-          throw errors.validation('A refund cannot exceed what has been paid on this booking', {
-            reservationId: input.reservationId,
-            requested: input.amountMinor,
-            refundable: current.totals.paid.amount - current.totals.refunded.amount,
-          });
-        }
-      }
-
-      const paymentId = newId();
-      await this.repo.insertPayment(tx, {
-        id: paymentId,
-        organizationId: tenant.organizationId,
-        propertyId: input.propertyId,
-        reservationId: input.reservationId,
-        kind: input.kind,
-        method: input.method,
-        amountMinor: input.amountMinor,
-        currency: subject.currency,
-        reference: input.reference,
-        businessDate: businessDate(property.timezone, now),
-        // Who took it. The cashier reconciliation is built on this column, so
-        // an action by a system actor deliberately records nobody rather than
-        // attributing cash to a person who was not there.
-        recordedByUserId: actor.type === 'USER' ? actor.id : null,
-      });
-
-      await this.audit.record(tx, {
-        organizationId: tenant.organizationId,
-        propertyId: input.propertyId,
-        actor,
-        action: input.kind === 'REFUND' ? 'folio.refunded' : 'folio.payment_recorded',
-        entityType: 'reservation',
-        entityId: input.reservationId,
-        after: {
-          paymentId,
-          method: input.method,
-          amountMinor: input.amountMinor,
-          reference: input.reference,
-        },
-      });
-
+      await this.recordIn(tx, input, actor, now);
       return this.folio.load(tx, input.propertyId, input.reservationId);
     });
+  }
+
+  /**
+   * The same rules inside a transaction the caller already owns, so another
+   * operation (cancelling with a refund) can post money atomically with its own
+   * change instead of duplicating the over-refund check. Returns the payment id.
+   */
+  async recordIn(
+    tx: Executor,
+    input: RecordPaymentInput,
+    actor: AuditActor,
+    now: Date = new Date(),
+  ): Promise<string> {
+    const tenant = requireTenant();
+
+    const subject = await this.repo.findSubject(tx, input.reservationId);
+    if (!subject || subject.propertyId !== input.propertyId) {
+      throw errors.notFound('Reservation', input.reservationId);
+    }
+
+    const property = await this.propertyRepo.findProperty(tx, input.propertyId);
+    if (!property) throw errors.notFound('Property', input.propertyId);
+
+    if (input.kind === 'REFUND') {
+      /*
+       * Serialise refunds on one booking: the folio panel and the cancel panel
+       * can both pre-fill the full paid amount, and without a lock each would
+       * pass the check below on the same "paid" figure. The reservation row is
+       * locked BEFORE the totals are read and held until the transaction ends.
+       */
+      await tx
+        .select({ id: reservations.id })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.id, input.reservationId),
+            eq(reservations.organizationId, tenant.organizationId),
+          ),
+        )
+        .for('update');
+      const current = await this.folio.load(tx, input.propertyId, input.reservationId);
+      if (exceedsRefundable(input.amountMinor, current.totals)) {
+        throw errors.validation('A refund cannot exceed what has been paid on this booking', {
+          reservationId: input.reservationId,
+          requested: input.amountMinor,
+          refundable: current.totals.paid.amount - current.totals.refunded.amount,
+        });
+      }
+    }
+
+    const paymentId = newId();
+    await this.repo.insertPayment(tx, {
+      id: paymentId,
+      organizationId: tenant.organizationId,
+      propertyId: input.propertyId,
+      reservationId: input.reservationId,
+      kind: input.kind,
+      method: input.method,
+      amountMinor: input.amountMinor,
+      currency: subject.currency,
+      reference: input.reference,
+      businessDate: businessDate(property.timezone, now),
+      // Who took it. The cashier reconciliation is built on this column, so
+      // an action by a system actor deliberately records nobody rather than
+      // attributing cash to a person who was not there.
+      recordedByUserId: actor.type === 'USER' ? actor.id : null,
+    });
+
+    await this.audit.record(tx, {
+      organizationId: tenant.organizationId,
+      propertyId: input.propertyId,
+      actor,
+      action: input.kind === 'REFUND' ? 'folio.refunded' : 'folio.payment_recorded',
+      entityType: 'reservation',
+      entityId: input.reservationId,
+      after: {
+        paymentId,
+        method: input.method,
+        amountMinor: input.amountMinor,
+        reference: input.reference,
+      },
+    });
+
+    return paymentId;
   }
 }

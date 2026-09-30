@@ -1,11 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { useState, useTransition } from 'react';
-import type { ReservationDetail } from '@/lib/api';
+import { useLocale, useTranslations } from 'next-intl';
+import { useEffect, useState, useTransition } from 'react';
+import type { CancelQuote, CancelRefundInput, ReservationDetail } from '@/lib/api';
+import { formatMoney } from '@/lib/dates';
+import { FOLIO_PAYMENT_METHODS, type FolioPaymentMethod } from '@/lib/folio-types';
 import {
   cancelReservation,
+  getCancelQuote,
   checkInReservation,
   confirmReservation,
   checkOutReservation,
@@ -23,7 +26,9 @@ export function ReservationActions({
   propertyId,
   reservation,
   today,
+  timeZone,
   canCancel,
+  canRefund,
   canCheckIn,
   canCheckOut,
 }: {
@@ -31,11 +36,17 @@ export function ReservationActions({
   reservation: ReservationDetail;
   /** The property's business date (ADR-0003), never the browser's. */
   today: string;
+  /** The property's IANA timezone, for showing the cancellation deadline. */
+  timeZone: string;
   canCancel: boolean;
+  /** `folio:post`: recording a refund with the cancellation needs it too. */
+  canRefund: boolean;
   canCheckIn: boolean;
   canCheckOut: boolean;
 }) {
   const t = useTranslations('reservations');
+  const tf = useTranslations('folio');
+  const locale = useLocale();
   const router = useRouter();
 
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +55,14 @@ export function ReservationActions({
   const [departing, setDeparting] = useState(false);
   const [reason, setReason] = useState('');
   const [pending, startTransition] = useTransition();
+
+  // The refund the desk is about to record. The API recomputes the quote itself;
+  // what is shown here is only a suggestion to start from.
+  const [quote, setQuote] = useState<CancelQuote | null>(null);
+  const [quoteState, setQuoteState] = useState<'idle' | 'loading' | 'failed'>('idle');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundMethod, setRefundMethod] = useState<FolioPaymentMethod>('CASH');
+  const [refundNote, setRefundNote] = useState('');
 
   const { status, version, id } = reservation;
 
@@ -73,6 +92,73 @@ export function ReservationActions({
    */
   const nightsStillHeld = reservation.stays.some((stay) => stay.checkOut > today);
 
+  /** Fetch the quote and start the refund fields from its suggestion. */
+  function loadQuote(isStale: () => boolean = () => false) {
+    setQuoteState('loading');
+    void getCancelQuote(propertyId, id).then((result) => {
+      if (isStale()) return;
+      if (!result.ok || !result.quote) {
+        setQuoteState('failed');
+        return;
+      }
+      setQuote(result.quote);
+      setQuoteState('idle');
+      setRefundAmount((result.quote.suggestedRefundMinor / 100).toFixed(2));
+      setRefundMethod(result.quote.suggestedMethod ?? 'CASH');
+      setRefundNote('');
+    });
+  }
+
+  useEffect(() => {
+    if (!confirming) return;
+    let cancelled = false;
+    setQuote(null);
+    loadQuote(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirming, propertyId, id]);
+
+  /**
+   * Baht typed, satang sent. An amount with more than 2 decimals is refused
+   * rather than rounded: the desk should see what will actually be paid out.
+   */
+  function refundMinor(): { minor: number } | { error: 'invalid' | 'decimals' } {
+    const text = refundAmount.replace(/,/g, '').trim();
+    if (text === '') return { minor: 0 };
+    if (!/^\d+(\.\d*)?$/.test(text)) return { error: 'invalid' };
+    if (/\.\d{3,}/.test(text)) return { error: 'decimals' };
+    const [whole = '0', fraction = ''] = text.split('.');
+    return { minor: Number(whole) * 100 + Number(fraction.padEnd(2, '0')) };
+  }
+
+  function submitCancel() {
+    let refund: CancelRefundInput | undefined;
+    if (quote && canRefund) {
+      const parsed = refundMinor();
+      if ('error' in parsed) {
+        setError(
+          parsed.error === 'decimals' ? t('cancelAmountDecimals') : t('cancelAmountInvalid'),
+        );
+        return;
+      }
+      const amountMinor = parsed.minor;
+      if (amountMinor !== quote.suggestedRefundMinor && refundNote.trim() === '') {
+        setError(t('cancelNoteRequired'));
+        return;
+      }
+      // Always sent once a quote was shown, so the audit records what was
+      // quoted and what was refunded for every cancel made through this panel.
+      refund = {
+        amountMinor,
+        method: refundMethod,
+        ...(refundNote.trim() ? { note: refundNote.trim() } : {}),
+      };
+    }
+    run(() => cancelReservation(propertyId, id, version, reason.trim() || undefined, refund));
+  }
+
   function run(action: () => Promise<{ ok: boolean; error?: { code: string; message: string } }>) {
     setError(null);
     setStale(false);
@@ -81,12 +167,20 @@ export function ReservationActions({
       if (result.ok) {
         setConfirming(false);
         setReason('');
+        setRefundNote('');
         router.refresh();
         return;
       }
       // A version mismatch is not a failure the user caused, and retrying with
       // the same stale version would fail identically. Offer a reload instead.
       // Plain CONFLICT is a real business refusal — its message is shown.
+      // The quote the desk saw is out of date (another desk refunded, a payment
+      // was voided): show the fresh suggestion and ask for the note.
+      if (result.error?.code === 'REFUND_NOTE_REQUIRED') {
+        loadQuote();
+        setError(t('cancelNoteRequired'));
+        return;
+      }
       if (result.error?.code === 'VERSION_MISMATCH') {
         setStale(true);
         return;
@@ -211,6 +305,99 @@ export function ReservationActions({
             <p className="text-sm font-medium text-rose-900">{t('cancelTitle')}</p>
             <p className="mt-1 text-sm text-rose-700">{t('cancelExplain')}</p>
           </div>
+          {quoteState === 'loading' && (
+            <p className="text-sm text-rose-800">{t('cancelQuoteLoading')}</p>
+          )}
+          {quoteState === 'failed' && (
+            <p className="text-sm text-rose-800">{t('cancelQuoteFailed')}</p>
+          )}
+          {quote && (
+            <div className="space-y-3 rounded-md border border-rose-200 bg-white/70 p-3">
+              <p className="text-sm text-rose-900" data-testid="cancel-policy-line">
+                {quote.policy
+                  ? t('cancelPolicyLine', {
+                      hours: quote.policy.noticeHours,
+                      percent: quote.policy.refundPercent,
+                      deadline: new Intl.DateTimeFormat(locale, {
+                        timeZone,
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hourCycle: 'h23',
+                      }).format(new Date(quote.policy.deadline)),
+                      state: quote.policy.inTime ? t('cancelInTime') : t('cancelPastDeadline'),
+                    })
+                  : t('cancelNoPolicy')}
+              </p>
+              <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="text-xs text-rose-800">{t('cancelPaid')}</dt>
+                  <dd className="tabular text-ink-900">
+                    {formatMoney(quote.paidMinor, quote.currency)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-rose-800">{t('cancelAlreadyRefunded')}</dt>
+                  <dd className="tabular text-ink-900">
+                    {formatMoney(quote.refundedMinor, quote.currency)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-rose-800">{t('cancelSuggested')}</dt>
+                  <dd className="tabular font-medium text-ink-900">
+                    {formatMoney(quote.suggestedRefundMinor, quote.currency)}
+                  </dd>
+                </div>
+              </dl>
+              {canRefund && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-xs font-medium text-rose-900">
+                      {t('cancelRefundAmount')}
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={refundAmount}
+                      onChange={(event) => setRefundAmount(event.target.value)}
+                      className="tabular mt-1 w-full rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-rose-900">
+                      {t('cancelRefundMethod')}
+                    </span>
+                    <select
+                      value={refundMethod}
+                      onChange={(event) =>
+                        setRefundMethod(event.target.value as FolioPaymentMethod)
+                      }
+                      className="mt-1 w-full rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
+                    >
+                      {FOLIO_PAYMENT_METHODS.map((method) => (
+                        <option key={method} value={method}>
+                          {tf(`method${method}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="text-xs font-medium text-rose-900">
+                      {t('cancelRefundNote')}
+                    </span>
+                    <input
+                      type="text"
+                      value={refundNote}
+                      maxLength={500}
+                      onChange={(event) => setRefundNote(event.target.value)}
+                      className="mt-1 w-full rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
           <label className="block">
             <span className="text-xs font-medium text-rose-900">{t('cancelReason')}</span>
             <input
@@ -224,9 +411,7 @@ export function ReservationActions({
             <button
               type="button"
               disabled={pending}
-              onClick={() =>
-                run(() => cancelReservation(propertyId, id, version, reason.trim() || undefined))
-              }
+              onClick={submitCancel}
               className="rounded-md bg-rose-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
             >
               {pending ? t('working') : t('cancelConfirm')}

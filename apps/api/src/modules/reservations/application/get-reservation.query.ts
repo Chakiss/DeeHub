@@ -11,6 +11,7 @@ import {
   reservations,
   roomTypes,
 } from '../../../database/schema';
+import { policyOf, strictestPolicy } from '../../booking-engine/domain/strictest-policy';
 
 export interface ReservationView {
   readonly id: string;
@@ -38,6 +39,11 @@ export interface ReservationView {
   readonly checkedOutAt: string | null;
   readonly cancelledAt: string | null;
   readonly cancellationReason: string | null;
+  /**
+   * The strictest cancellation terms frozen across the stays (what the guest was
+   * promised); null when any stay has none of ours (OTA, travel agent, older).
+   */
+  readonly cancellation: { readonly noticeHours: number; readonly refundPercent: number } | null;
   readonly total: { amount: number; currency: string };
   readonly subtotal: { amount: number; currency: string };
   readonly tax: { amount: number; currency: string };
@@ -106,6 +112,8 @@ export class GetReservationQuery {
         pricedFrom: reservationStays.pricedFrom,
         priceNote: reservationStays.priceNote,
         subtotalMinor: reservationStays.subtotalMinor,
+        cancellationNoticeHours: reservationStays.cancellationNoticeHours,
+        cancellationRefundPercent: reservationStays.cancellationRefundPercent,
       })
       .from(reservationStays)
       .innerJoin(roomTypes, eq(roomTypes.id, reservationStays.roomTypeId))
@@ -178,6 +186,7 @@ export class GetReservationQuery {
       checkedOutAt: reservation.checkedOutAt?.toISOString() ?? null,
       cancelledAt: reservation.cancelledAt?.toISOString() ?? null,
       cancellationReason: reservation.cancellationReason,
+      cancellation: strictestPolicy(stayRows.map(policyOf)),
       total: { amount: reservation.totalMinor, currency },
       subtotal: { amount: reservation.subtotalMinor, currency },
       tax: { amount: reservation.taxMinor, currency },

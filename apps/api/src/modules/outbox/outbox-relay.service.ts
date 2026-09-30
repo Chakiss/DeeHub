@@ -36,6 +36,8 @@ interface ReservationPayload {
   channelId?: string | null;
   /** How the booking arrived (WALK_IN, DIRECT, OTA…); absent on older events. */
   source?: string;
+  /** RESERVATION_CANCELLED: the folio REFUND recorded with it, when there was one. */
+  refundPaymentId?: string | null;
 }
 
 interface InventoryChangedPayload {
@@ -175,6 +177,7 @@ export class OutboxRelayService {
         organizationId: row.organizationId,
         reservationId: payload.reservationId,
         kind,
+        refundPaymentId: payload.refundPaymentId ?? null,
       });
     }
   }

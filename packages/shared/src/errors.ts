@@ -22,6 +22,8 @@ export const ERROR_STATUS = {
   ALLOTMENT_BELOW_BOOKED: 409,
   MAPPING_MISSING: 422,
   IDEMPOTENCY_KEY_REUSED: 409,
+  /** Cancelling with a refund that differs from the quote needs the desk's reason. */
+  REFUND_NOTE_REQUIRED: 422,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 } as const;
@@ -113,6 +115,14 @@ export const errors = {
       'INVALID_STATE_TRANSITION',
       `Cannot change status from ${from} to ${to}`,
       { from, to },
+    );
+  },
+
+  refundNoteRequired(quotedMinor: number, requestedMinor: number): DomainError {
+    return new DomainError(
+      'REFUND_NOTE_REQUIRED',
+      'A note is required when the refund differs from the quoted amount',
+      { quotedRefundMinor: quotedMinor, refundMinor: requestedMinor },
     );
   },
 
