@@ -20,6 +20,8 @@ function booking(overrides: Partial<BookingSummary> = {}): BookingSummary {
     currency: 'THB',
     channelName: null,
     cancellationReason: null,
+    timeZone: 'Asia/Bangkok',
+    cancellation: null,
     ...overrides,
   };
 }
@@ -123,5 +125,38 @@ describe('render()', () => {
     );
     expect(message.body).toContain('1 night,');
     expect(message.body).toContain('1 room)');
+  });
+  describe('cancellation terms', () => {
+    const policy = {
+      noticeHours: 24,
+      refundPercent: 50,
+      deadline: new Date('2026-08-11T07:00:00.000Z'),
+      deadlinePassed: false,
+    };
+
+    it('states the deadline in property time and the refund, in both languages', () => {
+      const en = render('BOOKING_CONFIRMED', booking({ cancellation: policy }), 'en').body;
+      expect(en).toContain('Cancel by 11 Aug 2026, 14:00 for a 50% refund; after that no refund.');
+      const th = render('BOOKING_CONFIRMED', booking({ cancellation: policy }), 'th').body;
+      expect(th).toContain('ยกเลิกได้ถึง');
+      expect(th).toContain('คืนเงิน 50% หลังจากนั้นไม่คืนเงิน');
+    });
+
+    it('says nothing when no policy was recorded', () => {
+      const body = render('BOOKING_CONFIRMED', booking(), 'en').body;
+      expect(body).not.toContain('Cancel by');
+      expect(body).not.toContain('non-refundable');
+    });
+
+    it('says non-refundable once the deadline has passed or the refund is 0%', () => {
+      const late = booking({ cancellation: { ...policy, deadlinePassed: true } });
+      expect(render('BOOKING_CONFIRMED', late, 'en').body).toContain(
+        'This booking is non-refundable.',
+      );
+      const none = booking({ cancellation: { ...policy, noticeHours: 0, refundPercent: 0 } });
+      expect(render('BOOKING_CONFIRMED', none, 'th').body).toContain(
+        'การจองนี้ยกเลิกแล้วไม่คืนเงิน',
+      );
+    });
   });
 });

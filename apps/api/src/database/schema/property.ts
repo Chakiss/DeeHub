@@ -192,6 +192,13 @@ export const ratePlans = pgTable(
       .default(sql`'{}'::jsonb`),
     isRefundable: boolean('is_refundable').notNull().default(true),
     /**
+     * Cancellation policy applied when `is_refundable`: cancelling at least
+     * this many hours before check-in (property check-in time, property
+     * timezone) returns `cancellation_refund_percent` of the booking total.
+     */
+    cancellationNoticeHours: smallint('cancellation_notice_hours').notNull().default(24),
+    cancellationRefundPercent: smallint('cancellation_refund_percent').notNull().default(50),
+    /**
      * Whether a stranger may buy it: the booking engine and the metasearch
      * feed read only plans with this set. A desk-only plan — a corporate rate,
      * a walk-in special — stays active and priced without becoming the lowest
@@ -218,6 +225,8 @@ export const ratePlans = pgTable(
       sql`(${t.parentRatePlanId} IS NULL AND ${t.derivationType} IS NULL AND ${t.derivationValue} IS NULL)
           OR (${t.parentRatePlanId} IS NOT NULL AND ${t.derivationType} IS NOT NULL AND ${t.derivationValue} IS NOT NULL)`,
     ),
+    check('rate_plans_cancel_notice_ck', sql`${t.cancellationNoticeHours} BETWEEN 0 AND 720`),
+    check('rate_plans_cancel_refund_ck', sql`${t.cancellationRefundPercent} BETWEEN 0 AND 100`),
     check('rate_plans_no_self_parent_ck', sql`${t.parentRatePlanId} <> ${t.id}`),
   ],
 );

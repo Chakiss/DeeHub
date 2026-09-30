@@ -258,8 +258,17 @@ CREATE TABLE rate_plans (
   derivation_value    integer,                    -- bp if PERCENTAGE, minor units if AMOUNT
   meal_plan           text NOT NULL DEFAULT 'ROOM_ONLY'
                       CHECK (meal_plan IN ('ROOM_ONLY','BREAKFAST','HALF_BOARD','FULL_BOARD','ALL_INCLUSIVE')),
+  -- LEGACY / unused: superseded by cancellation_notice_hours and
+  -- cancellation_refund_percent below. Nothing reads or writes it.
   cancellation_policy jsonb NOT NULL DEFAULT '{}'::jsonb,
   is_refundable       boolean NOT NULL DEFAULT true,
+  -- The policy that applies while is_refundable: cancel at least this many hours
+  -- before check-in (property check-in time, property timezone) and this share
+  -- of the booking total comes back; later, nothing.
+  cancellation_notice_hours   smallint NOT NULL DEFAULT 24
+                      CONSTRAINT rate_plans_cancel_notice_ck CHECK (cancellation_notice_hours BETWEEN 0 AND 720),
+  cancellation_refund_percent smallint NOT NULL DEFAULT 50
+                      CONSTRAINT rate_plans_cancel_refund_ck CHECK (cancellation_refund_percent BETWEEN 0 AND 100),
   -- Off = desk only: the booking engine and the metasearch feed skip it, so a
   -- corporate or walk-in rate never becomes the lowest price a stranger sees.
   sell_online         boolean NOT NULL DEFAULT true,
@@ -588,6 +597,16 @@ CREATE TABLE reservation_stays (
                       CHECK (priced_from IN ('PROPERTY_RATES','CHANNEL','MANUAL')),
   price_note          text,
   subtotal_minor      bigint NOT NULL DEFAULT 0 CHECK (subtotal_minor >= 0),
+  -- The rate plan's cancellation policy, frozen at booking like the price. NULL =
+  -- no policy of ours recorded (OTA / travel-agent bookings, and bookings made
+  -- before the column existed); 0 / 0 = explicitly non-refundable. Never
+  -- rewritten by a later edit to the plan, nor by modifying the stay's dates or
+  -- occupancy; modifying it onto a DIFFERENT rate plan re-freezes it from that
+  -- plan (same source rule: OTA / travel agent stay NULL).
+  cancellation_notice_hours   smallint
+                      CONSTRAINT stays_cancel_notice_ck CHECK (cancellation_notice_hours IS NULL OR cancellation_notice_hours BETWEEN 0 AND 720),
+  cancellation_refund_percent smallint
+                      CONSTRAINT stays_cancel_refund_ck CHECK (cancellation_refund_percent IS NULL OR cancellation_refund_percent BETWEEN 0 AND 100),
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT stays_date_order_ck CHECK (check_out > check_in)

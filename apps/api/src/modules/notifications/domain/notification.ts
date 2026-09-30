@@ -44,6 +44,19 @@ export interface BookingSummary {
   readonly currency: string;
   readonly channelName: string | null;
   readonly cancellationReason: string | null;
+  readonly timeZone: string;
+  /**
+   * The policy frozen on the booking, with its deadline worked out when the
+   * message is composed. Null when we recorded none (OTA, travel agent, or a
+   * booking that pre-dates the policy).
+   */
+  readonly cancellation: {
+    readonly noticeHours: number;
+    readonly refundPercent: number;
+    readonly deadline: Date;
+    /** True when composed after the deadline: the honest line is "no refund". */
+    readonly deadlinePassed: boolean;
+  } | null;
 }
 
 /** A message composed and ready to store. */

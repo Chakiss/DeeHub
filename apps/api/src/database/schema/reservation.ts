@@ -137,6 +137,13 @@ export const reservationStays = pgTable(
     priceNote: text('price_note'),
     subtotalMinor: bigint('subtotal_minor', { mode: 'number' }).notNull().default(0),
     /**
+     * The cancellation policy frozen at booking, copied from the rate plan
+     * (`0` / `0` = explicitly non-refundable). Null = no policy of ours
+     * recorded: an OTA or travel-agent booking, or one made before this existed.
+     */
+    cancellationNoticeHours: smallint('cancellation_notice_hours'),
+    cancellationRefundPercent: smallint('cancellation_refund_percent'),
+    /**
      * How many nights were handed back because the guest left before using
      * them (`docs/early-checkout-plan.md`). A summary for the desk; WHICH
      * nights is recorded per night, on `reservation_stay_nights.released_early`
@@ -161,6 +168,14 @@ export const reservationStays = pgTable(
     check(
       'stays_room_released_ck',
       sql`${t.roomReleasedOn} IS NULL OR (${t.roomReleasedOn} >= ${t.checkIn} AND ${t.roomReleasedOn} <= ${t.checkOut})`,
+    ),
+    check(
+      'stays_cancel_notice_ck',
+      sql`${t.cancellationNoticeHours} IS NULL OR ${t.cancellationNoticeHours} BETWEEN 0 AND 720`,
+    ),
+    check(
+      'stays_cancel_refund_ck',
+      sql`${t.cancellationRefundPercent} IS NULL OR ${t.cancellationRefundPercent} BETWEEN 0 AND 100`,
     ),
     check('stays_adults_ck', sql`${t.adults} >= 1`),
     check('stays_children_ck', sql`${t.children} >= 0`),

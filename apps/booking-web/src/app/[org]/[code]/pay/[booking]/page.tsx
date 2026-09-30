@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
 import { loadHotel } from '@/lib/hotel';
 import type { Locale } from '@/i18n/locale';
+import { BookingPolicy } from '@/components/booking-policy';
 import { PaymentPanel } from '@/components/payment-panel';
 import { Shell } from '@/components/shell';
 import { TransferPanel } from '@/components/transfer-panel';
@@ -84,6 +85,11 @@ export default async function PayPage({
             <span>{tc('total')}</span>
             <span className="tabular">{formatMoney(booking.total, booking.currency, locale)}</span>
           </p>
+          <BookingPolicy
+            cancellation={booking.cancellation}
+            locale={locale}
+            timeZone={hotel.timezone}
+          />
         </div>
 
         {hotel.paymentAvailable ? (

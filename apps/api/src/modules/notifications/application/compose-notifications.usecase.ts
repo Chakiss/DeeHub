@@ -1,6 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
-import { nightsBetween, toIsoDate } from '@deehub/shared';
+import { nightsBetween, toIsoDate, type IsoDate } from '@deehub/shared';
+import { cancellationDeadline } from '../../booking-engine/domain/cancellation-deadline';
+import {
+  policyOf,
+  strictestPolicy,
+  type StayPolicy,
+} from '../../booking-engine/domain/strictest-policy';
 import type { Executor } from '../../../database/executor';
 import { ENV, type Env } from '../../../config/env';
 import { newId } from '../../../common/ids';
@@ -187,6 +193,26 @@ export class ComposeNotificationsUseCase {
     return [...new Set(rows.map((row) => row.email.trim().toLowerCase()))].filter(Boolean);
   }
 
+  private policyFor(
+    policy: StayPolicy | null,
+    checkIn: IsoDate,
+    row: { checkInTime: string; timeZone: string },
+  ): BookingSummary['cancellation'] {
+    if (policy === null) return null;
+    const deadline = cancellationDeadline({
+      checkIn,
+      checkInTime: row.checkInTime,
+      timeZone: row.timeZone,
+      noticeHours: policy.noticeHours,
+    });
+    return {
+      noticeHours: policy.noticeHours,
+      refundPercent: policy.refundPercent,
+      deadline,
+      deadlinePassed: Date.now() > deadline.getTime(),
+    };
+  }
+
   private async loadBooking(tx: Executor, reservationId: string) {
     const rows = await tx
       .select({
@@ -205,6 +231,7 @@ export class ComposeNotificationsUseCase {
         checkInTime: properties.checkInTime,
         checkOutTime: properties.checkOutTime,
         channelName: channels.name,
+        timeZone: properties.timezone,
       })
       .from(reservations)
       .innerJoin(properties, eq(properties.id, reservations.propertyId))
@@ -223,6 +250,17 @@ export class ComposeNotificationsUseCase {
       })
       .from(reservationStays)
       .where(eq(reservationStays.reservationId, reservationId));
+
+    // Stays can sit on different plans; the guest is told the strictest terms
+    // among them (null if any stay has none), never a mix of two stays' terms.
+    const stayPolicies = await tx
+      .select({
+        cancellationNoticeHours: reservationStays.cancellationNoticeHours,
+        cancellationRefundPercent: reservationStays.cancellationRefundPercent,
+      })
+      .from(reservationStays)
+      .where(eq(reservationStays.reservationId, reservationId));
+    const policy = strictestPolicy(stayPolicies.map(policyOf));
 
     const span = spans[0];
     if (!span?.checkIn || !span.checkOut) return null;
@@ -247,6 +285,8 @@ export class ComposeNotificationsUseCase {
       currency: row.currency,
       channelName: row.channelName,
       cancellationReason: row.cancellationReason,
+      timeZone: row.timeZone,
+      cancellation: this.policyFor(policy, checkIn, row),
     };
 
     return {

@@ -8,7 +8,7 @@
  * No payment provider is configured in tests, which is itself the case worth
  * covering — a hotel without one still takes bookings, held for a human.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
@@ -325,6 +325,155 @@ describeIfDb('Booking engine', () => {
     expect(roomType.name).toBe('Deluxe');
     expect(roomType.ratePlans[0].total).toBe(RATE_MINOR * 2);
     expect(roomType.ratePlans[0].perNight).toHaveLength(2);
+  });
+
+  describe('cancellation policy', () => {
+    // 14:00 in Bangkok (UTC+7) is 07:00Z; the default notice is 24 hours.
+    const deadlineFor = (checkIn: string) => `${addDays(checkIn, -1)}T07:00:00.000Z`;
+
+    async function setRefundable(value: boolean) {
+      await pool.query(`UPDATE rate_plans SET is_refundable = $2 WHERE id = $1`, [
+        deluxePlanId,
+        value,
+      ]);
+    }
+
+    afterEach(async () => {
+      await setRefundable(true);
+    });
+
+    it('is on the catalog without a deadline, and null for a non-refundable plan', async () => {
+      const catalog = await request(app.getHttpServer()).get(publicUrl()).expect(200);
+      expect(catalog.body.roomTypes[0].ratePlans[0]).toMatchObject({
+        isRefundable: true,
+        cancellation: { noticeHours: 24, refundPercent: 50 },
+      });
+      expect(catalog.body.roomTypes[0].ratePlans[0].cancellation).not.toHaveProperty('deadline');
+
+      await setRefundable(false);
+      const closed = await request(app.getHttpServer()).get(publicUrl()).expect(200);
+      expect(closed.body.roomTypes[0].ratePlans[0]).toMatchObject({
+        isRefundable: false,
+        cancellation: null,
+      });
+    });
+
+    it('carries the deadline on availability, computed in property time', async () => {
+      const response = await searchPublic(NIGHTS[0], addDays(NIGHTS[0], 2)).expect(200);
+      expect(response.body.roomTypes[0].ratePlans[0].cancellation).toEqual({
+        noticeHours: 24,
+        refundPercent: 50,
+        deadline: deadlineFor(NIGHTS[0]),
+      });
+
+      await setRefundable(false);
+      const closed = await searchPublic(NIGHTS[0], addDays(NIGHTS[0], 2)).expect(200);
+      expect(closed.body.roomTypes[0].ratePlans[0].cancellation).toBeNull();
+    });
+
+    it('freezes the policy on the booking, whatever the plan says afterwards', async () => {
+      const made = await bookPublic(validBooking(NIGHTS[0], addDays(NIGHTS[0], 2))).expect(201);
+      await pool.query(
+        `UPDATE rate_plans SET cancellation_notice_hours = 0, cancellation_refund_percent = 100
+          WHERE id = $1`,
+        [deluxePlanId],
+      );
+
+      try {
+        const response = await request(app.getHttpServer())
+          .get(publicUrl(`/bookings/${made.body.code as string}`))
+          .query({ email: 'ploy@example.test' })
+          .expect(200);
+        expect(response.body.cancellation).toEqual({
+          noticeHours: 24,
+          refundPercent: 50,
+          deadline: deadlineFor(NIGHTS[0]),
+        });
+      } finally {
+        await pool.query(
+          `UPDATE rate_plans SET cancellation_notice_hours = 24, cancellation_refund_percent = 50
+            WHERE id = $1`,
+          [deluxePlanId],
+        );
+      }
+    });
+
+    it('holds a booking with two plans to the strictest of them', async () => {
+      const flexPlanId = crypto.randomUUID();
+      await pool.query(
+        `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name,
+                                 cancellation_notice_hours, cancellation_refund_percent)
+         VALUES ($1, $2, $3, $4, 'FLEX-DLX', 'Flexible', 72, 100)`,
+        [flexPlanId, orgId, propertyId, deluxeId],
+      );
+      for (const date of [NIGHTS[0], addDays(NIGHTS[0], 1)]) {
+        for (const occupancy of [1, 2, 3]) {
+          await pool.query(
+            `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date,
+                                    occupancy, amount_minor, currency)
+             VALUES ($1, $2, $3, $4, $5, $6, 'THB')`,
+            [orgId, propertyId, flexPlanId, date, occupancy, RATE_MINOR],
+          );
+        }
+      }
+      try {
+        // 72h / 100% on one stay, the default 24h / 50% on the other.
+        const made = await bookPublic(
+          validBooking(NIGHTS[0], addDays(NIGHTS[0], 2), {
+            stays: [
+              { roomTypeId: deluxeId, ratePlanId: flexPlanId, adults: 2 },
+              { roomTypeId: deluxeId, ratePlanId: deluxePlanId, adults: 2 },
+            ],
+          }),
+        ).expect(201);
+
+        const response = await request(app.getHttpServer())
+          .get(publicUrl(`/bookings/${made.body.code as string}`))
+          .query({ email: 'ploy@example.test' })
+          .expect(200);
+        // Not 72h/50% or 24h/100%: a policy that one of the stays really has.
+        expect(response.body.cancellation).toEqual({
+          noticeHours: 24,
+          refundPercent: 50,
+          deadline: deadlineFor(NIGHTS[0]),
+        });
+      } finally {
+        await pool.query(`UPDATE rate_plans SET is_active = false WHERE id = $1`, [flexPlanId]);
+      }
+    });
+
+    it("computes the deadline from the property's own check-in time", async () => {
+      await pool.query(`UPDATE properties SET check_in_time = '12:00' WHERE id = $1`, [propertyId]);
+      try {
+        // 12:00 Bangkok is 05:00Z, and 24h earlier is the day before.
+        const expected = `${addDays(NIGHTS[0], -1)}T05:00:00.000Z`;
+        const search = await searchPublic(NIGHTS[0], addDays(NIGHTS[0], 2)).expect(200);
+        expect(search.body.roomTypes[0].ratePlans[0].cancellation.deadline).toBe(expected);
+
+        const made = await bookPublic(validBooking(NIGHTS[0], addDays(NIGHTS[0], 1))).expect(201);
+        const response = await request(app.getHttpServer())
+          .get(publicUrl(`/bookings/${made.body.code as string}`))
+          .query({ email: 'ploy@example.test' })
+          .expect(200);
+        expect(response.body.cancellation.deadline).toBe(expected);
+      } finally {
+        await pool.query(`UPDATE properties SET check_in_time = '14:00' WHERE id = $1`, [
+          propertyId,
+        ]);
+      }
+    });
+
+    it('freezes a non-refundable plan as 0 / 0 rather than as no policy', async () => {
+      await setRefundable(false);
+      const made = await bookPublic(validBooking(NIGHTS[0], addDays(NIGHTS[0], 1))).expect(201);
+      await setRefundable(true);
+
+      const response = await request(app.getHttpServer())
+        .get(publicUrl(`/bookings/${made.body.code as string}`))
+        .query({ email: 'ploy@example.test' })
+        .expect(200);
+      expect(response.body.cancellation).toMatchObject({ noticeHours: 0, refundPercent: 0 });
+    });
   });
 
   it('shows a guest only what they can book', async () => {

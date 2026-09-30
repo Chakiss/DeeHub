@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import { DomainError } from '@deehub/shared';
+import { properties } from '../../../../../database/schema';
 import { DATABASE, type Database } from '../../../../../database/database.module';
 import { ENV, type Env } from '../../../../../config/env';
 import {
@@ -123,6 +125,14 @@ export class GoogleHotelConnector implements ChannelConnector {
       }
     }
 
+    const [property] = await this.db
+      .select({ checkInTime: properties.checkInTime })
+      .from(properties)
+      .where(eq(properties.id, ctx.propertyId))
+      .limit(1);
+    // Stored as 'HH:MM:SS'; Google wants HH:MM.
+    const checkInTime = (property?.checkInTime ?? '14:00').slice(0, 5);
+
     const body = buildPropertyData(
       partner,
       hotelCode,
@@ -140,7 +150,11 @@ export class GoogleHotelConnector implements ChannelConnector {
           externalRateId: planMappings.get(plan.id) as string,
           name: plan.name,
           description: null,
-          refundable: plan.isRefundable,
+          // Google reads "refundable" as fully refundable, so a partial-refund
+          // policy must not claim it.
+          refundable: plan.isRefundable && plan.cancellationRefundPercent === 100,
+          refundableUntilDays: Math.ceil(plan.cancellationNoticeHours / 24),
+          refundableUntilTime: checkInTime,
           breakfastIncluded: plan.mealPlan !== 'ROOM_ONLY',
         })),
       'en',

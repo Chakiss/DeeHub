@@ -74,6 +74,39 @@ function contactTh(booking: BookingSummary): string {
   return booking.propertyPhone ? `\nสอบถามเพิ่มเติม โทร ${booking.propertyPhone}` : '';
 }
 
+/** A deadline as the guest reads it: the property's own clock, not the server's. */
+function deadlineLabel(deadline: Date, timeZone: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
+    timeZone,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(deadline);
+}
+
+/**
+ * The cancellation terms, one sentence, or nothing when none were recorded.
+ * A 0% policy is a non-refundable booking, and so is any policy whose deadline
+ * has already gone by.
+ */
+function policyLine(booking: BookingSummary, locale: Locale): string {
+  const policy = booking.cancellation;
+  if (!policy) return '';
+  const nonRefundable = policy.refundPercent === 0 || policy.deadlinePassed;
+  if (nonRefundable) {
+    return locale === 'th'
+      ? '\nการจองนี้ยกเลิกแล้วไม่คืนเงิน\n'
+      : '\nThis booking is non-refundable.\n';
+  }
+  const date = deadlineLabel(policy.deadline, booking.timeZone, locale);
+  return locale === 'th'
+    ? `\nยกเลิกได้ถึง ${date} คืนเงิน ${String(policy.refundPercent)}% หลังจากนั้นไม่คืนเงิน\n`
+    : `\nCancel by ${date} for a ${String(policy.refundPercent)}% refund; after that no refund.\n`;
+}
+
 function confirmedEn(booking: BookingSummary): RenderedMessage {
   return {
     subject: `Booking ${booking.code} confirmed — ${booking.propertyName}`,
@@ -87,7 +120,7 @@ Check-out    ${booking.checkOut} by ${booking.checkOutTime}
 Nights       ${String(booking.nights)}
 Rooms        ${String(booking.rooms)}
 Total        ${total(booking, 'en')}
-
+${policyLine(booking, 'en')}
 We look forward to welcoming you.${contactEn(booking)}
 
 ${booking.propertyName}`,
@@ -107,7 +140,7 @@ function confirmedTh(booking: BookingSummary): RenderedMessage {
 จำนวนคืน     ${String(booking.nights)}
 จำนวนห้อง    ${String(booking.rooms)}
 ยอดรวม       ${total(booking, 'th')}
-
+${policyLine(booking, 'th')}
 ทางโรงแรมยินดีต้อนรับท่าน${contactTh(booking)}
 
 ${booking.propertyName}`,

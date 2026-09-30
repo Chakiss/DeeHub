@@ -18,6 +18,8 @@ function plan(overrides: Partial<RatePlanRecord> = {}): RatePlanRecord {
     name: 'Best Available',
     mealPlan: 'ROOM_ONLY',
     isRefundable: true,
+    cancellationNoticeHours: 24,
+    cancellationRefundPercent: 50,
     sellOnline: true,
     isActive: true,
     parentRatePlanId: null,

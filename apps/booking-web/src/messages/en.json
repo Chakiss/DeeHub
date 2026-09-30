@@ -46,7 +46,6 @@
     "noneHint": "Try different dates, or fewer guests.",
     "left": "{count, plural, one {Only # left} other {# left}}",
     "book": "Book",
-    "refundable": "Free cancellation",
     "nonRefundable": "Non-refundable",
     "mealROOM_ONLY": "Room only",
     "mealBREAKFAST": "Breakfast included",
@@ -54,6 +53,15 @@
     "mealFULL_BOARD": "Full board",
     "mealALL_INCLUSIVE": "All inclusive",
     "highlighted": "The rate you selected"
+  },
+  "cancellation": {
+    "freeUntil": "Free cancellation until {hours}h before check-in",
+    "partial": "Cancel {hours}h+ ahead for a {percent}% refund",
+    "noRefundOnceBooked": "No refund once booked",
+    "bookingDeadline": "Cancel by {date} for a {percent}% refund; after that no refund",
+    "bookingNonRefundable": "This booking is non-refundable",
+    "freeUntilCheckIn": "Free cancellation until check-in",
+    "legacyRefundable": "Free cancellation"
   },
   "book": {
     "title": "Your details",

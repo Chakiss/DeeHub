@@ -46,7 +46,6 @@
     "noneHint": "ลองเปลี่ยนวันที่ หรือลดจำนวนผู้เข้าพัก",
     "left": "{count, plural, other {เหลือ # ห้อง}}",
     "book": "จองห้องนี้",
-    "refundable": "ยกเลิกได้ฟรี",
     "nonRefundable": "ไม่สามารถขอคืนเงิน",
     "mealROOM_ONLY": "เฉพาะห้องพัก",
     "mealBREAKFAST": "รวมอาหารเช้า",
@@ -54,6 +53,15 @@
     "mealFULL_BOARD": "รวม 3 มื้อ",
     "mealALL_INCLUSIVE": "รวมทุกอย่าง",
     "highlighted": "ราคาที่คุณเลือกไว้"
+  },
+  "cancellation": {
+    "freeUntil": "ยกเลิกฟรีก่อน {hours} ชม.",
+    "partial": "ยกเลิกล่วงหน้า {hours} ชม. คืนเงิน {percent}%",
+    "noRefundOnceBooked": "จองแล้วไม่สามารถขอคืนเงิน",
+    "bookingDeadline": "ยกเลิกได้ถึง {date} คืนเงิน {percent}% หลังจากนั้นไม่คืนเงิน",
+    "bookingNonRefundable": "การจองนี้ยกเลิกแล้วไม่คืนเงิน",
+    "freeUntilCheckIn": "ยกเลิกฟรีจนถึงเวลาเช็คอิน",
+    "legacyRefundable": "ยกเลิกได้ฟรี"
   },
   "book": {
     "title": "ข้อมูลผู้จอง",

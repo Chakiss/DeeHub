@@ -19,6 +19,8 @@ export interface RatePlanRecord {
   readonly name: string;
   readonly mealPlan: string;
   readonly isRefundable: boolean;
+  readonly cancellationNoticeHours: number;
+  readonly cancellationRefundPercent: number;
   /** Bookable by a stranger (booking engine, metasearch). Off = desk only. */
   readonly sellOnline: boolean;
   readonly isActive: boolean;
@@ -38,6 +40,8 @@ export interface CreateRatePlanRecord {
   readonly name: string;
   readonly mealPlan: MealPlan;
   readonly isRefundable: boolean;
+  readonly cancellationNoticeHours: number;
+  readonly cancellationRefundPercent: number;
   readonly sellOnline: boolean;
   /** All three together or none: a database CHECK enforces the pairing. */
   readonly parentRatePlanId?: string | null;
@@ -61,7 +65,14 @@ export interface CreateRatePlanRecord {
 export type UpdateRatePlanFields = Partial<
   Pick<
     RatePlanRecord,
-    'name' | 'mealPlan' | 'isRefundable' | 'sellOnline' | 'isActive' | 'derivationValue'
+    | 'name'
+    | 'mealPlan'
+    | 'isRefundable'
+    | 'cancellationNoticeHours'
+    | 'cancellationRefundPercent'
+    | 'sellOnline'
+    | 'isActive'
+    | 'derivationValue'
   >
 >;
 

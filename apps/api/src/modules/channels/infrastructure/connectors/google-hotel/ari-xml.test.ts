@@ -122,6 +122,56 @@ describe('property data and hotel list', () => {
     expect(xml).toContain('<Refundable available="true"/><BreakfastIncluded>0</BreakfastIncluded>');
   });
 
+  it('gives a refundable package its cut-off in whole days before check-in', () => {
+    const build = (refundableUntilDays: number) =>
+      buildPropertyData(
+        'deehub',
+        'hotel-1',
+        [],
+        [
+          {
+            externalRateId: 'FLEX',
+            name: 'Flexible',
+            description: null,
+            refundable: true,
+            refundableUntilDays,
+            refundableUntilTime: '14:00',
+            breakfastIncluded: false,
+          },
+        ],
+        'en',
+        new Date('2026-09-23T10:00:00Z'),
+      );
+    // 72 hours ahead is exactly three days; 24h+ rounds up; none is day zero.
+    expect(build(3)).toContain(
+      '<Refundable available="true" refundable_until_days="3" refundable_until_time="14:00"/>',
+    );
+    expect(build(0)).toContain('refundable_until_days="0"');
+  });
+
+  it('adds no cut-off to a package that is not refundable', () => {
+    const xml = buildPropertyData(
+      'deehub',
+      'hotel-1',
+      [],
+      [
+        {
+          externalRateId: 'NRF',
+          name: 'Non-refundable',
+          description: null,
+          refundable: false,
+          refundableUntilDays: 1,
+          refundableUntilTime: '14:00',
+          breakfastIncluded: false,
+        },
+      ],
+      'en',
+      new Date('2026-09-23T10:00:00Z'),
+    );
+    expect(xml).toContain('<Refundable available="false"/>');
+    expect(xml).not.toContain('refundable_until');
+  });
+
   it('lists a property with the address Google matches on', () => {
     const xml = buildHotelList([
       {

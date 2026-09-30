@@ -18,6 +18,8 @@ export interface AvailabilityRatePlan {
   readonly name: string;
   readonly mealPlan: string;
   readonly isRefundable: boolean;
+  readonly cancellationNoticeHours: number;
+  readonly cancellationRefundPercent: number;
   readonly total: Money;
   readonly perNight: readonly { date: IsoDate; amount: Money }[];
   readonly bookable: boolean;
@@ -138,6 +140,8 @@ export class SearchAvailabilityQuery {
         roomTypeId: ratePlans.roomTypeId,
         mealPlan: ratePlans.mealPlan,
         isRefundable: ratePlans.isRefundable,
+        cancellationNoticeHours: ratePlans.cancellationNoticeHours,
+        cancellationRefundPercent: ratePlans.cancellationRefundPercent,
       })
       .from(ratePlans)
       .where(
@@ -212,6 +216,8 @@ export class SearchAvailabilityQuery {
             name: plan.name,
             mealPlan: plan.mealPlan,
             isRefundable: plan.isRefundable,
+            cancellationNoticeHours: plan.cancellationNoticeHours,
+            cancellationRefundPercent: plan.cancellationRefundPercent,
             total: money(0, 'THB'),
             perNight: [],
             bookable: false,
@@ -232,6 +238,8 @@ export class SearchAvailabilityQuery {
           name: plan.name,
           mealPlan: plan.mealPlan,
           isRefundable: plan.isRefundable,
+          cancellationNoticeHours: plan.cancellationNoticeHours,
+          cancellationRefundPercent: plan.cancellationRefundPercent,
           total: sum(
             perNight.map((entry) => entry.amount),
             currency,

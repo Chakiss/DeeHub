@@ -145,6 +145,9 @@ describeIfDb('Rate plans API', () => {
     expect(response.body.code).toBe('BAR-STD');
     expect(response.body.mealPlan).toBe('ROOM_ONLY');
     expect(response.body.isRefundable).toBe(true);
+    // The hotel's standing policy: 50% back when cancelled 24h+ ahead.
+    expect(response.body.cancellationNoticeHours).toBe(24);
+    expect(response.body.cancellationRefundPercent).toBe(50);
     expect(response.body.isActive).toBe(true);
     expect(response.body.roomTypeId).toBe(roomTypeId);
   });
@@ -159,6 +162,33 @@ describeIfDb('Rate plans API', () => {
 
     expect(response.body.mealPlan).toBe('BREAKFAST');
     expect(response.body.isRefundable).toBe(false);
+  });
+
+  it('stores an explicit cancellation policy', async () => {
+    const token = await managerToken();
+    const response = await request(app.getHttpServer())
+      .post(`/api/v1/properties/${propertyId}/rate-plans`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(body({ cancellationNoticeHours: 72, cancellationRefundPercent: 100 }))
+      .expect(201);
+
+    expect(response.body.cancellationNoticeHours).toBe(72);
+    expect(response.body.cancellationRefundPercent).toBe(100);
+  });
+
+  it.each([
+    { cancellationNoticeHours: 721 },
+    { cancellationNoticeHours: -1 },
+    { cancellationNoticeHours: 1.5 },
+    { cancellationRefundPercent: 101 },
+    { cancellationRefundPercent: -5 },
+  ])('rejects an out-of-range cancellation policy %j', async (overrides) => {
+    const token = await managerToken();
+    await request(app.getHttpServer())
+      .post(`/api/v1/properties/${propertyId}/rate-plans`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(body(overrides))
+      .expect(422);
   });
 
   it('rejects a meal plan the database would refuse', async () => {
@@ -244,6 +274,44 @@ describeIfDb('Rate plans API', () => {
         .expect(201);
       return response.body.id as string;
     }
+
+    it('changes the cancellation policy, rejects bad values, and audits the change', async () => {
+      const id = await create();
+      const token = await managerToken();
+      const url = `/api/v1/properties/${propertyId}/rate-plans/${id}`;
+
+      const response = await request(app.getHttpServer())
+        .patch(url)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ cancellationNoticeHours: 48, cancellationRefundPercent: 80 })
+        .expect(200);
+      expect(response.body).toMatchObject({
+        cancellationNoticeHours: 48,
+        cancellationRefundPercent: 80,
+      });
+
+      await request(app.getHttpServer())
+        .patch(url)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ cancellationRefundPercent: 150 })
+        .expect(422);
+
+      const { rows } = await pool.query<{
+        before: Record<string, unknown>;
+        after: Record<string, unknown>;
+      }>(
+        'SELECT before, after FROM audit_logs WHERE entity_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [id],
+      );
+      expect(rows[0]?.before).toMatchObject({
+        cancellationNoticeHours: 24,
+        cancellationRefundPercent: 50,
+      });
+      expect(rows[0]?.after).toMatchObject({
+        cancellationNoticeHours: 48,
+        cancellationRefundPercent: 80,
+      });
+    });
 
     it('renames a plan', async () => {
       const id = await create();

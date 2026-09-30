@@ -12,6 +12,13 @@ export interface CatalogPackage {
   readonly name: string;
   readonly description: string | null;
   readonly refundable: boolean;
+  /**
+   * With `refundable`: Google's cut-off, in whole days before check-in (rounded
+   * UP, so it never promises a longer window than the hotel gives) and the
+   * time of day it falls at (the property's check-in time, `HH:MM`).
+   */
+  readonly refundableUntilDays?: number;
+  readonly refundableUntilTime?: string;
   readonly breakfastIncluded: boolean;
 }
 
@@ -48,7 +55,19 @@ export function buildPropertyData(
         `<PackageID>${esc(pkg.externalRateId)}</PackageID>` +
         `<Name>${text(pkg.name)}</Name>` +
         `<Description>${text(pkg.description ?? pkg.name)}</Description>` +
-        `<Refundable${attrs({ available: pkg.refundable ? 'true' : 'false' })}/>` +
+        `<Refundable${attrs(
+          pkg.refundable
+            ? {
+                available: 'true',
+                ...(pkg.refundableUntilDays !== undefined
+                  ? { refundable_until_days: String(pkg.refundableUntilDays) }
+                  : {}),
+                ...(pkg.refundableUntilTime !== undefined
+                  ? { refundable_until_time: pkg.refundableUntilTime }
+                  : {}),
+              }
+            : { available: 'false' },
+        )}/>` +
         `<BreakfastIncluded>${pkg.breakfastIncluded ? '1' : '0'}</BreakfastIncluded>` +
         `</PackageData>`,
     )

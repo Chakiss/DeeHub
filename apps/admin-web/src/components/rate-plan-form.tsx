@@ -40,6 +40,10 @@ export function RatePlanForm({
     (ratePlan?.mealPlan as MealPlan | undefined) ?? 'ROOM_ONLY',
   );
   const [isRefundable, setRefundable] = useState(ratePlan?.isRefundable ?? true);
+  const [noticeHours, setNoticeHours] = useState(String(ratePlan?.cancellationNoticeHours ?? 24));
+  const [refundPercent, setRefundPercent] = useState(
+    String(ratePlan?.cancellationRefundPercent ?? 50),
+  );
   const [sellOnline, setSellOnline] = useState(ratePlan?.sellOnline ?? true);
 
   /*
@@ -92,11 +96,32 @@ export function RatePlanForm({
       return;
     }
 
+    const notice = Number(noticeHours);
+    const refund = Number(refundPercent);
+    if (
+      isRefundable &&
+      (!Number.isInteger(notice) ||
+        notice < 0 ||
+        notice > 720 ||
+        !Number.isInteger(refund) ||
+        refund < 0 ||
+        refund > 100)
+    ) {
+      setSaving(false);
+      setError(t('policyInvalid'));
+      return;
+    }
+    // Only meaningful while refundable; a non-refundable plan keeps what it had.
+    const policy = isRefundable
+      ? { cancellationNoticeHours: notice, cancellationRefundPercent: refund }
+      : {};
+
     const result = editing
       ? await updateRatePlan(propertyId, ratePlan.id, {
           name,
           mealPlan,
           isRefundable,
+          ...policy,
           sellOnline,
           ...(ratePlan.derivationType ? { derivationValue: offsetValue } : {}),
         })
@@ -106,6 +131,7 @@ export function RatePlanForm({
           name,
           mealPlan,
           isRefundable,
+          ...policy,
           sellOnline,
           // selectedParent, never the raw state: `parentId` stays empty until
           // somebody actually changes the dropdown, and the dropdown SHOWS the
@@ -288,6 +314,42 @@ export function RatePlanForm({
           />
           {t('refundable')}
         </label>
+
+        {isRefundable && (
+          <div className="space-y-2 rounded-lg border border-stone-200 bg-sunk p-3">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="rp-notice" label={t('noticeHours')}>
+                <input
+                  id="rp-notice"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={720}
+                  step={1}
+                  required
+                  value={noticeHours}
+                  onChange={(event) => setNoticeHours(event.target.value)}
+                  className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </Field>
+              <Field id="rp-refund" label={t('refundPercent')}>
+                <input
+                  id="rp-refund"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={100}
+                  step={1}
+                  required
+                  value={refundPercent}
+                  onChange={(event) => setRefundPercent(event.target.value)}
+                  className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </Field>
+            </div>
+            <p className="text-xs text-stone-500">{t('policyHint')}</p>
+          </div>
+        )}
 
         {/*
           Off = desk only. The booking page and the metasearch feed read only

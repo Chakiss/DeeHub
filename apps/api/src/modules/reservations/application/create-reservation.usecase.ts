@@ -23,6 +23,7 @@ import {
   type PropertyRepository,
   type PropertySettings,
 } from '../../properties/domain/property.repository';
+import { frozenCancellation } from '../domain/frozen-cancellation';
 import { computeBreakdown } from '../domain/pricing';
 import { generateReservationCode } from '../domain/reservation-code';
 import { LinkGuestUseCase } from '../../guests/application/link-guest.usecase';
@@ -271,7 +272,13 @@ export class CreateReservationUseCase {
         const room = stayInput.roomId
           ? await this.roomFor(tx, property.id, stayInput.roomId, chosenRooms)
           : null;
-        stays.push(room ? { ...stay.record, assignedRoomId: room.id } : stay.record);
+        // Our own cancellation policy is frozen onto direct bookings only: an
+        // OTA or agent sold the room under terms we do not control.
+        stays.push({
+          ...stay.record,
+          ...frozenCancellation(input.source, stay.cancellation),
+          ...(room ? { assignedRoomId: room.id } : {}),
+        });
         nightPrices.push(...stay.nightPrices);
         overbookings.push(...stay.overbookings);
         if (stayInput.channelTotal && stay.pricedFrom === 'PROPERTY_RATES') {

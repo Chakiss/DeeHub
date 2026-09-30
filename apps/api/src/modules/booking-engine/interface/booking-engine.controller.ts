@@ -17,6 +17,7 @@ import {
 } from '../application/public-property.resolver';
 import { SettlePaymentUseCase } from '../application/settle-payment.usecase';
 import { StartPaymentUseCase } from '../application/start-payment.usecase';
+import { cancellationDeadline } from '../domain/cancellation-deadline';
 import { PAYMENT_GATEWAY, type PaymentGateway } from '../domain/payment-gateway';
 import {
   PAYMENT_INTENT_REPOSITORY,
@@ -234,6 +235,18 @@ export class BookingEngineController {
             name: plan.name,
             mealPlan: plan.mealPlan,
             isRefundable: plan.isRefundable,
+            cancellation: plan.isRefundable
+              ? {
+                  noticeHours: plan.cancellationNoticeHours,
+                  refundPercent: plan.cancellationRefundPercent,
+                  deadline: cancellationDeadline({
+                    checkIn: result.checkIn,
+                    checkInTime: property.checkInTime,
+                    timeZone: property.timezone,
+                    noticeHours: plan.cancellationNoticeHours,
+                  }).toISOString(),
+                }
+              : null,
             total: plan.total.amount,
             perNight: plan.perNight.map((night) => ({
               date: night.date,
@@ -345,7 +358,7 @@ export class BookingEngineController {
   ) {
     const property = await this.resolver.resolve(organizationSlug, propertyCode);
     const booking = await this.lookup(property, code, email);
-    return presentBooking(booking);
+    return presentBooking(booking, property);
   }
 
   @Public()
@@ -454,7 +467,7 @@ function presentBreakdown(breakdown: PriceBreakdown) {
   };
 }
 
-function presentBooking(booking: PublicBooking) {
+function presentBooking(booking: PublicBooking, property: PublicProperty) {
   return {
     code: booking.code,
     status: booking.status,
@@ -468,6 +481,19 @@ function presentBooking(booking: PublicBooking) {
     total: booking.totalMinor,
     holdExpiresAt: booking.holdExpiresAt?.toISOString() ?? null,
     createdAt: booking.createdAt.toISOString(),
+    // The policy as frozen when it was booked; the deadline is derived from it,
+    // never stored, so it follows the property's check-in time.
+    cancellation: booking.cancellation
+      ? {
+          ...booking.cancellation,
+          deadline: cancellationDeadline({
+            checkIn: booking.checkIn,
+            checkInTime: property.checkInTime,
+            timeZone: property.timezone,
+            noticeHours: booking.cancellation.noticeHours,
+          }).toISOString(),
+        }
+      : null,
     stays: booking.stays,
     payment: booking.payment,
   };

@@ -48,6 +48,8 @@ const createSchema = z
     name: z.string().trim().min(1).max(120),
     mealPlan: z.enum(MEAL_PLANS).default('ROOM_ONLY'),
     isRefundable: z.boolean().default(true),
+    cancellationNoticeHours: z.number().int().min(0).max(720).default(24),
+    cancellationRefundPercent: z.number().int().min(0).max(100).default(50),
     sellOnline: z.boolean().default(true),
     derivation: derivationSchema.optional(),
   })
@@ -64,6 +66,8 @@ const updateSchema = z
     name: z.string().trim().min(1).max(120).optional(),
     mealPlan: z.enum(MEAL_PLANS).optional(),
     isRefundable: z.boolean().optional(),
+    cancellationNoticeHours: z.number().int().min(0).max(720).optional(),
+    cancellationRefundPercent: z.number().int().min(0).max(100).optional(),
     sellOnline: z.boolean().optional(),
     isActive: z.boolean().optional(),
     derivationValue: z.number().int().optional(),
@@ -127,6 +131,8 @@ function present(row: RatePlanRecord) {
     name: row.name,
     mealPlan: row.mealPlan,
     isRefundable: row.isRefundable,
+    cancellationNoticeHours: row.cancellationNoticeHours,
+    cancellationRefundPercent: row.cancellationRefundPercent,
     sellOnline: row.sellOnline,
     isActive: row.isActive,
     // Null on a plan that holds its own prices. `derivationLabel` is the

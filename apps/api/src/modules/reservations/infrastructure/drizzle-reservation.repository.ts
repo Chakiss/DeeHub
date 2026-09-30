@@ -15,6 +15,7 @@ import type {
   ReservationTotals,
   StayNightRecord,
   StayRecord,
+  ReservationSource,
 } from '../domain/reservation.repository';
 
 @Injectable()
@@ -61,6 +62,8 @@ export class DrizzleReservationRepository implements ReservationRepository {
         pricedFrom: stay.pricedFrom,
         priceNote: stay.priceNote,
         subtotalMinor: stay.subtotalMinor,
+        cancellationNoticeHours: stay.cancellationNoticeHours ?? null,
+        cancellationRefundPercent: stay.cancellationRefundPercent ?? null,
       })),
     );
 
@@ -95,6 +98,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
         code: reservations.code,
         status: reservations.status,
         version: reservations.version,
+        source: reservations.source,
         currency: reservations.currency,
         totalMinor: reservations.totalMinor,
       })
@@ -110,6 +114,7 @@ export class DrizzleReservationRepository implements ReservationRepository {
     return {
       ...header,
       status: header.status as ReservationStatus,
+      source: header.source as ReservationSource,
       stays: await this.loadStays(tx, reservationId),
     };
   }
@@ -309,6 +314,14 @@ export class DrizzleReservationRepository implements ReservationRepository {
         pricedFrom: record.pricedFrom,
         priceNote: record.priceNote,
         subtotalMinor: record.subtotalMinor,
+        // Only when the caller re-froze (the rate plan changed); otherwise the
+        // terms the guest booked under stay exactly as they were.
+        ...(record.cancellationNoticeHours !== undefined
+          ? {
+              cancellationNoticeHours: record.cancellationNoticeHours,
+              cancellationRefundPercent: record.cancellationRefundPercent ?? null,
+            }
+          : {}),
         ...(options.clearAssignment ? { assignedRoomId: null } : {}),
         updatedAt: new Date(),
       })
