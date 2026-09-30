@@ -59,14 +59,14 @@ export class ListAssignableRoomsQuery {
           eq(physicalRooms.propertyId, propertyId),
           eq(physicalRooms.isActive, true),
           ne(physicalRooms.housekeepingStatus, 'OUT_OF_ORDER'),
-          // Cancelled bookings release their room (cancel-reservation.usecase),
-          // but the status check is repeated here so a row the release missed
-          // can never hide a free room.
+          // Cancelled, no-show and expired bookings release their rooms, but the
+          // status check is repeated here so a row the release missed can never
+          // hide a free room.
           sql`NOT EXISTS (
             SELECT 1 FROM ${reservationStays}
             INNER JOIN ${reservations} ON ${reservations.id} = ${reservationStays.reservationId}
             WHERE ${reservationStays.assignedRoomId} = ${physicalRooms.id}
-              AND ${reservations.status} <> 'CANCELLED'
+              AND ${reservations.status} IN ('PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT')
               AND daterange(${reservationStays.checkIn}, COALESCE(${reservationStays.roomReleasedOn}, ${reservationStays.checkOut}), '[)')
                   && daterange(${checkIn}::date, ${checkOut}::date, '[)')
           )`,

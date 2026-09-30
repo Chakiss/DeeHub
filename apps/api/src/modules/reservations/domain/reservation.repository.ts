@@ -143,7 +143,15 @@ export interface ReservationRepository {
   /** Insert the aggregate: reservation, stays and materialized nights. */
   insert(tx: Executor, record: ReservationRecord): Promise<void>;
 
-  findById(tx: Executor, reservationId: string): Promise<LoadedReservation | null>;
+  /**
+   * `forUpdate` takes a row lock on the reservation header, so two requests
+   * changing the same booking queue instead of racing through the release.
+   */
+  findById(
+    tx: Executor,
+    reservationId: string,
+    options?: { readonly forUpdate?: boolean },
+  ): Promise<LoadedReservation | null>;
 
   findStay(tx: Executor, stayId: string): Promise<ModifiableStay | null>;
 

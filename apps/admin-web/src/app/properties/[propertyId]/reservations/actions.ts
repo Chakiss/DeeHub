@@ -70,6 +70,22 @@ export async function cancelReservation(
   }
 }
 
+/** The guest never arrived. Releases unused nights; nothing is refunded. */
+export async function markNoShow(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+  reason?: string,
+): Promise<ReservationActionResult> {
+  try {
+    await api.markNoShow(propertyId, reservationId, version, reason);
+    revalidate(propertyId, reservationId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 /** What cancelling would refund, for the cancel panel. Reads only. */
 export async function getCancelQuote(
   propertyId: string,

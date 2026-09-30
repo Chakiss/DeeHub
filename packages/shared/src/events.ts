@@ -10,6 +10,7 @@ export const EVENT_TYPES = {
   RESERVATION_CREATED: 'reservation.created',
   RESERVATION_MODIFIED: 'reservation.modified',
   RESERVATION_CANCELLED: 'reservation.cancelled',
+  RESERVATION_NO_SHOW: 'reservation.no_show',
   RESERVATION_STATUS_CHANGED: 'reservation.status_changed',
   INVENTORY_CHANGED: 'inventory.changed',
   RATE_CHANGED: 'rate.changed',

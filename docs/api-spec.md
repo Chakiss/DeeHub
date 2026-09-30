@@ -786,7 +786,7 @@ staff can see _why_ the system won't sell a room and fix the restriction.
 | `POST`  | `/properties/{pid}/reservations/{id}/cancel`              | `reservation:cancel` (+ `folio:post` when a refund > 0 is sent)     |
 | `POST`  | `/properties/{pid}/reservations/{id}/check-in`            | `reservation:checkin`                                               |
 | `POST`  | `/properties/{pid}/reservations/{id}/check-out`           | `reservation:checkout`                                              |
-| `POST`  | `/properties/{pid}/reservations/{id}/no-show`             | `reservation:update`                                                |
+| `POST`  | `/properties/{pid}/reservations/{id}/no-show`             | `reservation:update` — a CONFIRMED guest who never arrived          |
 | `GET`   | `/properties/{pid}/reservations/{id}/audit`               | `audit:read`                                                        |
 
 **Cancel quote** — `GET .../reservations/{id}/cancel-quote` (`reservation:cancel`),
@@ -832,6 +832,32 @@ are audited. The audit entry carries `quotedRefundMinor`, `refundMinor`, `method
 and `note`. The response adds `refund: { amountMinor, method, paymentId } | null`.
 The reservation detail (`GET .../reservations/{id}`) carries `cancellation:
 { noticeHours, refundPercent } | null`, the strictest frozen policy.
+
+**No-show** — `POST .../reservations/{id}/no-show` (`reservation:update`), body
+`{ version, reason? }` (`reason` ≤ 500 characters, unknown fields refused). The
+guest never arrived: a `CONFIRMED` booking becomes `NO_SHOW` (terminal).
+
+```jsonc
+{
+  "id": "…",
+  "status": "NO_SHOW",
+  "releasedNights": ["2031-09-02"],
+  "retainedNights": ["2031-09-01"],
+}
+```
+
+Nights from today (property business date) on are released and their rooms
+unassigned, exactly as in cancel; earlier nights are retained. The folio is not
+touched and nothing is refunded. Errors: `422 NO_SHOW_TOO_EARLY` (the business
+date is not yet AFTER the earliest check-in date — a guest on a late flight keeps
+their room on arrival day; `details: { checkIn, today }`), `409
+INVALID_STATE_TRANSITION` (not `CONFIRMED`, e.g. `PENDING`), `409 VERSION_MISMATCH`
+(a second call returns one of these two, depending on timing), `404` for another
+property's or organization's booking. Audit action `reservation.no_show` records
+`releasedNights`, `retainedNights`, `roomsReleased` and `reason`. Events:
+`reservation.no_show` (payload as `reservation.cancelled`, `affectedDates` = the
+released nights) plus `inventory.changed` per room type, which is what pushes the
+freed availability to channels. No guest email is sent yet.
 
 **Modification** is `PATCH` on ONE STAY, not `POST .../modify-stay` as this
 document originally planned. A reservation can hold twenty rooms and the

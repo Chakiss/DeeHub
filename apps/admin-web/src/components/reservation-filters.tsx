@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { reservationStatusLabel } from '@/lib/reservation-status';
 
 const STATUSES = [
   'CONFIRMED',
@@ -15,6 +16,7 @@ const STATUSES = [
 export function ReservationFilters({
   searchPlaceholder,
   allStatusesLabel,
+  noShowLabel,
   defaultQuery,
   defaultStatus,
   defaultSource,
@@ -23,6 +25,7 @@ export function ReservationFilters({
 }: {
   searchPlaceholder: string;
   allStatusesLabel: string;
+  noShowLabel: string;
   defaultQuery: string;
   defaultStatus: string;
   defaultSource: string;
@@ -66,7 +69,7 @@ export function ReservationFilters({
         <option value="">{allStatusesLabel}</option>
         {STATUSES.map((status) => (
           <option key={status} value={status}>
-            {status.replace('_', ' ').toLowerCase()}
+            {reservationStatusLabel(status, () => noShowLabel)}
           </option>
         ))}
       </select>

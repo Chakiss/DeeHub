@@ -445,6 +445,19 @@ describeIfDb('Cancel with a refund', () => {
     });
   });
 
+  describe('tenant boundary', () => {
+    it("refuses a booking of another property through this property's path, changing nothing", async () => {
+      const { id } = await book();
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${otherPropertyId}/reservations/${id}/cancel`)
+        .set(auth())
+        .send({ version: await version(id) })
+        .expect(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+      expect((await state(id)).status).toBe('CONFIRMED');
+    });
+  });
+
   describe('access', () => {
     it('gives a read-only token 403 on both routes', async () => {
       const { id } = await book();

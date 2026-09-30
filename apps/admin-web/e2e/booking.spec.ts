@@ -37,6 +37,8 @@ function addDays(date: string, days: number): string {
 }
 
 const IN_HOUSE = [0, 1, 2, 3, 4, 5].map((offset) => addDays(bangkokToday(), offset));
+/** A no-show needs an arrival date that has already passed. */
+const YESTERDAY = addDays(bangkokToday(), -1);
 
 let room: IsolatedRoomType;
 
@@ -44,7 +46,7 @@ test.beforeAll(async () => {
   room = await seedIsolatedRoomType(testData(), {
     code: 'BKG',
     name: 'Booking Spec Suite',
-    dates: [...NIGHTS, ...IN_HOUSE],
+    dates: [...NIGHTS, YESTERDAY, ...IN_HOUSE],
     // Generous on purpose. Every test in this serial file books, several of
     // them on the first night, and the default of five ran out — as an
     // INVENTORY_UNAVAILABLE from a test that was not about inventory at all.
@@ -223,6 +225,48 @@ test.describe('reading and changing a booking', () => {
     // Exact, because the page also carries a "Cancelled" field label.
     await expect(page.getByText('cancelled', { exact: true })).toBeVisible();
     await expect(page.getByText('Guest called to cancel')).toBeVisible();
+  });
+
+  test('marks a booking whose guest never came as a no-show and puts tonight back on sale', async ({
+    page,
+    request,
+  }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const tonight = IN_HOUSE[0]!;
+
+    async function availableTonight(): Promise<number> {
+      const grid = await request.get(`${API}/properties/${data.propertyId}/inventory`, {
+        headers: { authorization: `Bearer ${token}` },
+        params: { from: tonight, to: IN_HOUSE[1]!, roomTypeIds: room.roomTypeId },
+      });
+      const body = (await grid.json()) as {
+        roomTypes: { days: { date: string; available: number }[] }[];
+      };
+      return body.roomTypes[0]!.days.find((day) => day.date === tonight)!.available;
+    }
+
+    // Arrived-on date was yesterday; tomorrow is the booked departure.
+    const reservation = await book(request, token, 'Nattapong Srisuk', YESTERDAY, IN_HOUSE[1]!);
+    // Arriving TODAY is not a no-show yet (a late flight still needs its room).
+    const arriving = await book(request, token, 'Wanida Late-Flight', tonight, IN_HOUSE[1]!);
+    const before = await availableTonight();
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${arriving.id}`);
+    await expect(page.getByRole('button', { name: 'Check-in' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'No-show', exact: true })).toHaveCount(0);
+
+    await page.goto(`/properties/${data.propertyId}/reservations/${reservation.id}`);
+    await page.getByRole('button', { name: 'No-show', exact: true }).click();
+    await expect(
+      page.getByText('The booking closes as a no-show. Unused nights go back on sale.'),
+    ).toBeVisible();
+    await page.getByLabel('Reason (optional)').fill('Never arrived');
+    await page.getByRole('button', { name: 'Yes, mark no-show' }).click();
+
+    await expect(page.getByText('No-show', { exact: true })).toBeVisible();
+    expect(await availableTonight()).toBe(before + 1);
   });
 
   test('quotes the refund from what was paid, and cancelling posts it to the folio', async ({

@@ -8,6 +8,7 @@ import { RequireCapability, type AuthenticatedRequest } from '../../../common/gu
 import type { AuditActor } from '../../../common/audit/audit.service';
 import { CreateReservationUseCase } from '../application/create-reservation.usecase';
 import { CancelReservationUseCase } from '../application/cancel-reservation.usecase';
+import { MarkNoShowUseCase } from '../application/mark-no-show.usecase';
 import { CheckInUseCase } from '../application/check-in.usecase';
 import { CheckOutUseCase } from '../application/check-out.usecase';
 import { GetReservationQuery } from '../application/get-reservation.query';
@@ -189,6 +190,11 @@ const checkOutSchema = versionSchema
   .extend({ releaseRemainingNights: z.boolean().optional() })
   .strict();
 
+/** No-show: the version the desk read, and an optional why. */
+const noShowSchema = versionSchema.extend({ reason: z.string().max(500).optional() }).strict();
+
+type NoShowBody = z.infer<typeof noShowSchema>;
+
 type CheckOutBody = z.infer<typeof checkOutSchema>;
 
 function presentMoney(value: Money): { amount: number; currency: string } {
@@ -211,6 +217,7 @@ export class ReservationsController {
     private readonly updateBookerUseCase: UpdateBookerUseCase,
     private readonly confirmReservation: ConfirmReservationUseCase,
     private readonly quoteCancellation: QuoteCancellationUseCase,
+    private readonly markNoShow: MarkNoShowUseCase,
   ) {}
 
   @Get()
@@ -637,6 +644,7 @@ export class ReservationsController {
 
     const result = await this.cancelReservation.execute(
       {
+        propertyId,
         reservationId: id,
         expectedVersion: body.version,
         ...(body.reason ? { reason: body.reason } : {}),
@@ -660,6 +668,33 @@ export class ReservationsController {
       retainedNights: result.retainedNights,
       refund: result.refund,
     };
+  }
+
+  @Post(':id/no-show')
+  @HttpCode(200)
+  @RequireCapability('reservation:update')
+  @ApiOperation({
+    summary: 'Close a confirmed booking whose guest never arrived',
+    description:
+      'Allowed for CONFIRMED bookings once the property business date is past the check-in date; ' +
+      'earlier is 422 NO_SHOW_TOO_EARLY. Nights from today on go back on sale, rooms are ' +
+      'unassigned. Nothing is refunded and the folio is not touched.',
+  })
+  async noShow(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(noShowSchema)) body: NoShowBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.markNoShow.execute(
+      {
+        propertyId,
+        reservationId: id,
+        expectedVersion: body.version,
+        ...(body.reason ? { reason: body.reason } : {}),
+      },
+      this.actor(request),
+    );
   }
 
   private actor(request: AuthenticatedRequest): AuditActor {

@@ -1615,6 +1615,18 @@ export const api = {
   cancelQuote: (propertyId: string, id: string) =>
     request<CancelQuote>(`/properties/${propertyId}/reservations/${id}/cancel-quote`),
 
+  /** The guest never arrived: close a CONFIRMED booking as NO_SHOW. Refunds nothing. */
+  markNoShow: (propertyId: string, id: string, version: number, reason?: string) =>
+    request<{
+      id: string;
+      status: string;
+      releasedNights: string[];
+      retainedNights: string[];
+    }>(`/properties/${propertyId}/reservations/${id}/no-show`, {
+      method: 'POST',
+      body: JSON.stringify({ version, ...(reason ? { reason } : {}) }),
+    }),
+
   cancelReservation: (
     propertyId: string,
     id: string,
