@@ -225,6 +225,57 @@ test.describe('reading and changing a booking', () => {
     await expect(page.getByText('Guest called to cancel')).toBeVisible();
   });
 
+  test('quotes the refund from what was paid, and cancelling posts it to the folio', async ({
+    page,
+    request,
+  }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const reservation = await book(request, token, 'Chai Refund', '2031-06-02', '2031-06-03');
+    // A small deposit: the plan's 50% of the total is far more, so the quote is
+    // capped by what was PAID (฿100.00), which is the rule under test.
+    const paid = await request.post(
+      `${API}/properties/${data.propertyId}/reservations/${reservation.id}/folio/payments`,
+      {
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        data: { kind: 'PAYMENT', method: 'PROMPTPAY', amount: 10000 },
+      },
+    );
+    expect(paid.ok(), await paid.text()).toBeTruthy();
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/reservations/${reservation.id}`);
+
+    // What the guest was promised, under the stay.
+    await expect(page.getByTestId('frozen-policy')).toContainText(
+      '50% refund if cancelled 24h or more before check-in',
+    );
+
+    await page.getByRole('button', { name: 'Cancel booking' }).first().click();
+    await expect(page.getByTestId('cancel-policy-line')).toContainText(
+      'Cancel 24h ahead for a 50% refund',
+    );
+    await expect(page.getByTestId('cancel-policy-line')).toContainText('in time');
+    await expect(page.locator('dl > div', { hasText: 'Suggested refund' })).toContainText(
+      'THB 100.00',
+    );
+    await expect(page.getByLabel('Refund amount')).toHaveValue('100.00');
+    await expect(page.getByLabel('Refund method')).toHaveValue('PROMPTPAY');
+
+    // Overriding the amount demands a reason, before anything is sent.
+    await page.getByLabel('Refund amount').fill('60.00');
+    await page.getByRole('button', { name: 'Cancel booking' }).last().click();
+    await expect(page.getByText('Add a note explaining why the refund differs')).toBeVisible();
+
+    await page.getByLabel('Refund amount').fill('100.00');
+    await page.getByRole('button', { name: 'Cancel booking' }).last().click();
+
+    await expect(page.getByText('cancelled', { exact: true })).toBeVisible();
+    const folio = page.getByRole('region', { name: 'Guest account' });
+    await expect(folio.getByText('Refund · PromptPay')).toBeVisible();
+    await expect(folio.getByText(`cancel:${reservation.code}`)).toBeVisible();
+  });
+
   test('changes the dates of a stay and re-prices the booking', async ({ page, request }) => {
     const data = testData();
     const token = await apiToken(request);

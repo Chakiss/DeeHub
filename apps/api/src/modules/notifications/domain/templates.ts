@@ -147,6 +147,29 @@ ${booking.propertyName}`,
   };
 }
 
+const METHOD_LABELS: Record<string, { en: string; th: string }> = {
+  CASH: { en: 'cash', th: 'เงินสด' },
+  CARD: { en: 'card', th: 'บัตร' },
+  BANK_TRANSFER: { en: 'bank transfer', th: 'โอนเงิน' },
+  PROMPTPAY: { en: 'PromptPay', th: 'พร้อมเพย์' },
+  OTA_COLLECT: { en: 'OTA collect', th: 'เก็บผ่าน OTA' },
+  CITY_LEDGER: { en: 'city ledger', th: 'เรียกเก็บภายหลัง' },
+};
+
+/** One line about a recorded refund, or nothing when there was none. */
+function refundLine(booking: BookingSummary, locale: Locale): string {
+  const refund = booking.refund;
+  if (!refund || refund.amountMinor <= 0) return '';
+  const label = METHOD_LABELS[refund.method]?.[locale] ?? refund.method;
+  const amount = format(
+    money(refund.amountMinor, booking.currency),
+    locale === 'th' ? 'th-TH' : 'en-US',
+  );
+  return locale === 'th'
+    ? `\nระบบบันทึกการคืนเงิน ${amount} (${label}) หากยังไม่ได้รับภายใน 7 วัน ติดต่อที่พัก\n`
+    : `\nA refund of ${amount} (${label}) has been recorded; contact the hotel if it has not arrived within 7 days.\n`;
+}
+
 function cancelledEn(booking: BookingSummary): RenderedMessage {
   const reason = booking.cancellationReason
     ? `\nReason recorded: ${booking.cancellationReason}\n`
@@ -159,7 +182,7 @@ Your booking at ${booking.propertyName} has been cancelled.
 
 Reference    ${booking.code}
 Was          ${booking.checkIn} to ${booking.checkOut}
-${reason}
+${reason}${refundLine(booking, 'en')}
 If this is not what you expected, please contact us — the booking can no longer be reinstated from this message.${contactEn(booking)}
 
 ${booking.propertyName}`,
@@ -178,7 +201,7 @@ function cancelledTh(booking: BookingSummary): RenderedMessage {
 
 เลขที่การจอง  ${booking.code}
 ช่วงที่จองไว้  ${booking.checkIn} ถึง ${booking.checkOut}
-${reason}
+${reason}${refundLine(booking, 'th')}
 หากไม่ตรงกับที่ท่านตั้งใจ กรุณาติดต่อโรงแรม การจองนี้ไม่สามารถกู้คืนได้จากข้อความฉบับนี้${contactTh(booking)}
 
 ${booking.propertyName}`,

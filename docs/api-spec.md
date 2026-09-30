@@ -443,6 +443,7 @@ Every non-2xx response uses one envelope:
 | `INVENTORY_UNAVAILABLE`    | 409  | Not enough allotment for one or more nights              |
 | `RESTRICTION_VIOLATED`     | 422  | Stop-sell, min/max stay, CTA or CTD blocks the stay      |
 | `RATE_MISSING`             | 422  | A night in the stay has no price for that occupancy      |
+| `REFUND_NOTE_REQUIRED`     | 422  | Cancel refund differs from the quote and has no note     |
 | `INVALID_STATE_TRANSITION` | 409  | e.g. checking in a cancelled reservation                 |
 | `ALLOTMENT_BELOW_BOOKED`   | 409  | Allotment cannot drop below units already sold           |
 | `MAPPING_MISSING`          | 422  | Channel operation without a room-type/rate-plan mapping  |
@@ -781,11 +782,56 @@ staff can see _why_ the system won't sell a room and fix the restriction.
 | `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/extend`  | `reservation:modify` — add nights at the end                        |
 | `POST`  | `/properties/{pid}/reservations/{id}/stays/{sid}/shorten` | `reservation:modify` — drop nights from the end                     |
 | `POST`  | `/properties/{pid}/reservations/{id}/confirm`             | `reservation:update` — a PENDING site booking the hotel says yes to |
-| `POST`  | `/properties/{pid}/reservations/{id}/cancel`              | `reservation:cancel`                                                |
+| `GET`   | `/properties/{pid}/reservations/{id}/cancel-quote`        | `reservation:cancel` — what a cancel would refund                   |
+| `POST`  | `/properties/{pid}/reservations/{id}/cancel`              | `reservation:cancel` (+ `folio:post` when a refund > 0 is sent)     |
 | `POST`  | `/properties/{pid}/reservations/{id}/check-in`            | `reservation:checkin`                                               |
 | `POST`  | `/properties/{pid}/reservations/{id}/check-out`           | `reservation:checkout`                                              |
 | `POST`  | `/properties/{pid}/reservations/{id}/no-show`             | `reservation:update`                                                |
 | `GET`   | `/properties/{pid}/reservations/{id}/audit`               | `audit:read`                                                        |
+
+**Cancel quote** — `GET .../reservations/{id}/cancel-quote` (`reservation:cancel`),
+a read that writes nothing:
+
+```jsonc
+{
+  "policy": {
+    "noticeHours": 24,
+    "refundPercent": 50,
+    "deadline": "2031-08-31T07:00:00.000Z",
+    "inTime": true,
+  },
+  "totalMinor": 90000,
+  "paidMinor": 90000, // gross folio payments, voided rows excluded
+  "refundedMinor": 0, // refunds already given
+  "suggestedRefundMinor": 45000,
+  "suggestedMethod": "PROMPTPAY", // method of the largest live PAYMENT; null if none
+  "currency": "THB",
+}
+```
+
+`policy` is `null` for a booking with no policy of ours (OTA, travel agent,
+older): the suggestion is then 0 and staff may still enter a refund by hand.
+`suggestedRefundMinor = inTime ? min(paid − refunded, floor(total × refundPercent / 100)) : 0`,
+quoted from what was PAID, never from the total alone. `409
+INVALID_STATE_TRANSITION` when the booking can no longer be cancelled.
+
+**Cancel** — `POST .../cancel` takes `{ version, reason?, refund? }` where
+`refund` is `{ amountMinor: int 0..100000000, method: FolioPaymentMethod, note?: string ≤ 500 }`
+(the same ceiling as a folio payment line, 100,000,000 minor units).
+The server recomputes the quote inside the cancel transaction; it never trusts a
+figure from the client. When `refund.amountMinor > 0` a folio `REFUND` with
+reference `cancel:<code>` is posted in the same transaction (needs `folio:post`,
+else `403`); an amount above `paid − refunded` fails the whole cancel with `422 VALIDATION_ERROR`
+("A refund cannot exceed what has been paid"; nothing is posted and the booking stays as it was).
+Two refunds on one booking are serialised by a row lock, so concurrent ones cannot exceed what was paid.
+The override `note` is stored in the audit log entry, not on the folio row; the folio row carries only
+the reference `cancel:<code>`.
+When the amount differs from the quote a `note` is required, else `422
+REFUND_NOTE_REQUIRED`. `amountMinor: 0` posts no row but the quote and the choice
+are audited. The audit entry carries `quotedRefundMinor`, `refundMinor`, `method`
+and `note`. The response adds `refund: { amountMinor, method, paymentId } | null`.
+The reservation detail (`GET .../reservations/{id}`) carries `cancellation:
+{ noticeHours, refundPercent } | null`, the strictest frozen policy.
 
 **Modification** is `PATCH` on ONE STAY, not `POST .../modify-stay` as this
 document originally planned. A reservation can hold twenty rooms and the

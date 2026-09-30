@@ -28,6 +28,6 @@ import { FolioController } from './interface/folio.controller';
     RecordPaymentUseCase,
     VoidFolioLineUseCase,
   ],
-  exports: [GetFolioQuery, FOLIO_REPOSITORY],
+  exports: [GetFolioQuery, FOLIO_REPOSITORY, RecordPaymentUseCase],
 })
 export class FolioModule {}

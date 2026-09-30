@@ -147,6 +147,31 @@ export interface ReservationList {
   pageInfo: { nextCursor: string | null; hasMore: boolean };
 }
 
+/** What cancelling would refund (api-spec.md, `GET .../cancel-quote`). */
+export interface CancelQuote {
+  policy: {
+    noticeHours: number;
+    refundPercent: number;
+    /** ISO instant; the last moment a cancellation is in time. */
+    deadline: string;
+    inTime: boolean;
+  } | null;
+  totalMinor: number;
+  paidMinor: number;
+  refundedMinor: number;
+  suggestedRefundMinor: number;
+  suggestedMethod:
+    'CASH' | 'CARD' | 'BANK_TRANSFER' | 'PROMPTPAY' | 'OTA_COLLECT' | 'CITY_LEDGER' | null;
+  currency: string;
+}
+
+/** The refund the desk chose when cancelling. */
+export interface CancelRefundInput {
+  amountMinor: number;
+  method: 'CASH' | 'CARD' | 'BANK_TRANSFER' | 'PROMPTPAY' | 'OTA_COLLECT' | 'CITY_LEDGER';
+  note?: string;
+}
+
 export interface ReservationDetail {
   id: string;
   code: string;
@@ -169,6 +194,8 @@ export interface ReservationDetail {
   checkedOutAt: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  /** Strictest frozen cancellation terms across the stays; null = none of ours. */
+  cancellation: { noticeHours: number; refundPercent: number } | null;
   total: Money;
   subtotal: Money;
   tax: Money;
@@ -1585,9 +1612,28 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ reason }) },
     ),
 
-  cancelReservation: (propertyId: string, id: string, version: number, reason?: string) =>
-    request<{ id: string; status: string; releasedNights: string[]; retainedNights: string[] }>(
-      `/properties/${propertyId}/reservations/${id}/cancel`,
-      { method: 'POST', body: JSON.stringify({ version, ...(reason ? { reason } : {}) }) },
-    ),
+  cancelQuote: (propertyId: string, id: string) =>
+    request<CancelQuote>(`/properties/${propertyId}/reservations/${id}/cancel-quote`),
+
+  cancelReservation: (
+    propertyId: string,
+    id: string,
+    version: number,
+    reason?: string,
+    refund?: CancelRefundInput,
+  ) =>
+    request<{
+      id: string;
+      status: string;
+      releasedNights: string[];
+      retainedNights: string[];
+      refund: { amountMinor: number; method: string; paymentId: string } | null;
+    }>(`/properties/${propertyId}/reservations/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({
+        version,
+        ...(reason ? { reason } : {}),
+        ...(refund ? { refund } : {}),
+      }),
+    }),
 };

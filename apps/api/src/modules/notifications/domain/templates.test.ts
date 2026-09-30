@@ -106,6 +106,28 @@ describe('render()', () => {
     expect(render('BOOKING_CANCELLED', booking(), 'en').body).not.toContain('Reason recorded');
   });
 
+  it('adds one refund line to a cancellation only when a refund was recorded', () => {
+    const refund = { amountMinor: 45000, method: 'PROMPTPAY' };
+    const en = render('BOOKING_CANCELLED', booking({ refund }), 'en').body;
+    expect(en).toContain('A refund of');
+    expect(en).toContain('450');
+    expect(en).toContain('PromptPay');
+    expect(en).toContain('within 7 days');
+    const th = render('BOOKING_CANCELLED', booking({ refund }), 'th').body;
+    expect(th).toContain('ระบบบันทึกการคืนเงิน');
+    expect(th).toContain('พร้อมเพย์');
+    expect(th).toContain('ภายใน 7 วัน');
+
+    for (const none of [
+      booking(),
+      booking({ refund: null }),
+      booking({ refund: { ...refund, amountMinor: 0 } }),
+    ]) {
+      expect(render('BOOKING_CANCELLED', none, 'en').body).not.toContain('refund');
+      expect(render('BOOKING_CANCELLED', none, 'th').body).not.toContain('คืนเงิน');
+    }
+  });
+
   it('names the channel a booking arrived from, for the desk', () => {
     const message = render('BOOKING_RECEIVED', booking({ channelName: 'Agoda' }), 'en');
     expect(message.subject).toContain('Agoda');

@@ -5,6 +5,8 @@ import {
   ApiError,
   api,
   type AssignableRoom,
+  type CancelQuote,
+  type CancelRefundInput,
   type CreateReservationInput,
   type CreatedReservation,
   type ExtendedStay,
@@ -57,11 +59,24 @@ export async function cancelReservation(
   reservationId: string,
   version: number,
   reason?: string,
+  refund?: CancelRefundInput,
 ): Promise<ReservationActionResult> {
   try {
-    await api.cancelReservation(propertyId, reservationId, version, reason);
+    await api.cancelReservation(propertyId, reservationId, version, reason, refund);
     revalidate(propertyId, reservationId);
     return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** What cancelling would refund, for the cancel panel. Reads only. */
+export async function getCancelQuote(
+  propertyId: string,
+  reservationId: string,
+): Promise<{ ok: boolean; quote?: CancelQuote; error?: { code: string; message: string } }> {
+  try {
+    return { ok: true, quote: await api.cancelQuote(propertyId, reservationId) };
   } catch (error) {
     return failure(error);
   }

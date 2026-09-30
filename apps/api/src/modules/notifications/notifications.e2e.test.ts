@@ -167,6 +167,7 @@ describeIfDb('Notifications', () => {
       'outbox_events',
       'reservation_stay_nights',
       'reservation_stays',
+      'folio_payments',
       'reservations',
       'guests',
       'channel_reservations',
@@ -196,6 +197,7 @@ describeIfDb('Notifications', () => {
       'outbox_events',
       'reservation_stay_nights',
       'reservation_stays',
+      'folio_payments',
       'reservations',
       'rate_days',
       'inventory_days',
@@ -370,6 +372,28 @@ describeIfDb('Notifications', () => {
       expect(kinds).toContain('BOOKING_CANCELLED');
       const cancelled = (await rows(reservationId)).find((row) => row.kind === 'BOOKING_CANCELLED');
       expect(cancelled?.body).toContain('Guest changed plans');
+    });
+
+    it('tells the guest about a refund recorded with the cancellation, and only then', async () => {
+      const reservationId = await book();
+      await drain();
+      const base = `/api/v1/properties/${propertyId}/reservations/${reservationId}`;
+      await request(app.getHttpServer())
+        .post(`${base}/folio/payments`)
+        .set(auth())
+        .send({ kind: 'PAYMENT', method: 'PROMPTPAY', amount: 10000 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`${base}/cancel`)
+        .set(auth())
+        .send({ version: 0, refund: { amountMinor: 10000, method: 'PROMPTPAY' } })
+        .expect(200);
+      await drain();
+
+      const cancelled = (await rows(reservationId)).find((row) => row.kind === 'BOOKING_CANCELLED');
+      expect(cancelled?.body).toContain('ระบบบันทึกการคืนเงิน');
+      expect(cancelled?.body).toContain('พร้อมเพย์');
+      expect(cancelled?.body).toContain('100.00');
     });
 
     it('says nothing about a modification, deliberately', async () => {

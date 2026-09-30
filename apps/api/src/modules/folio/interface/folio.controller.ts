@@ -17,7 +17,8 @@ import { VoidFolioLineUseCase } from '../application/void-folio-line.usecase';
  * rule — it is that a fat-fingered extra zero on a damage charge should be
  * refused by validation rather than discovered on a guest's card statement.
  */
-const amountMinor = z.number().int().positive().max(100_000_000);
+export const FOLIO_AMOUNT_MAX_MINOR = 100_000_000;
+const amountMinor = z.number().int().positive().max(FOLIO_AMOUNT_MAX_MINOR);
 
 const chargeSchema = z
   .object({

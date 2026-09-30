@@ -16,6 +16,9 @@ import { ExtendStayUseCase } from '../application/extend-stay.usecase';
 import { ShortenStayUseCase } from '../application/shorten-stay.usecase';
 import { ModifyStayUseCase } from '../application/modify-stay.usecase';
 import { UpdateBookerUseCase } from '../application/update-booker.usecase';
+import { QuoteCancellationUseCase } from '../application/quote-cancellation.usecase';
+import { FOLIO_PAYMENT_METHODS } from '../../folio/domain/folio';
+import { FOLIO_AMOUNT_MAX_MINOR } from '../../folio/interface/folio.controller';
 import { ConfirmReservationUseCase } from '../application/confirm-reservation.usecase';
 
 // Format AND calendar validity: the regex alone accepts 2026-02-30, which
@@ -78,6 +81,16 @@ const cancelSchema = z
   .object({
     version: z.number().int().min(0),
     reason: z.string().max(500).optional(),
+    // What the desk decided to give back. The quote it saw is never sent: the
+    // server recomputes it. A note is required when the amount differs from it.
+    refund: z
+      .object({
+        amountMinor: z.number().int().min(0).max(FOLIO_AMOUNT_MAX_MINOR),
+        method: z.enum(FOLIO_PAYMENT_METHODS),
+        note: z.string().trim().max(500).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -197,6 +210,7 @@ export class ReservationsController {
     private readonly shortenStayUseCase: ShortenStayUseCase,
     private readonly updateBookerUseCase: UpdateBookerUseCase,
     private readonly confirmReservation: ConfirmReservationUseCase,
+    private readonly quoteCancellation: QuoteCancellationUseCase,
   ) {}
 
   @Get()
@@ -573,6 +587,34 @@ export class ReservationsController {
     );
   }
 
+  @Get(':id/cancel-quote')
+  @RequireCapability('reservation:cancel')
+  @ApiOperation({
+    summary: 'What cancelling this booking would refund',
+    description:
+      'Quoted from the strictest frozen policy and from what was actually paid (folio paid ' +
+      'minus refunded), never from the booking total alone. policy is null for bookings with ' +
+      'no policy of ours (OTA, travel agent, pre-policy); the suggestion is then 0. A query: ' +
+      'nothing is written. 409 when the booking can no longer be cancelled.',
+  })
+  async cancelQuote(@Param('propertyId') propertyId: string, @Param('id') id: string) {
+    const quote = await this.quoteCancellation.execute(propertyId, id);
+    return {
+      policy: quote.policy && {
+        noticeHours: quote.policy.noticeHours,
+        refundPercent: quote.policy.refundPercent,
+        deadline: quote.policy.deadline.toISOString(),
+        inTime: quote.policy.inTime,
+      },
+      totalMinor: quote.totalMinor,
+      paidMinor: quote.paidMinor,
+      refundedMinor: quote.refundedMinor,
+      suggestedRefundMinor: quote.suggestedRefundMinor,
+      suggestedMethod: quote.suggestedMethod,
+      currency: quote.currency,
+    };
+  }
+
   @Post(':id/cancel')
   @HttpCode(200)
   @RequireCapability('reservation:cancel')
@@ -587,12 +629,26 @@ export class ReservationsController {
     if (!existing || existing.propertyId !== propertyId) {
       throw errors.notFound('Reservation', id);
     }
+    // Giving money back is a folio action: the route guard checks one
+    // capability, so the second is checked here (same as price_override).
+    if (body.refund && body.refund.amountMinor > 0 && !request.capabilities?.has('folio:post')) {
+      throw errors.forbidden('folio:post');
+    }
 
     const result = await this.cancelReservation.execute(
       {
         reservationId: id,
         expectedVersion: body.version,
         ...(body.reason ? { reason: body.reason } : {}),
+        ...(body.refund
+          ? {
+              refund: {
+                amountMinor: body.refund.amountMinor,
+                method: body.refund.method,
+                ...(body.refund.note ? { note: body.refund.note } : {}),
+              },
+            }
+          : {}),
       },
       this.actor(request),
     );
@@ -602,6 +658,7 @@ export class ReservationsController {
       status: result.status,
       releasedNights: result.releasedNights,
       retainedNights: result.retainedNights,
+      refund: result.refund,
     };
   }
 

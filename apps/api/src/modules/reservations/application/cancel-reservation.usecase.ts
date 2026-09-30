@@ -14,7 +14,10 @@ import {
   PROPERTY_REPOSITORY,
   type PropertyRepository,
 } from '../../properties/domain/property.repository';
+import { RecordPaymentUseCase } from '../../folio/application/record-payment.usecase';
+import type { FolioPaymentMethod } from '../../folio/domain/folio';
 import { assertTransition } from '../domain/reservation-status';
+import { QuoteCancellationUseCase } from './quote-cancellation.usecase';
 import {
   RESERVATION_REPOSITORY,
   type ReservationRepository,
@@ -25,6 +28,15 @@ export interface CancelReservationInput {
   /** Version the caller last read, for optimistic locking. */
   readonly expectedVersion: number;
   readonly reason?: string;
+  /**
+   * The refund the desk chose. Absent means "not decided here": no folio row and
+   * no refund audit. The figure the desk SAW is never sent; the server requotes.
+   */
+  readonly refund?: {
+    readonly amountMinor: number;
+    readonly method: FolioPaymentMethod;
+    readonly note?: string;
+  };
 }
 
 export interface CancelReservationResult {
@@ -34,6 +46,12 @@ export interface CancelReservationResult {
   readonly releasedNights: readonly IsoDate[];
   /** Nights already consumed, which stay counted in occupancy history. */
   readonly retainedNights: readonly IsoDate[];
+  /** The folio REFUND recorded with the cancellation, when one was. */
+  readonly refund: {
+    readonly amountMinor: number;
+    readonly method: FolioPaymentMethod;
+    readonly paymentId: string;
+  } | null;
 }
 
 /**
@@ -53,6 +71,8 @@ export class CancelReservationUseCase {
     @Inject(RESERVATION_REPOSITORY) private readonly reservations: ReservationRepository,
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
+    private readonly quoteCancellation: QuoteCancellationUseCase,
+    private readonly recordPayment: RecordPaymentUseCase,
   ) {}
 
   async execute(
@@ -72,6 +92,54 @@ export class CancelReservationUseCase {
 
       const property = await this.propertyRepo.findProperty(tx, reservation.propertyId);
       if (!property) throw errors.notFound('Property', reservation.propertyId);
+
+      /*
+       * Refund, decided BEFORE anything is released and inside this same
+       * transaction: the quote is recomputed here from the frozen policy and the
+       * folio as it stands now, so a stale screen cannot post a refund the rules
+       * would not give, and an over-refund (rejected by RecordPayment's own
+       * rule) rolls the whole cancellation back.
+       */
+      let refundResult: CancelReservationResult['refund'] = null;
+      let refundAudit: Record<string, unknown> | null = null;
+      if (input.refund) {
+        const quote = await this.quoteCancellation.quoteIn(
+          tx,
+          reservation.propertyId,
+          reservation.id,
+          now,
+        );
+        const note = input.refund.note?.trim() ?? '';
+        if (input.refund.amountMinor !== quote.suggestedRefundMinor && note === '') {
+          throw errors.refundNoteRequired(quote.suggestedRefundMinor, input.refund.amountMinor);
+        }
+        if (input.refund.amountMinor > 0) {
+          const paymentId = await this.recordPayment.recordIn(
+            tx,
+            {
+              propertyId: reservation.propertyId,
+              reservationId: reservation.id,
+              kind: 'REFUND',
+              method: input.refund.method,
+              amountMinor: input.refund.amountMinor,
+              reference: `cancel:${reservation.code}`,
+            },
+            actor,
+            now,
+          );
+          refundResult = {
+            amountMinor: input.refund.amountMinor,
+            method: input.refund.method,
+            paymentId,
+          };
+        }
+        refundAudit = {
+          quotedRefundMinor: quote.suggestedRefundMinor,
+          refundMinor: input.refund.amountMinor,
+          method: input.refund.method,
+          note: note === '' ? null : note,
+        };
+      }
 
       const today = businessDate(property.timezone, now);
 
@@ -144,6 +212,7 @@ export class CancelReservationUseCase {
           releasedNights,
           retainedNights,
           roomsReleased: releasedRooms.rowCount ?? 0,
+          ...(refundAudit ? { refund: refundAudit } : {}),
         },
         reason: input.reason ?? null,
       });
@@ -162,6 +231,7 @@ export class CancelReservationUseCase {
             status: 'CANCELLED',
             channelId: null,
             affectedDates: releasedNights,
+            refundPaymentId: refundResult?.paymentId ?? null,
           },
         },
         ...[...touchedRoomTypes.entries()].map(([roomTypeId, dates]) => {
@@ -191,6 +261,7 @@ export class CancelReservationUseCase {
         status: 'CANCELLED' as const,
         releasedNights,
         retainedNights,
+        refund: refundResult,
       };
     });
   }

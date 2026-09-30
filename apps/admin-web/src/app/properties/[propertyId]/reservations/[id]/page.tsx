@@ -70,9 +70,9 @@ export default async function ReservationDetailPage({
    * stay gets. A Bangkok hotel served from a European browser must not think a
    * guest arriving today is still arriving tomorrow.
    */
-  const today = businessDate(
-    properties.find((property) => property.id === propertyId)?.timezone ?? 'Asia/Bangkok',
-  );
+  const timeZone =
+    properties.find((property) => property.id === propertyId)?.timezone ?? 'Asia/Bangkok';
+  const today = businessDate(timeZone);
 
   return (
     <div className="space-y-5">
@@ -276,6 +276,16 @@ export default async function ReservationDetailPage({
                 </li>
               ))}
             </ul>
+            {/* What the guest was promised, frozen when the booking was made. */}
+            <p className="mt-3 text-sm text-stone-600" data-testid="frozen-policy">
+              <span className="font-medium text-ink-800">{t('cancelTerms')}: </span>
+              {reservation.cancellation
+                ? t('cancelTermsValue', {
+                    hours: reservation.cancellation.noticeHours,
+                    percent: reservation.cancellation.refundPercent,
+                  })
+                : t('cancelTermsNone')}
+            </p>
           </Card>
         </div>
 
@@ -299,6 +309,10 @@ export default async function ReservationDetailPage({
 
           {folio && (
             <FolioPanel
+              // The panel keeps its own copy of the account; a refund posted by
+              // cancelling happens elsewhere on the page, so re-key on what
+              // changed to pick up the server's fresh figures.
+              key={`${reservation.version}-${folio.payments.length}`}
               propertyId={propertyId}
               reservationId={reservation.id}
               initial={folio}
@@ -312,7 +326,9 @@ export default async function ReservationDetailPage({
               propertyId={propertyId}
               reservation={reservation}
               today={today}
+              timeZone={timeZone}
               canCancel={capabilities.includes('reservation:cancel')}
+              canRefund={capabilities.includes('folio:post')}
               canCheckIn={capabilities.includes('reservation:checkin')}
               canCheckOut={capabilities.includes('reservation:checkout')}
             />
