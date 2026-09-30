@@ -41,6 +41,8 @@ export interface PublicRoomType {
     readonly name: string;
     readonly mealPlan: string;
     readonly isRefundable: boolean;
+    /** Null when not refundable. */
+    readonly cancellation: { readonly noticeHours: number; readonly refundPercent: number } | null;
   }[];
 }
 
@@ -169,6 +171,12 @@ export class PublicCatalogQuery {
               name: plan.name,
               mealPlan: plan.mealPlan,
               isRefundable: plan.isRefundable,
+              cancellation: plan.isRefundable
+                ? {
+                    noticeHours: plan.cancellationNoticeHours,
+                    refundPercent: plan.cancellationRefundPercent,
+                  }
+                : null,
             })),
         }))
         .filter((type) => type.ratePlans.length > 0),

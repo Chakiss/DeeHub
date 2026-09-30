@@ -5,7 +5,8 @@ import { Pool } from 'pg';
 /**
  * One organization per run, with a property a stranger can book: two room
  * types, one online plan and one desk-only plan, and thirty priced, open
- * nights from tomorrow. Seeded straight into Postgres, as the dashboard's
+ * nights from tomorrow (tonight is open and priced too, for the booked-after-
+ * the-deadline case, but is not in `dates`). Seeded straight into Postgres, as the dashboard's
  * suite does, so the site under test is the only thing between the browser
  * and the API.
  */
@@ -78,12 +79,13 @@ export async function seed(): Promise<TestData> {
       [data.roomTypeId, organizationId, data.propertyId],
     );
     await pool.query(
-      `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name, sell_online, is_refundable)
-       VALUES ($1, $2, $3, $4, 'BAR', 'Best Available Rate', true, true),
-              ($5, $2, $3, $4, 'DESK', 'Walk-in special', false, false)`,
+      `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name, sell_online, is_refundable,
+                               cancellation_notice_hours, cancellation_refund_percent)
+       VALUES ($1, $2, $3, $4, 'BAR', 'Best Available Rate', true, true, 24, 50),
+              ($5, $2, $3, $4, 'DESK', 'Walk-in special', false, false, 24, 50)`,
       [data.ratePlanId, organizationId, data.propertyId, data.roomTypeId, data.deskPlanId],
     );
-    for (const date of data.dates) {
+    for (const date of [today, ...data.dates]) {
       await pool.query(
         `INSERT INTO inventory_days (organization_id, property_id, room_type_id, date, allotment, booked)
          VALUES ($1, $2, $3, $4, 5, 0)`,

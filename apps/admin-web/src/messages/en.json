@@ -456,7 +456,12 @@
     "offsetRequired": "Enter an offset other than zero.",
     "sellOnline": "Sell online",
     "sellOnlineHint": "Off = desk only. The booking page and Google never see this plan.",
-    "deskOnly": "Desk only"
+    "deskOnly": "Desk only",
+    "noticeHours": "Notice (hours)",
+    "refundPercent": "Refund (%)",
+    "policyHint": "A guest who cancels before the deadline gets this percentage back; after it, nothing.",
+    "policyInvalid": "Notice must be 0–720 hours and refund 0–100 %, in whole numbers.",
+    "refundableWithPolicy": "Refundable · {hours}h · {percent}%"
   },
   "mealPlans": {
     "ROOM_ONLY": "Room only",

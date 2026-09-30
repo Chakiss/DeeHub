@@ -39,6 +39,14 @@ export interface StayRecord {
   /** Why a typed price sits below the plan; null otherwise. */
   readonly priceNote: string | null;
   readonly subtotalMinor: number;
+  /**
+   * Cancellation policy frozen at booking; null = none of ours recorded.
+   * Absent (undefined) leaves the stored values alone: a modification that keeps
+   * the rate plan does not touch them; one that changes the plan re-freezes them
+   * from the new plan (see `frozenCancellation`).
+   */
+  readonly cancellationNoticeHours?: number | null;
+  readonly cancellationRefundPercent?: number | null;
   readonly nights: readonly StayNightRecord[];
 }
 
@@ -73,6 +81,7 @@ export interface LoadedReservation {
   readonly code: string;
   readonly status: ReservationStatus;
   readonly version: number;
+  readonly source: ReservationSource;
   readonly currency: string;
   readonly totalMinor: number;
   readonly stays: readonly {

@@ -222,6 +222,8 @@ describeIfDb('Google Hotels channel', () => {
     expect(upload!.body).toContain('<RoomID>BUN</RoomID>');
     expect(upload!.body).toContain('<PackageID>BAR</PackageID>');
     expect(upload!.body).not.toContain('DESK');
+    // BAR refunds 50% (the default policy), and Google's flag means FULLY refundable.
+    expect(upload!.body).toContain('<Refundable available="false"/>');
   });
 
   it('pushes prices all-in, with the hotel id as HotelCode, on a forced sync', async () => {

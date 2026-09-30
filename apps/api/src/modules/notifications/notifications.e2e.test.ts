@@ -66,6 +66,7 @@ describeIfDb('Notifications', () => {
   const otherPropertyId = crypto.randomUUID();
   const roomTypeId = crypto.randomUUID();
   const ratePlanId = crypto.randomUUID();
+  const flexPlanId = crypto.randomUUID();
   const channelId = crypto.randomUUID();
   const managerId = crypto.randomUUID();
 
@@ -126,6 +127,12 @@ describeIfDb('Notifications', () => {
       `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name)
        VALUES ($1, $2, $3, $4, 'BAR', 'Best Available')`,
       [ratePlanId, orgId, propertyId, roomTypeId],
+    );
+    await pool.query(
+      `INSERT INTO rate_plans (id, organization_id, property_id, room_type_id, code, name,
+                               cancellation_notice_hours, cancellation_refund_percent)
+       VALUES ($1, $2, $3, $4, 'FLEX', 'Flexible', 72, 100)`,
+      [flexPlanId, orgId, propertyId, roomTypeId],
     );
     // INACTIVE on purpose: an active channel makes the relay require Redis.
     await pool.query(
@@ -201,13 +208,15 @@ describeIfDb('Notifications', () => {
          VALUES ($1, $2, $3, $4, 5)`,
         [orgId, propertyId, roomTypeId, date],
       );
-      for (const occupancy of [1, 2, 3]) {
-        await pool.query(
-          `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date,
-                                  occupancy, amount_minor, currency)
-           VALUES ($1, $2, $3, $4, $5, $6, 'THB')`,
-          [orgId, propertyId, ratePlanId, date, occupancy, RATE_MINOR],
-        );
+      for (const plan of [ratePlanId, flexPlanId]) {
+        for (const occupancy of [1, 2, 3]) {
+          await pool.query(
+            `INSERT INTO rate_days (organization_id, property_id, rate_plan_id, date,
+                                    occupancy, amount_minor, currency)
+             VALUES ($1, $2, $3, $4, $5, $6, 'THB')`,
+            [orgId, propertyId, plan, date, occupancy, RATE_MINOR],
+          );
+        }
       }
     }
     email.outcome = { status: 'SENT' };
@@ -291,6 +300,37 @@ describeIfDb('Notifications', () => {
         locale: 'th',
       });
       expect(found[0]?.body).toContain('Baan Suan');
+      // The plan's standing policy (24h, 50%) was frozen on the booking and is
+      // stated to the guest, with the deadline in property time.
+      expect(found[0]?.body).toContain('ยกเลิกได้ถึง');
+      expect(found[0]?.body).toContain('14:00');
+      expect(found[0]?.body).toContain('คืนเงิน 50% หลังจากนั้นไม่คืนเงิน');
+    });
+
+    it('tells a guest with two plans the strictest terms, not the first stay', async () => {
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/properties/${propertyId}/reservations`)
+        .set(auth())
+        .send({
+          source: 'PHONE',
+          status: 'CONFIRMED',
+          booker: { name: 'Naruemon Chaiyaporn', email: 'guest@example.test' },
+          // 72h / 100% first, 24h / 50% second: the email must say 50%.
+          stays: [flexPlanId, ratePlanId].map((plan) => ({
+            roomTypeId,
+            ratePlanId: plan,
+            checkIn: NIGHTS[0],
+            checkOut: NIGHTS[2],
+            adults: 2,
+          })),
+        })
+        .expect(201);
+      await drain();
+
+      const found = await rows(response.body.id as string);
+      const body = found[0]?.body ?? '';
+      expect(body).toContain('คืนเงิน 50% หลังจากนั้นไม่คืนเงิน');
+      expect(body).not.toContain('คืนเงิน 100%');
     });
 
     /** The relay is at-least-once; a redelivered event must not re-send. */

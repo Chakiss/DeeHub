@@ -98,6 +98,12 @@ export interface PlannedStay {
    * so the caller records which one it got.
    */
   readonly pricedFrom: PricingSource;
+  /**
+   * The rate plan's cancellation policy as it stands NOW. Whether to freeze it
+   * onto the stay is the caller's call (it depends on the booking source).
+   * A non-refundable plan is 0 / 0, an explicit policy rather than a gap.
+   */
+  readonly cancellation: { readonly noticeHours: number; readonly refundPercent: number };
 }
 
 /** Nights being appended to a stay that is already under way. */
@@ -289,6 +295,12 @@ export class PlanStayService {
       nightPrices,
       overbookings,
       pricedFrom,
+      cancellation: ratePlan.isRefundable
+        ? {
+            noticeHours: ratePlan.cancellationNoticeHours,
+            refundPercent: ratePlan.cancellationRefundPercent,
+          }
+        : { noticeHours: 0, refundPercent: 0 },
     };
   }
 

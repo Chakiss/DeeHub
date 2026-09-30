@@ -26,6 +26,20 @@ export function formatDate(iso: string, locale: Locale, style: 'short' | 'long' 
   }).format(date);
 }
 
+/** An instant → "Wed 9 Oct 2026, 14:00" in the hotel's own clock (Bangkok unless told otherwise). */
+export function formatDateTime(instant: string, locale: Locale, timeZone = 'Asia/Bangkok'): string {
+  return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH-u-ca-buddhist' : 'en-GB', {
+    timeZone,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(instant));
+}
+
 export function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
   const date = new Date(Date.UTC(y, m - 1, d + days));

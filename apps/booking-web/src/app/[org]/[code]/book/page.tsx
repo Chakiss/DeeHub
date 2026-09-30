@@ -86,7 +86,11 @@ export default async function BookPage({
           >
             <span itemProp="name">{room.name}</span> · {plan.name}
           </p>
-          <PolicyLine mealPlan={plan.mealPlan} isRefundable={plan.isRefundable} />
+          <PolicyLine
+            mealPlan={plan.mealPlan}
+            cancellation={plan.cancellation}
+            isRefundable={plan.isRefundable}
+          />
           <p className="text-sm text-ink-700">
             <span itemProp="checkinTime" content={stay.checkIn}>
               {formatDate(stay.checkIn, locale)}

@@ -91,6 +91,9 @@ export interface RatePlanSummary {
   readonly roomTypeId: string;
   readonly name: string;
   readonly isActive: boolean;
+  readonly isRefundable: boolean;
+  readonly cancellationNoticeHours: number;
+  readonly cancellationRefundPercent: number;
 }
 
 /**

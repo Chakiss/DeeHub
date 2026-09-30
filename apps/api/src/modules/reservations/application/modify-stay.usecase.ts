@@ -14,6 +14,7 @@ import {
   type PropertyRepository,
 } from '../../properties/domain/property.repository';
 import { computeBreakdown } from '../domain/pricing';
+import { frozenCancellation } from '../domain/frozen-cancellation';
 import {
   RESERVATION_REPOSITORY,
   type ModifiableStay,
@@ -161,7 +162,17 @@ export class ModifyStayUseCase {
           target.checkIn !== stay.checkIn ||
           target.checkOut !== stay.checkOut);
 
-      await this.reservations.replaceStay(tx, stay, planned.record, { clearAssignment });
+      // A different plan means different terms, so they are frozen again from
+      // the new plan; the same plan leaves the booked terms untouched.
+      const record =
+        planned.record.ratePlanId !== stay.ratePlanId
+          ? {
+              ...planned.record,
+              ...frozenCancellation(reservation.source, planned.cancellation),
+            }
+          : planned.record;
+
+      await this.reservations.replaceStay(tx, stay, record, { clearAssignment });
 
       // Totals are recomputed from EVERY stay, not by adjusting the old figure:
       // tax and service charge are percentages of the whole booking, so a

@@ -541,6 +541,10 @@ export interface RatePlan {
   name: string;
   mealPlan: string;
   isRefundable: boolean;
+  /** Applies when refundable: cancel this many hours before check-in for the refund below. */
+  cancellationNoticeHours: number;
+  /** Percent of the booking total returned when cancelled in time; nothing after. */
+  cancellationRefundPercent: number;
   /** Bookable by a stranger on the booking page and metasearch. Off = desk only. */
   sellOnline: boolean;
   isActive: boolean;
@@ -559,6 +563,8 @@ export interface CreateRatePlanInput {
   name: string;
   mealPlan: MealPlan;
   isRefundable: boolean;
+  cancellationNoticeHours?: number;
+  cancellationRefundPercent?: number;
   sellOnline?: boolean;
   /** Present to price this plan as an offset from another. Fixed at creation. */
   derivation?: {
@@ -576,6 +582,8 @@ export interface UpdateRatePlanInput {
   name?: string;
   mealPlan?: MealPlan;
   isRefundable?: boolean;
+  cancellationNoticeHours?: number;
+  cancellationRefundPercent?: number;
   sellOnline?: boolean;
   isActive?: boolean;
   derivationValue?: number;

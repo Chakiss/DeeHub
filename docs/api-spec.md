@@ -541,6 +541,12 @@ Capabilities in the right column are the permission checked
 | `POST`                 | `/properties/{pid}/media`           | `property:update`                   |
 | `PATCH` `DELETE`       | `/properties/{pid}/media/{id}`      | `property:update`                   |
 
+A rate plan carries `cancellationNoticeHours` (integer 0-720, default 24) and
+`cancellationRefundPercent` (integer 0-100, default 50) on create, update and in
+every response; out of range is a `422`. They apply only while `isRefundable` is
+true (see `business-rules.md` §Cancellation policy). Changing them affects
+future bookings only; each booking's stays keep the values frozen at booking.
+
 Property `timezone` and `currency` become immutable once a reservation
 exists; attempting to change them returns `409 CONFLICT`.
 
@@ -1094,6 +1100,18 @@ one function), and `fromTotal` on a room type is the cheapest plan's all-in tota
 standard-occupancy price, all-in, or `null` when the night is stopped, sold out or
 unpriced. The metasearch feed (§6.8c) reads the same arithmetic, so the number on
 Google, the search page and the checkout cannot disagree.
+
+**Cancellation policy.** Every plan in the catalogue and in `availability`, and
+every booking, carries `cancellation`, which is `null` when the plan is not
+refundable (or, on a booking, when no policy of ours was recorded) and otherwise
+`{ noticeHours, refundPercent }`. `availability` and a booking add `deadline`,
+an ISO-8601 instant: the property's check-in time (`check_in_time`, default
+14:00) on the check-in date, read in the property's timezone, minus
+`noticeHours`. A guest who cancels at or before the deadline gets
+`refundPercent` of the booking total; after it, or on a no-show, nothing. The
+catalogue has no dates, so it has no `deadline`. On a booking the values are the
+ones frozen when it was made (`0 / 0` for a non-refundable plan), not the plan's
+current ones. `isRefundable` stays on plans as the on/off switch.
 
 **`GET /public/{org}/{code}`** is the catalogue a page shows before a date is
 chosen: name, address, coordinates, website, phone, Thai and English

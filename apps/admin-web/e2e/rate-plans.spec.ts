@@ -238,4 +238,34 @@ test.describe('rate plans', () => {
     await expect(row.getByRole('button', { name: 'Set prices' })).toHaveCount(0);
     await expect(row.getByRole('button', { name: 'Remove prices' })).toHaveCount(0);
   });
+  test('saves a cancellation policy and shows it back, then edits it', async ({ page }) => {
+    const data = testData();
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/rate-plans`);
+
+    const suffix = Date.now().toString(36).slice(-5);
+    await page.getByRole('button', { name: 'Add rate plan' }).click();
+    await page.getByLabel('Code').fill(`POL${suffix}`);
+    await page.getByLabel('Name', { exact: true }).fill(`Policy ${suffix}`);
+    // The standing policy is offered as the default: 24 hours, 50 %.
+    await expect(page.getByLabel('Notice (hours)')).toHaveValue('24');
+    await expect(page.getByLabel('Refund (%)')).toHaveValue('50');
+    await page.getByLabel('Notice (hours)').fill('72');
+    await page.getByLabel('Refund (%)').fill('80');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    const row = page.getByRole('row', { name: new RegExp(`POL${suffix}`, 'i') });
+    await expect(row).toContainText('Refundable · 72h · 80%');
+
+    await row.getByRole('button', { name: 'Edit' }).click();
+    await expect(page.getByLabel('Notice (hours)')).toHaveValue('72');
+    await page.getByLabel('Refund (%)').fill('100');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(row).toContainText('Refundable · 72h · 100%');
+
+    // Not refundable: the policy fields go away.
+    await row.getByRole('button', { name: 'Edit' }).click();
+    await page.getByLabel('Refundable').uncheck();
+    await expect(page.getByLabel('Notice (hours)')).toHaveCount(0);
+  });
 });

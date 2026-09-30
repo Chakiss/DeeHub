@@ -4,6 +4,7 @@ import { api, ApiError, type Booking } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
 import { loadHotel } from '@/lib/hotel';
 import type { Locale } from '@/i18n/locale';
+import { BookingPolicy } from '@/components/booking-policy';
 import { Shell } from '@/components/shell';
 
 type Params = Promise<{ org: string; code: string; booking: string }>;
@@ -136,6 +137,14 @@ export default async function BookingPage({
             <dd>{booking.bookerName}</dd>
           </div>
         </dl>
+
+        {booking.status !== 'CANCELLED' && booking.status !== 'EXPIRED' && (
+          <BookingPolicy
+            cancellation={booking.cancellation}
+            locale={locale}
+            timeZone={hotel.timezone}
+          />
+        )}
       </div>
     </Shell>
   );

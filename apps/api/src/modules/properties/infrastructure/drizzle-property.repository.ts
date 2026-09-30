@@ -130,6 +130,9 @@ export class DrizzlePropertyRepository implements PropertyRepository {
         roomTypeId: ratePlans.roomTypeId,
         name: ratePlans.name,
         isActive: ratePlans.isActive,
+        isRefundable: ratePlans.isRefundable,
+        cancellationNoticeHours: ratePlans.cancellationNoticeHours,
+        cancellationRefundPercent: ratePlans.cancellationRefundPercent,
       })
       .from(ratePlans)
       .where(and(eq(ratePlans.id, ratePlanId), eq(ratePlans.organizationId, organizationId)))

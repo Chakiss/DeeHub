@@ -69,6 +69,8 @@ export interface CatalogRatePlan {
   name: string;
   mealPlan: string;
   isRefundable: boolean;
+  /** Null when the plan is not refundable. */
+  cancellation: { noticeHours: number; refundPercent: number } | null;
 }
 
 export interface CatalogRoomType {
@@ -132,6 +134,11 @@ export interface AvailableRatePlan {
   name: string;
   mealPlan: string;
   isRefundable: boolean;
+  /**
+   * Null when not refundable; absent from an API that predates the policy (a
+   * rolling deploy), when `isRefundable` is all there is to go on.
+   */
+  cancellation?: { noticeHours: number; refundPercent: number; deadline: string } | null;
   total: number;
   perNight: { date: string; amount: number }[];
   breakdown: Breakdown;
@@ -191,6 +198,8 @@ export interface Booking {
   total: number;
   holdExpiresAt: string | null;
   createdAt: string;
+  /** The policy frozen when it was booked; null when none was recorded. */
+  cancellation: { noticeHours: number; refundPercent: number; deadline: string } | null;
   stays: {
     roomTypeName: string;
     adults: number;

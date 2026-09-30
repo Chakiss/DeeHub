@@ -177,6 +177,7 @@ export default async function RoomsPage({
                               </p>
                               <PolicyLine
                                 mealPlan={plan.mealPlan}
+                                cancellation={plan.cancellation}
                                 isRefundable={plan.isRefundable}
                               />
                             </div>

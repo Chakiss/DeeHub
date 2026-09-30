@@ -9,6 +9,7 @@ import {
   roomTypes,
 } from '../../../database/schema';
 import { requireOrganizationId } from '../../../common/tenant/tenant-context';
+import { policyOf, strictestPolicy } from '../domain/strictest-policy';
 import {
   PAYMENT_INTENT_REPOSITORY,
   type PaymentIntentRepository,
@@ -28,6 +29,8 @@ export interface PublicBooking {
   readonly createdAt: Date;
   readonly checkIn: IsoDate;
   readonly checkOut: IsoDate;
+  /** Frozen at booking (strictest across stays); null when any stay has no policy. */
+  readonly cancellation: { readonly noticeHours: number; readonly refundPercent: number } | null;
   readonly stays: readonly {
     readonly roomTypeName: string;
     readonly adults: number;
@@ -97,6 +100,8 @@ export class PublicBookingQuery {
         checkOut: reservationStays.checkOut,
         adults: reservationStays.adults,
         children: reservationStays.children,
+        cancellationNoticeHours: reservationStays.cancellationNoticeHours,
+        cancellationRefundPercent: reservationStays.cancellationRefundPercent,
         roomTypeName: roomTypes.name,
       })
       .from(reservationStays)
@@ -138,6 +143,9 @@ export class PublicBookingQuery {
       createdAt: reservation.createdAt,
       checkIn: checkIns.reduce((a, b) => (a < b ? a : b)),
       checkOut: checkOuts.reduce((a, b) => (a > b ? a : b)),
+      // Stays can sit on different plans: the strictest terms among them, or
+      // null when any stay has none. See `strictestPolicy`.
+      cancellation: strictestPolicy(stayRows.map(policyOf)),
       stays: stayRows.map((stay) => ({
         roomTypeName: stay.roomTypeName,
         adults: stay.adults,

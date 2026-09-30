@@ -40,10 +40,22 @@ test.describe('guest booking', () => {
     // Two nights at ฿450, tax included: the desk-only ฿300 plan is not offered.
     await expect(page.getByText('฿900')).toBeVisible();
     await expect(page.getByText('Walk-in special')).toHaveCount(0);
-    await expect(page.getByText('Free cancellation')).toBeVisible();
+    // The seeded plan carries the hotel's standing policy: 24h, 50% back.
+    await expect(page.getByText('Cancel 24h+ ahead for a 50% refund')).toBeVisible();
     // How many are left is shown always, not only when scarce: the guest sees
     // the number the desk sees.
     await expect(page.getByText(/^(Only )?\d+ left$/).first()).toBeVisible();
+  });
+
+  test('says plainly that tonight cannot be refunded once booked', async ({ page }) => {
+    const d = data();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+    await page.goto(
+      `/${d.organizationSlug}/${d.propertyCode}/rooms?checkIn=${today}&nights=1&adults=2&lang=en`,
+    );
+    // The deadline (14:00 yesterday) has passed, so the 50% promise would be a lie.
+    await expect(page.getByText('No refund once booked')).toBeVisible();
+    await expect(page.getByText('Cancel 24h+ ahead for a 50% refund')).toHaveCount(0);
   });
 
   test("turns Google's landing link into the hotel's rooms page", async ({ page }) => {
@@ -115,6 +127,10 @@ test.describe('guest booking', () => {
     await expect(page.getByRole('img', { name: /PromptPay QR for/ })).toBeVisible();
     await expect(page.getByText('0635485456')).toBeVisible();
     await expect(page.getByText('฿450').first()).toBeVisible();
+    // The frozen policy, with the deadline in the hotel's own clock.
+    await expect(page.getByTestId('booking-cancellation')).toContainText(
+      /Cancel by .*14:00 for a 50% refund; after that no refund/,
+    );
     // The hotel gave a LINE link: the guest can send the slip there.
     const line = page.getByRole('link', { name: 'Send the slip on LINE' });
     await expect(line).toHaveAttribute('href', 'https://lin.ee/WK13vLF');
@@ -125,6 +141,7 @@ test.describe('guest booking', () => {
     await page.getByRole('link', { name: 'Back to booking' }).click();
     await expect(page.getByRole('heading', { name: 'Booking received' })).toBeVisible();
     await expect(page.getByText(/^DH-[A-Z0-9]+$/)).toBeVisible();
+    await expect(page.getByTestId('booking-cancellation')).toContainText('for a 50% refund');
 
     // Without the email, the page asks rather than tells.
     const url = new URL(page.url());

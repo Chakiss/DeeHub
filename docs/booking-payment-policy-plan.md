@@ -144,10 +144,16 @@ starts, but not after it ships.
 ALTER TABLE rate_plans
   ADD COLUMN payment_window_hours smallint NOT NULL DEFAULT 24
     CHECK (payment_window_hours BETWEEN 0 AND 720),
-  ADD COLUMN cancellation_free_hours smallint NOT NULL DEFAULT 24,
+  ADD COLUMN cancellation_notice_hours smallint NOT NULL DEFAULT 24
+    CHECK (cancellation_notice_hours BETWEEN 0 AND 720),
   ADD COLUMN cancellation_refund_percent smallint NOT NULL DEFAULT 50
     CHECK (cancellation_refund_percent BETWEEN 0 AND 100);
 ```
+
+(Built as `cancellation_notice_hours` / `cancellation_refund_percent`, migration
+0022; `payment_window_hours` is still to come. Phase A shows the policy and
+freezes it on `reservation_stays`; refund arithmetic on cancel is phase B. See
+`business-rules.md` §Cancellation policy.)
 
 Frozen onto the reservation at booking time, alongside the price snapshot that
 already exists. `payment_window_hours = 0` means pay immediately — which is how
