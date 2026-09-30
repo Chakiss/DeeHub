@@ -6,6 +6,7 @@ import { RatesModule } from '../rates/rates.module';
 import { RoomsModule } from '../rooms/rooms.module';
 import { BookingSourcesModule } from '../booking-sources/booking-sources.module';
 import { CancelReservationUseCase } from './application/cancel-reservation.usecase';
+import { MarkNoShowUseCase } from './application/mark-no-show.usecase';
 import { CheckInUseCase } from './application/check-in.usecase';
 import { CheckOutUseCase } from './application/check-out.usecase';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
@@ -60,6 +61,7 @@ import { ReservationsController } from './interface/reservations.controller';
     ShortenStayUseCase,
     QuoteCancellationUseCase,
     CancelReservationUseCase,
+    MarkNoShowUseCase,
     CheckInUseCase,
     CheckOutUseCase,
     GetReservationQuery,

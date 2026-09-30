@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { reservationStatusLabel } from '@/lib/reservation-status';
 import { ApiError, api, type ReservationDetail } from '@/lib/api';
 import { businessDate, formatMoney } from '@/lib/dates';
 import { ReservationActions } from '@/components/reservation-actions';
@@ -92,7 +93,7 @@ export default async function ReservationDetailPage({
               STATUS_TONE[reservation.status] ?? 'bg-sunk text-stone-600 ring-stone-200'
             }`}
           >
-            {reservation.status.replace('_', ' ').toLowerCase()}
+            {reservationStatusLabel(reservation.status, t)}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-stone-500">
             <ChannelBadge
@@ -331,6 +332,7 @@ export default async function ReservationDetailPage({
               canRefund={capabilities.includes('folio:post')}
               canCheckIn={capabilities.includes('reservation:checkin')}
               canCheckOut={capabilities.includes('reservation:checkout')}
+              canNoShow={capabilities.includes('reservation:update')}
             />
           </Card>
         </div>

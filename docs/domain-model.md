@@ -243,7 +243,7 @@ stateDiagram-v2
   PENDING --> EXPIRED: hold timeout (releases inventory)
   CONFIRMED --> CHECKED_IN: arrival
   CONFIRMED --> CANCELLED: guest or staff cancels
-  CONFIRMED --> NO_SHOW: business-date rollover, never arrived
+  CONFIRMED --> NO_SHOW: desk action, from the day after check-in
   CHECKED_IN --> CHECKED_OUT: departure
   CHECKED_IN --> CANCELLED: early termination (rare, audited)
   CHECKED_OUT --> [*]
@@ -304,7 +304,8 @@ Named `<context>.<aggregate>.<past-tense-verb>`. Every event carries
 | `reservation.created`          | Booking confirmed from any channel           | Channel (ARI push), Notifications, Analytics |
 | `reservation.modified`         | Dates/room/occupancy/price changed           | Channel, Notifications                       |
 | `reservation.cancelled`        | Cancelled                                    | Channel, Notifications                       |
-| `reservation.status_changed`   | Any other transition (check-in, no-show…)    | Analytics, Operations                        |
+| `reservation.no_show`          | Confirmed guest never arrived                | Channel (via `inventory.changed`)            |
+| `reservation.status_changed`   | Any other transition (check-in, expiry…)     | Analytics, Operations                        |
 | `inventory.changed`            | Allotment, restrictions, or `booked` changed | **Channel (ARI push)**                       |
 | `rate.changed`                 | Rate plan price changed for dates            | **Channel (ARI push)**                       |
 | `channel.reservation_received` | Inbound OTA booking ingested                 | Reservations                                 |

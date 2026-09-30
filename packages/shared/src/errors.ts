@@ -24,6 +24,8 @@ export const ERROR_STATUS = {
   IDEMPOTENCY_KEY_REUSED: 409,
   /** Cancelling with a refund that differs from the quote needs the desk's reason. */
   REFUND_NOTE_REQUIRED: 422,
+  /** Marking a no-show before the check-in date has arrived. */
+  NO_SHOW_TOO_EARLY: 422,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 } as const;
@@ -123,6 +125,14 @@ export const errors = {
       'REFUND_NOTE_REQUIRED',
       'A note is required when the refund differs from the quoted amount',
       { quotedRefundMinor: quotedMinor, refundMinor: requestedMinor },
+    );
+  },
+
+  noShowTooEarly(checkIn: string, today: string): DomainError {
+    return new DomainError(
+      'NO_SHOW_TOO_EARLY',
+      'A booking can only be marked no-show from its check-in date',
+      { checkIn, today },
     );
   },
 

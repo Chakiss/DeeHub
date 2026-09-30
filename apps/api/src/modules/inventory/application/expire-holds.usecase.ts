@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq, isNotNull, lte } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lte } from 'drizzle-orm';
 import { EVENT_TYPES, toIsoDate, type IsoDate } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { reservationStayNights, reservations } from '../../../database/schema';
@@ -150,6 +150,17 @@ export class ExpireHoldsUseCase {
               );
             }
             released += count;
+
+            await tx
+              .update(reservationStayNights)
+              .set({ releasedAt: now })
+              .where(
+                and(
+                  eq(reservationStayNights.reservationId, reservation.id),
+                  eq(reservationStayNights.roomTypeId, roomTypeId),
+                  inArray(reservationStayNights.date, ordered),
+                ),
+              );
 
             events.push({
               type: EVENT_TYPES.INVENTORY_CHANGED,

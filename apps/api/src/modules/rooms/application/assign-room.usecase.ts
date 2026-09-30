@@ -23,6 +23,8 @@ export interface AssignRoomInput {
  * is what the property decided to sell (ADR-0002). Assigning every room in the
  * hotel changes no number an OTA sees.
  */
+const ROOM_HOLDING_STATUSES: readonly string[] = ['PENDING', 'CONFIRMED', 'CHECKED_IN'];
+
 @Injectable()
 export class AssignRoomUseCase {
   constructor(
@@ -40,9 +42,11 @@ export class AssignRoomUseCase {
     const stay = await this.findStay(input.propertyId, input.stayId);
     if (!stay) throw errors.notFound('Stay', input.stayId);
 
-    // A cancelled booking has no business holding a room someone else could use.
-    if (stay.status === 'CANCELLED' && input.roomId !== null) {
-      throw errors.validation('This reservation is cancelled and cannot be given a room');
+    // Only a booking that can still be occupied may hold a room. A cancelled,
+    // no-show or expired one has released its rooms, and the exclusion
+    // constraint ignores status, so giving it one would block the room.
+    if (input.roomId !== null && !ROOM_HOLDING_STATUSES.includes(stay.status)) {
+      throw errors.invalidTransition(stay.status, 'ROOM_ASSIGNED');
     }
 
     let room = null;

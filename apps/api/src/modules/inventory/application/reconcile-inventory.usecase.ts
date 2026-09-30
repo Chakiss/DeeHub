@@ -42,11 +42,15 @@ export class ReconcileInventoryUseCase {
       expected: number;
     }>(sql`
       WITH expected AS (
+        -- A night holds a unit until a release is RECORDED on it. Status cannot
+        -- say: a no-show or a cancelled in-house stay keeps the nights before
+        -- today, which still count in booked. The window is each property's own
+        -- business date, not the database's.
         SELECT n.room_type_id, n.date, COUNT(*)::int AS booked
           FROM reservation_stay_nights n
-          JOIN reservations r ON r.id = n.reservation_id
-         WHERE r.status IN ('PENDING','CONFIRMED','CHECKED_IN','CHECKED_OUT')
-           AND n.date >= current_date - 1
+          JOIN properties p ON p.id = n.property_id
+         WHERE n.released_at IS NULL
+           AND n.date >= (now() AT TIME ZONE p.timezone)::date - 1
          GROUP BY n.room_type_id, n.date
       )
       SELECT i.property_id,
@@ -55,16 +59,19 @@ export class ReconcileInventoryUseCase {
              i.booked AS actual,
              COALESCE(e.booked, 0) AS expected
         FROM inventory_days i
+        JOIN properties ip ON ip.id = i.property_id
         LEFT JOIN expected e
                ON e.room_type_id = i.room_type_id AND e.date = i.date
-       WHERE i.date >= current_date - 1
+       WHERE i.date >= (now() AT TIME ZONE ip.timezone)::date - 1
          AND i.booked IS DISTINCT FROM COALESCE(e.booked, 0)
        ORDER BY i.property_id, i.room_type_id, i.date
        LIMIT 500
     `);
 
     const counted = await this.db.execute<{ count: number }>(sql`
-      SELECT COUNT(*)::int AS count FROM inventory_days WHERE date >= current_date - 1
+      SELECT COUNT(*)::int AS count
+        FROM inventory_days i JOIN properties p ON p.id = i.property_id
+       WHERE i.date >= (now() AT TIME ZONE p.timezone)::date - 1
     `);
 
     const drift: InventoryDrift[] = result.rows.map((row) => ({

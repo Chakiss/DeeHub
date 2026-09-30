@@ -11,6 +11,7 @@ import {
   getCancelQuote,
   checkInReservation,
   confirmReservation,
+  markNoShow,
   checkOutReservation,
 } from '@/app/properties/[propertyId]/reservations/actions';
 
@@ -31,6 +32,7 @@ export function ReservationActions({
   canRefund,
   canCheckIn,
   canCheckOut,
+  canNoShow,
 }: {
   propertyId: string;
   reservation: ReservationDetail;
@@ -43,6 +45,8 @@ export function ReservationActions({
   canRefund: boolean;
   canCheckIn: boolean;
   canCheckOut: boolean;
+  /** `reservation:update`: closing a booking as a no-show. */
+  canNoShow: boolean;
 }) {
   const t = useTranslations('reservations');
   const tf = useTranslations('folio');
@@ -53,6 +57,7 @@ export function ReservationActions({
   const [stale, setStale] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [departing, setDeparting] = useState(false);
+  const [markingNoShow, setMarkingNoShow] = useState(false);
   const [reason, setReason] = useState('');
   const [pending, startTransition] = useTransition();
 
@@ -72,6 +77,12 @@ export function ReservationActions({
   const showConfirm = canCheckIn && status === 'PENDING';
   const showCheckIn = canCheckIn && status === 'CONFIRMED';
   const showCheckOut = canCheckOut && status === 'CHECKED_IN';
+  // The arrival date has passed and they never showed (not on the day itself: a
+  // late flight still needs its room). `today` is the property's business date;
+  // the API enforces the same rule (NO_SHOW_TOO_EARLY).
+  const earliestCheckIn = reservation.stays.map((stay) => stay.checkIn).sort()[0] ?? '';
+  const showNoShow =
+    canNoShow && status === 'CONFIRMED' && earliestCheckIn !== '' && today > earliestCheckIn;
   const showCancel = canCancel && ['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(status);
 
   /*
@@ -159,13 +170,20 @@ export function ReservationActions({
     run(() => cancelReservation(propertyId, id, version, reason.trim() || undefined, refund));
   }
 
-  function run(action: () => Promise<{ ok: boolean; error?: { code: string; message: string } }>) {
+  const NO_SHOW_ERRORS = ['NO_SHOW_TOO_EARLY', 'INVALID_STATE_TRANSITION', 'VERSION_MISMATCH'];
+
+  function run(
+    action: () => Promise<{ ok: boolean; error?: { code: string; message: string } }>,
+    /** Translate this action's own refusals; anything else falls through. */
+    translateError?: (code: string) => string | null,
+  ) {
     setError(null);
     setStale(false);
     startTransition(async () => {
       const result = await action();
       if (result.ok) {
         setConfirming(false);
+        setMarkingNoShow(false);
         setReason('');
         setRefundNote('');
         router.refresh();
@@ -176,6 +194,11 @@ export function ReservationActions({
       // Plain CONFLICT is a real business refusal — its message is shown.
       // The quote the desk saw is out of date (another desk refunded, a payment
       // was voided): show the fresh suggestion and ask for the note.
+      const own = result.error ? (translateError?.(result.error.code) ?? null) : null;
+      if (own) {
+        setError(own);
+        return;
+      }
       if (result.error?.code === 'REFUND_NOTE_REQUIRED') {
         loadQuote();
         setError(t('cancelNoteRequired'));
@@ -189,8 +212,8 @@ export function ReservationActions({
     });
   }
 
-  if (!showConfirm && !showCheckIn && !showCheckOut && !showCancel) {
-    const anyPermission = canCancel || canCheckIn || canCheckOut;
+  if (!showConfirm && !showCheckIn && !showCheckOut && !showNoShow && !showCancel) {
+    const anyPermission = canCancel || canCheckIn || canCheckOut || canNoShow;
     return (
       <p className="text-sm text-stone-500">{anyPermission ? t('noActions') : t('readOnly')}</p>
     );
@@ -236,6 +259,16 @@ export function ReservationActions({
             className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {pending ? t('working') : t('checkOut')}
+          </button>
+        )}
+        {showNoShow && !markingNoShow && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setMarkingNoShow(true)}
+            className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-700 hover:bg-stone-50 disabled:opacity-50"
+          >
+            {t('noShow')}
           </button>
         )}
         {showCancel && !confirming && (
@@ -289,6 +322,53 @@ export function ReservationActions({
               className="rounded-md px-3 py-1.5 text-sm text-sky-800 hover:bg-white/60 disabled:opacity-50"
             >
               {t('earlyDismiss')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Same inline-panel pattern as cancel: closing a booking is not undoable. */}
+      {markingNoShow && (
+        <div className="space-y-3 rounded-lg border border-stone-300 bg-stone-50 p-4">
+          <div>
+            <p className="text-sm font-medium text-ink-900">{t('noShowTitle')}</p>
+            <p className="mt-1 text-sm text-ink-700">{t('noShowExplain')}</p>
+          </div>
+          <label className="block">
+            <span className="text-xs font-medium text-ink-700">{t('cancelReason')}</span>
+            <input
+              type="text"
+              value={reason}
+              maxLength={500}
+              onChange={(event) => setReason(event.target.value)}
+              className="mt-1 w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                run(
+                  () => markNoShow(propertyId, id, version, reason.trim() || undefined),
+                  (code) =>
+                    NO_SHOW_ERRORS.includes(code) ? t(`noShowError${code}` as never) : null,
+                )
+              }
+              className="rounded-md bg-ink-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-50"
+            >
+              {pending ? t('working') : t('noShowConfirm')}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setMarkingNoShow(false);
+                setReason('');
+              }}
+              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-white/60 disabled:opacity-50"
+            >
+              {t('cancelDismiss')}
             </button>
           </div>
         </div>

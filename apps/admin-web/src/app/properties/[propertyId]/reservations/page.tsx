@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChannelBadge } from '@/components/channel-badge';
 import { getTranslations } from 'next-intl/server';
+import { reservationStatusLabel } from '@/lib/reservation-status';
 import { RESERVATION_SOURCES, api } from '@/lib/api';
 import { formatMoney } from '@/lib/dates';
 import { ReservationFilters } from '@/components/reservation-filters';
@@ -56,6 +57,7 @@ export default async function ReservationsPage({
       <ReservationFilters
         searchPlaceholder={t('search')}
         allStatusesLabel={t('allStatuses')}
+        noShowLabel={t('statusNO_SHOW')}
         defaultQuery={q ?? ''}
         defaultStatus={status ?? ''}
         defaultSource={source ?? ''}
@@ -116,7 +118,7 @@ export default async function ReservationsPage({
                       STATUS_TONE[reservation.status] ?? 'bg-sunk text-stone-600 ring-stone-200'
                     }`}
                   >
-                    {reservation.status.replace('_', ' ').toLowerCase()}
+                    {reservationStatusLabel(reservation.status, t)}
                   </span>
                 </td>
                 <td className="px-4 py-2.5 text-xs text-stone-500">

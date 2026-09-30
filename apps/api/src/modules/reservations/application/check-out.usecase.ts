@@ -314,7 +314,7 @@ export class CheckOutUseCase {
       // the money is real and the folio derives from them.
       await tx
         .update(reservationStayNights)
-        .set({ releasedEarly: true })
+        .set({ releasedEarly: true, releasedAt: new Date() })
         .where(
           and(
             eq(reservationStayNights.organizationId, organizationId),

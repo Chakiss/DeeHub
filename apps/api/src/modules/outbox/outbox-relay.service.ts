@@ -142,6 +142,14 @@ export class OutboxRelayService {
       case EVENT_TYPES.RESERVATION_STATUS_CHANGED:
         await this.composeNotifications(row, tx);
         return;
+      case EVENT_TYPES.RESERVATION_NO_SHOW:
+        /*
+         * Channels learn about the freed nights from the INVENTORY_CHANGED event
+         * posted with it (that is what schedules the availability push), so there
+         * is nothing to route here. No guest email yet: a BOOKING_NO_SHOW notice
+         * is future work, and sending the cancellation email would be wrong.
+         */
+        return;
       case EVENT_TYPES.RESERVATION_MODIFIED:
         /*
          * Nothing is sent for a modification yet, deliberately.

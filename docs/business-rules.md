@@ -3,6 +3,22 @@
 Rules the founder has decided that code and copy must agree on. Each entry names
 where it is enforced.
 
+## No-show
+
+- **When.** The desk may mark a booking no-show only when it is `CONFIRMED` and
+  the property's business date (property timezone) is AFTER the earliest
+  check-in date (the day after arrival or later), so a guest on a late flight
+  keeps their room on arrival day; earlier is refused (`NO_SHOW_TOO_EARLY`). The
+  desk can cancel instead if it truly wants tonight back. A `PENDING` booking is
+  not a no-show: its hold expires.
+- **What happens.** The booking becomes `NO_SHOW` (terminal). Nights from today on
+  go back on sale, earlier nights stay counted, and assigned rooms are released.
+  The released nights are recorded on `reservation_stay_nights.released_at`,
+  which is what inventory reconciliation counts (not the booking's status).
+- **Money.** Nothing is refunded and the folio is not touched.
+- **Guest email.** None yet; a `BOOKING_NO_SHOW` notice is future work.
+  Enforced in `reservations/application/mark-no-show.usecase.ts`.
+
 ## Cancellation policy
 
 - **Per rate plan.** `rate_plans.is_refundable` is the on/off switch. Off means

@@ -625,6 +625,12 @@ CREATE TABLE reservation_stay_nights (
   room_type_id     uuid NOT NULL REFERENCES room_types(id) ON DELETE RESTRICT,
   amount_minor     bigint NOT NULL CHECK (amount_minor >= 0),   -- PRICE SNAPSHOT
   currency         char(3) NOT NULL,
+  released_early   boolean NOT NULL DEFAULT false,
+  -- When this night's inventory unit was handed back (cancel, no-show, hold
+  -- expiry, early check-out); NULL while it still holds one. Reconciliation counts
+  -- released_at IS NULL, because a no-show / cancelled in-house stay RETAINS the
+  -- nights before today, which status alone cannot tell apart.
+  released_at      timestamptz,
   PRIMARY KEY (stay_id, date)
 );
 CREATE INDEX rsn_property_roomtype_date_idx ON reservation_stay_nights (property_id, room_type_id, date);
@@ -1203,16 +1209,15 @@ nights separately.
 WITH expected AS (
   SELECT n.room_type_id, n.date, COUNT(*)::int AS booked
     FROM reservation_stay_nights n
-    JOIN reservations r ON r.id = n.reservation_id
    WHERE n.property_id = $1
-     AND r.status IN ('PENDING','CONFIRMED','CHECKED_IN','CHECKED_OUT')
+     AND n.released_at IS NULL
    GROUP BY n.room_type_id, n.date
 )
 SELECT i.room_type_id, i.date, i.booked AS actual, COALESCE(e.booked, 0) AS expected
   FROM inventory_days i
   LEFT JOIN expected e ON e.room_type_id = i.room_type_id AND e.date = i.date
  WHERE i.property_id = $1
-   AND i.date >= current_date - 1
+   AND i.date >= <property business date> - 1
    AND i.booked IS DISTINCT FROM COALESCE(e.booked, 0);
 ```
 

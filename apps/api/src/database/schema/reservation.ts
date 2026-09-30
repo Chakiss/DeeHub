@@ -225,6 +225,16 @@ export const reservationStayNights = pgTable(
      * sold twice reads as two rooms out of a property that has one.
      */
     releasedEarly: boolean('released_early').notNull().default(false),
+    /**
+     * When this night's inventory unit was handed back (cancel, no-show, hold
+     * expiry, early check-out); NULL while the night still holds it.
+     *
+     * A recorded fact rather than something inferred from the reservation's
+     * status: a no-show or a cancelled in-house stay RETAINS nights before today
+     * that still count in `inventory_days.booked`, so status alone cannot say
+     * which nights hold a unit. Reconciliation counts `released_at IS NULL`.
+     */
+    releasedAt: timestamp('released_at', { withTimezone: true }),
   },
   (t) => [
     primaryKey({ name: 'reservation_stay_nights_pk', columns: [t.stayId, t.date] }),

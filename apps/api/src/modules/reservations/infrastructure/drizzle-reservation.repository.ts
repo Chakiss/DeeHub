@@ -87,10 +87,14 @@ export class DrizzleReservationRepository implements ReservationRepository {
     }
   }
 
-  async findById(tx: Executor, reservationId: string): Promise<LoadedReservation | null> {
+  async findById(
+    tx: Executor,
+    reservationId: string,
+    options?: { readonly forUpdate?: boolean },
+  ): Promise<LoadedReservation | null> {
     const organizationId = requireOrganizationId();
 
-    const rows = await tx
+    const query = tx
       .select({
         id: reservations.id,
         organizationId: reservations.organizationId,
@@ -106,7 +110,9 @@ export class DrizzleReservationRepository implements ReservationRepository {
       .where(
         and(eq(reservations.id, reservationId), eq(reservations.organizationId, organizationId)),
       )
-      .limit(1);
+      .limit(1)
+      .$dynamic();
+    const rows = options?.forUpdate ? await query.for('update') : await query;
 
     const header = rows[0];
     if (!header) return null;

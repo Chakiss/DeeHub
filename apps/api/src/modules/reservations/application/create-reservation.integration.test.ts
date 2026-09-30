@@ -871,7 +871,12 @@ describeIfDb('booking transaction', () => {
 
       const result = await runWithTenant(tenant(), () =>
         cancelReservation.execute(
-          { reservationId: created.id, expectedVersion: 0, reason: 'Guest changed plans' },
+          {
+            propertyId,
+            reservationId: created.id,
+            expectedVersion: 0,
+            reason: 'Guest changed plans',
+          },
           actor,
           new Date('2026-08-01T03:00:00Z'), // well before check-in
         ),
@@ -898,7 +903,7 @@ describeIfDb('booking transaction', () => {
 
       const result = await runWithTenant(tenant(), () =>
         cancelReservation.execute(
-          { reservationId: created.id, expectedVersion: 0, reason: 'Early departure' },
+          { propertyId, reservationId: created.id, expectedVersion: 0, reason: 'Early departure' },
           actor,
           midStay,
         ),
@@ -921,7 +926,7 @@ describeIfDb('booking transaction', () => {
       // night of the 12th counts as consumed.
       const result = await runWithTenant(tenant(), () =>
         cancelReservation.execute(
-          { reservationId: created.id, expectedVersion: 0 },
+          { propertyId, reservationId: created.id, expectedVersion: 0 },
           actor,
           new Date('2026-08-12T18:00:00Z'),
         ),
@@ -938,7 +943,10 @@ describeIfDb('booking transaction', () => {
 
       await expect(
         runWithTenant(tenant(), () =>
-          cancelReservation.execute({ reservationId: created.id, expectedVersion: 7 }, actor),
+          cancelReservation.execute(
+            { propertyId, reservationId: created.id, expectedVersion: 7 },
+            actor,
+          ),
         ),
       ).rejects.toMatchObject({ code: 'VERSION_MISMATCH' });
 
@@ -953,7 +961,7 @@ describeIfDb('booking transaction', () => {
 
       await runWithTenant(tenant(), () =>
         cancelReservation.execute(
-          { reservationId: created.id, expectedVersion: 0 },
+          { propertyId, reservationId: created.id, expectedVersion: 0 },
           actor,
           new Date('2026-08-01T03:00:00Z'),
         ),
@@ -961,7 +969,10 @@ describeIfDb('booking transaction', () => {
 
       await expect(
         runWithTenant(tenant(), () =>
-          cancelReservation.execute({ reservationId: created.id, expectedVersion: 1 }, actor),
+          cancelReservation.execute(
+            { propertyId, reservationId: created.id, expectedVersion: 1 },
+            actor,
+          ),
         ),
       ).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
     });
@@ -974,7 +985,7 @@ describeIfDb('booking transaction', () => {
 
       await runWithTenant(tenant(), () =>
         cancelReservation.execute(
-          { reservationId: created.id, expectedVersion: 0 },
+          { propertyId, reservationId: created.id, expectedVersion: 0 },
           actor,
           new Date('2026-08-01T03:00:00Z'),
         ),
@@ -1003,7 +1014,7 @@ describeIfDb('booking transaction', () => {
 
       await runWithTenant(tenant(), () =>
         cancelReservation.execute(
-          { reservationId: first.id, expectedVersion: 0 },
+          { propertyId, reservationId: first.id, expectedVersion: 0 },
           actor,
           new Date('2026-08-01T03:00:00Z'),
         ),
