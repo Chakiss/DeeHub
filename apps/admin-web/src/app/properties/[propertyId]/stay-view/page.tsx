@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { api } from '@/lib/api';
 import { StayViewGrid } from '@/components/stay-view-grid';
 import { addDays, businessDate } from '@/lib/dates';
+import { sellableByRoomType } from '@/lib/sellable';
 
 /** A fortnight: the horizon a front desk actually plans over. */
 const DEFAULT_WINDOW_DAYS = 14;
@@ -28,7 +29,15 @@ export default async function StayViewPage({
   const from = fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) ? fromParam : addDays(today, -1);
   const to = addDays(from, DEFAULT_WINDOW_DAYS);
 
-  const [view, me] = await Promise.all([api.stayView(propertyId, from, to), api.me()]);
+  // The "free" row leads with the sellable count, which lives on the
+  // inventory grid. If that call fails the grid falls back to physical rooms.
+  const [view, me, inventory] = await Promise.all([
+    api.stayView(propertyId, from, to),
+    api.me(),
+    api.inventoryGrid(propertyId, from, to).catch(() => null),
+  ]);
+
+  const sellable = sellableByRoomType(inventory);
 
   return (
     <div className="space-y-4">
@@ -42,6 +51,7 @@ export default async function StayViewPage({
         view={view}
         from={from}
         today={today}
+        sellable={sellable}
         canAssign={me.capabilities.includes('reservation:update')}
       />
     </div>

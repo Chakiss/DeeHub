@@ -67,7 +67,72 @@ describe('layoutStays', () => {
   it('draws a day use — in and out the same day — as a half-column marker', () => {
     const stays = [{ checkIn: '2026-09-26', checkOut: '2026-09-27', roomUntil: '2026-09-26' }];
     const [bar] = layoutStays(WINDOW, stays, (stay) => stay.roomUntil);
-    expect(bar).toMatchObject({ left: 1.5, width: 0.5 });
+    expect(bar).toMatchObject({ left: 1, width: 0.5 });
+  });
+
+  it('keeps a same-day stay and the next stay that day in one lane', () => {
+    const stays = [
+      { checkIn: '2026-09-26', checkOut: '2026-09-27', roomUntil: '2026-09-26' },
+      { checkIn: '2026-09-26', checkOut: '2026-09-28', roomUntil: '2026-09-28' },
+    ];
+    const bars = layoutStays(WINDOW, stays, (stay) => stay.roomUntil);
+    expect(bars.map((bar) => bar.lane)).toEqual([0, 0]);
+    expect(bars[0]).toMatchObject({ left: 1, width: 0.5 });
+    expect(bars[1]).toMatchObject({ left: 1.5, width: 2 });
+  });
+
+  it('does not depend on input order', () => {
+    const bars = layoutStays(
+      WINDOW,
+      [
+        { checkIn: '2026-09-26', checkOut: '2026-09-28', roomUntil: '2026-09-28' },
+        { checkIn: '2026-09-26', checkOut: '2026-09-27', roomUntil: '2026-09-26' },
+      ],
+      (stay) => stay.roomUntil,
+    );
+    expect(bars.map((bar) => [bar.left, bar.lane])).toEqual([
+      [1, 0],
+      [1.5, 0],
+    ]);
+  });
+
+  it('puts a day use in the afternoon half when a guest leaves that morning', () => {
+    const bars = layoutStays(
+      WINDOW,
+      [
+        { checkIn: '2026-09-25', checkOut: '2026-09-26', roomUntil: '2026-09-26' },
+        { checkIn: '2026-09-26', checkOut: '2026-09-27', roomUntil: '2026-09-26' },
+      ],
+      (stay) => stay.roomUntil,
+    );
+    const dayUse = bars.find((bar) => bar.stay.checkIn === '2026-09-26');
+    expect(dayUse).toMatchObject({ left: 1.5, width: 0.5, lane: 0 });
+  });
+
+  it('keeps a departure, a day use and an arrival in one cell on two lanes', () => {
+    const bars = layoutStays(
+      WINDOW,
+      [
+        { checkIn: '2026-09-25', checkOut: '2026-09-26', roomUntil: '2026-09-26' },
+        { checkIn: '2026-09-26', checkOut: '2026-09-27', roomUntil: '2026-09-26' },
+        { checkIn: '2026-09-26', checkOut: '2026-09-28', roomUntil: '2026-09-28' },
+      ],
+      (stay) => stay.roomUntil,
+    );
+    const dayUse = bars.find(
+      (bar) => bar.stay.roomUntil === '2026-09-26' && bar.stay.checkIn === '2026-09-26',
+    );
+    const arrival = bars.find((bar) => bar.stay.roomUntil === '2026-09-28');
+    expect(dayUse).toMatchObject({ left: 1.5, lane: 0 });
+    expect(arrival?.lane).toBe(1);
+  });
+
+  it('still stacks a genuine overlap into a second lane', () => {
+    const bars = layoutStays(WINDOW, [
+      { checkIn: '2026-09-25', checkOut: '2026-09-27' },
+      { checkIn: '2026-09-26', checkOut: '2026-09-28' },
+    ]);
+    expect(bars.map((bar) => bar.lane)).toEqual([0, 1]);
   });
 
   it('returns nothing for an empty window', () => {
