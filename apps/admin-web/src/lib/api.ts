@@ -1433,6 +1433,34 @@ export const api = {
       body: JSON.stringify({ version, releaseRemainingNights }),
     }),
 
+  /** Take a mistaken check-in back: CHECKED_IN → CONFIRMED. */
+  undoCheckIn: (
+    propertyId: string,
+    reservationId: string,
+    input: { version: number; note?: string },
+  ) =>
+    request<{ id: string; status: string; version: number }>(
+      `/properties/${propertyId}/reservations/${reservationId}/undo-check-in`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+
+  /** Take a mistaken check-out back: CHECKED_OUT → CHECKED_IN. */
+  undoCheckOut: (
+    propertyId: string,
+    reservationId: string,
+    input: { version: number; note?: string },
+  ) =>
+    request<{
+      id: string;
+      status: string;
+      version: number;
+      nightsRestored: string[];
+      roomsStillDirty: string[];
+    }>(`/properties/${propertyId}/reservations/${reservationId}/undo-check-out`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
   guests: (propertyId: string, q?: string) =>
     request<{ items: Guest[] }>(
       `/properties/${propertyId}/guests${q ? `?q=${encodeURIComponent(q)}` : ''}`,

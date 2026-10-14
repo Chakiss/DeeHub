@@ -151,6 +151,42 @@ export async function checkOutReservation(
   }
 }
 
+/** Undo a check-in pressed by mistake. Nothing but the status moves back. */
+export async function undoCheckInReservation(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+  note?: string,
+): Promise<ReservationActionResult> {
+  try {
+    await api.undoCheckIn(propertyId, reservationId, { version, ...(note ? { note } : {}) });
+    revalidate(propertyId, reservationId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * Undo a check-out: the guest is in house again, nights reopened for sale are
+ * taken back (refused if resold) and the room is re-occupied (refused if given
+ * away). The API decides; this only passes its refusal on.
+ */
+export async function undoCheckOutReservation(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+  note?: string,
+): Promise<ReservationActionResult> {
+  try {
+    await api.undoCheckOut(propertyId, reservationId, { version, ...(note ? { note } : {}) });
+    revalidate(propertyId, reservationId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export interface CreateReservationResult extends ReservationActionResult {
   readonly reservation?: CreatedReservation;
 }

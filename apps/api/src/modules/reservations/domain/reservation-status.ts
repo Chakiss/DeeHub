@@ -38,8 +38,11 @@ export function holdsInventory(status: ReservationStatus): boolean {
 const TRANSITIONS: Readonly<Record<ReservationStatus, readonly ReservationStatus[]>> = {
   PENDING: ['CONFIRMED', 'CANCELLED', 'EXPIRED'],
   CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
-  CHECKED_IN: ['CHECKED_OUT', 'CANCELLED'],
-  CHECKED_OUT: [],
+  // Back-steps exist for a button pressed by mistake: undo check-in returns to
+  // CONFIRMED, undo check-out returns to CHECKED_IN. Each has its own use case
+  // that reverses the side effects of the forward move.
+  CHECKED_IN: ['CHECKED_OUT', 'CANCELLED', 'CONFIRMED'],
+  CHECKED_OUT: ['CHECKED_IN'],
   CANCELLED: [],
   NO_SHOW: [],
   EXPIRED: [],

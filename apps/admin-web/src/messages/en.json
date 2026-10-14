@@ -305,7 +305,20 @@
     "unlinkGuest": "Not this guest",
     "closePicker": "Close",
     "confirmBooking": "Confirm booking",
-    "confirmHint": "Booked on the website and waiting for the hotel to say yes. Confirming keeps the room and the hold no longer expires."
+    "confirmHint": "Booked on the website and waiting for the hotel to say yes. Confirming keeps the room and the hold no longer expires.",
+    "undoCheckIn": "Undo check-in",
+    "undoCheckOut": "Undo check-out",
+    "undoCheckInTitle": "Undo this check-in?",
+    "undoCheckInExplain": "The booking goes back to confirmed, as if the guest had not arrived yet. The room assignment is kept and the folio is not touched.",
+    "undoCheckOutTitle": "Undo this check-out?",
+    "undoCheckOutExplain": "The guest goes back to in-house. Every night the check-out reopened for sale is taken back, the room goes back to this guest, and the room stays marked not clean. The folio is not touched.",
+    "undoNote": "Note (optional)",
+    "undoConfirm": "Yes, undo",
+    "undoDismiss": "Leave as it is",
+    "undoErrorCHECK_OUT_UNDO_TOO_LATE": "The booked departure day has passed, this cannot be undone",
+    "undoErrorINVENTORY_UNAVAILABLE": "That night has already been sold to another guest",
+    "undoErrorINVALID_STATE_TRANSITION": "This booking is not in a state that can be undone. Reload and try again.",
+    "undoErrorCONFLICT": "The room has since been given to another guest. Move that guest first, then retry"
   },
   "folio": {
     "title": "Guest account",
@@ -639,7 +652,20 @@
     "earlyRelease": "Check out and put the nights back on sale",
     "earlyKeep": "Check out, keep the nights sold",
     "earlyHint": "The bill does not change either way. Putting the nights back lets the room be sold again tonight; the room itself is free for the next guest from now in both cases.",
-    "holdExpires": "Hold expires {when}"
+    "holdExpires": "Hold expires {when}",
+    "undoCheckIn": "Undo check-in",
+    "undoCheckOut": "Undo check-out",
+    "undoCheckInTitle": "Undo this check-in?",
+    "undoCheckInExplain": "The booking goes back to confirmed, as if the guest had not arrived yet. The room assignment is kept and the folio is not touched.",
+    "undoCheckOutTitle": "Undo this check-out?",
+    "undoCheckOutExplain": "The guest goes back to in-house. Every night the check-out reopened for sale is taken back, the room goes back to this guest, and the room stays marked not clean. The folio is not touched.",
+    "undoNote": "Note (optional)",
+    "undoConfirm": "Yes, undo",
+    "undoDismiss": "Leave as it is",
+    "undoErrorCHECK_OUT_UNDO_TOO_LATE": "The booked departure day has passed, this cannot be undone",
+    "undoErrorINVENTORY_UNAVAILABLE": "That night has already been sold to another guest",
+    "undoErrorINVALID_STATE_TRANSITION": "This booking is not in a state that can be undone. Reload and try again.",
+    "undoErrorCONFLICT": "The room has since been given to another guest. Move that guest first, then retry"
   },
   "reports": {
     "title": "Performance",

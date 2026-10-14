@@ -41,7 +41,8 @@ describe('canTransition()', () => {
 
   it('refuses to resurrect a finished reservation', () => {
     expect(canTransition('CANCELLED', 'CONFIRMED')).toBe(false);
-    expect(canTransition('CHECKED_OUT', 'CHECKED_IN')).toBe(false);
+    expect(canTransition('CHECKED_OUT', 'CONFIRMED')).toBe(false);
+    expect(canTransition('CHECKED_OUT', 'CANCELLED')).toBe(false);
     expect(canTransition('NO_SHOW', 'CHECKED_IN')).toBe(false);
     expect(canTransition('EXPIRED', 'CONFIRMED')).toBe(false);
   });
@@ -67,6 +68,18 @@ describe('canTransition()', () => {
   });
 });
 
+describe('undo transitions', () => {
+  it('allows undoing a check-in and a check-out', () => {
+    expect(canTransition('CHECKED_IN', 'CONFIRMED')).toBe(true);
+    expect(canTransition('CHECKED_OUT', 'CHECKED_IN')).toBe(true);
+  });
+
+  it('does not let a confirmed booking step back to pending or a checkout skip to confirmed', () => {
+    expect(canTransition('CONFIRMED', 'PENDING')).toBe(false);
+    expect(canTransition('CHECKED_OUT', 'CONFIRMED')).toBe(false);
+  });
+});
+
 describe('assertTransition()', () => {
   it('passes silently for a legal move', () => {
     expect(() => assertTransition('CONFIRMED', 'CHECKED_IN')).not.toThrow();
@@ -86,9 +99,14 @@ describe('assertTransition()', () => {
 
 describe('isTerminal()', () => {
   it('identifies end states', () => {
-    const terminal: ReservationStatus[] = ['CHECKED_OUT', 'CANCELLED', 'NO_SHOW', 'EXPIRED'];
+    const terminal: ReservationStatus[] = ['CANCELLED', 'NO_SHOW', 'EXPIRED'];
     for (const status of terminal) expect(isTerminal(status)).toBe(true);
-    for (const status of ['PENDING', 'CONFIRMED', 'CHECKED_IN'] as ReservationStatus[]) {
+    for (const status of [
+      'PENDING',
+      'CONFIRMED',
+      'CHECKED_IN',
+      'CHECKED_OUT',
+    ] as ReservationStatus[]) {
       expect(isTerminal(status)).toBe(false);
     }
   });

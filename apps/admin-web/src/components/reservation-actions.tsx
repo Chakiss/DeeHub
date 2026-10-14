@@ -13,6 +13,8 @@ import {
   confirmReservation,
   markNoShow,
   checkOutReservation,
+  undoCheckInReservation,
+  undoCheckOutReservation,
 } from '@/app/properties/[propertyId]/reservations/actions';
 
 /**
@@ -59,6 +61,8 @@ export function ReservationActions({
   const [departing, setDeparting] = useState(false);
   const [markingNoShow, setMarkingNoShow] = useState(false);
   const [reason, setReason] = useState('');
+  const [undoing, setUndoing] = useState<'in' | 'out' | null>(null);
+  const [undoNote, setUndoNote] = useState('');
   const [pending, startTransition] = useTransition();
 
   // The refund the desk is about to record. The API recomputes the quote itself;
@@ -83,6 +87,11 @@ export function ReservationActions({
   const earliestCheckIn = reservation.stays.map((stay) => stay.checkIn).sort()[0] ?? '';
   const showNoShow =
     canNoShow && status === 'CONFIRMED' && earliestCheckIn !== '' && today > earliestCheckIn;
+  // A button pressed by mistake. The API enforces the real limits (the booked
+  // departure day for an undone check-out, the night not resold, the room not
+  // given away); the buttons are only hidden where the state rules them out.
+  const showUndoCheckIn = canCheckIn && status === 'CHECKED_IN';
+  const showUndoCheckOut = canCheckOut && status === 'CHECKED_OUT';
   const showCancel = canCancel && ['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(status);
 
   /*
@@ -170,12 +179,19 @@ export function ReservationActions({
     run(() => cancelReservation(propertyId, id, version, reason.trim() || undefined, refund));
   }
 
+  const UNDO_ERRORS = [
+    'CHECK_OUT_UNDO_TOO_LATE',
+    'INVENTORY_UNAVAILABLE',
+    'INVALID_STATE_TRANSITION',
+    'CONFLICT',
+  ];
+
   const NO_SHOW_ERRORS = ['NO_SHOW_TOO_EARLY', 'INVALID_STATE_TRANSITION', 'VERSION_MISMATCH'];
 
   function run(
     action: () => Promise<{ ok: boolean; error?: { code: string; message: string } }>,
     /** Translate this action's own refusals; anything else falls through. */
-    translateError?: (code: string) => string | null,
+    translateError?: (code: string, message: string) => string | null,
   ) {
     setError(null);
     setStale(false);
@@ -184,6 +200,8 @@ export function ReservationActions({
       if (result.ok) {
         setConfirming(false);
         setMarkingNoShow(false);
+        setUndoing(null);
+        setUndoNote('');
         setReason('');
         setRefundNote('');
         router.refresh();
@@ -194,7 +212,9 @@ export function ReservationActions({
       // Plain CONFLICT is a real business refusal — its message is shown.
       // The quote the desk saw is out of date (another desk refunded, a payment
       // was voided): show the fresh suggestion and ask for the note.
-      const own = result.error ? (translateError?.(result.error.code) ?? null) : null;
+      const own = result.error
+        ? (translateError?.(result.error.code, result.error.message) ?? null)
+        : null;
       if (own) {
         setError(own);
         return;
@@ -212,7 +232,15 @@ export function ReservationActions({
     });
   }
 
-  if (!showConfirm && !showCheckIn && !showCheckOut && !showNoShow && !showCancel) {
+  if (
+    !showConfirm &&
+    !showCheckIn &&
+    !showCheckOut &&
+    !showNoShow &&
+    !showCancel &&
+    !showUndoCheckIn &&
+    !showUndoCheckOut
+  ) {
     const anyPermission = canCancel || canCheckIn || canCheckOut || canNoShow;
     return (
       <p className="text-sm text-stone-500">{anyPermission ? t('noActions') : t('readOnly')}</p>
@@ -259,6 +287,26 @@ export function ReservationActions({
             className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {pending ? t('working') : t('checkOut')}
+          </button>
+        )}
+        {showUndoCheckIn && undoing !== 'in' && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setUndoing('in')}
+            className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-700 hover:bg-stone-50 disabled:opacity-50"
+          >
+            {t('undoCheckIn')}
+          </button>
+        )}
+        {showUndoCheckOut && undoing !== 'out' && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setUndoing('out')}
+            className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-700 hover:bg-stone-50 disabled:opacity-50"
+          >
+            {t('undoCheckOut')}
           </button>
         )}
         {showNoShow && !markingNoShow && (
@@ -322,6 +370,77 @@ export function ReservationActions({
               className="rounded-md px-3 py-1.5 text-sm text-sky-800 hover:bg-white/60 disabled:opacity-50"
             >
               {t('earlyDismiss')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Undo: same inline-panel pattern as no-show and cancel, never window.confirm. */}
+      {undoing && (
+        <div
+          className="space-y-3 rounded-lg border border-stone-300 bg-stone-50 p-4"
+          data-testid="undo-panel"
+        >
+          <div>
+            <p className="text-sm font-medium text-ink-900">
+              {undoing === 'in' ? t('undoCheckInTitle') : t('undoCheckOutTitle')}
+            </p>
+            <p className="mt-1 text-sm text-ink-700">
+              {undoing === 'in' ? t('undoCheckInExplain') : t('undoCheckOutExplain')}
+            </p>
+          </div>
+          <label className="block">
+            <span className="text-xs font-medium text-ink-700">{t('undoNote')}</span>
+            <input
+              type="text"
+              value={undoNote}
+              maxLength={500}
+              onChange={(event) => setUndoNote(event.target.value)}
+              className="mt-1 w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                run(
+                  () =>
+                    undoing === 'in'
+                      ? undoCheckInReservation(
+                          propertyId,
+                          id,
+                          version,
+                          undoNote.trim() || undefined,
+                        )
+                      : undoCheckOutReservation(
+                          propertyId,
+                          id,
+                          version,
+                          undoNote.trim() || undefined,
+                        ),
+                  (code, message) =>
+                    code === 'CONFLICT'
+                      ? `${t('undoErrorCONFLICT')} (${message})`
+                      : UNDO_ERRORS.includes(code)
+                        ? t(`undoError${code}` as never)
+                        : null,
+                )
+              }
+              className="rounded-md bg-ink-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-50"
+            >
+              {pending ? t('working') : t('undoConfirm')}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setUndoing(null);
+                setUndoNote('');
+              }}
+              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink-700 hover:bg-white/60 disabled:opacity-50"
+            >
+              {t('undoDismiss')}
             </button>
           </div>
         </div>

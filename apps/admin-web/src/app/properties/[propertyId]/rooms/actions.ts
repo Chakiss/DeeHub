@@ -131,6 +131,38 @@ export async function checkOut(
   }
 }
 
+/** Undo a check-in pressed by mistake (stay view). */
+export async function undoCheckIn(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+  note?: string,
+): Promise<AssignResult> {
+  try {
+    await api.undoCheckIn(propertyId, reservationId, { version, ...(note ? { note } : {}) });
+    revalidate(propertyId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Undo a check-out (stay view): back in house, nights and room taken back. */
+export async function undoCheckOut(
+  propertyId: string,
+  reservationId: string,
+  version: number,
+  note?: string,
+): Promise<AssignResult> {
+  try {
+    await api.undoCheckOut(propertyId, reservationId, { version, ...(note ? { note } : {}) });
+    revalidate(propertyId);
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export async function assignRoom(
   propertyId: string,
   stayId: string,

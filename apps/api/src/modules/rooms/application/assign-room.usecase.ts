@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { errors } from '@deehub/shared';
 import { DATABASE, type Database } from '../../../database/database.module';
 import { AuditService, type AuditActor } from '../../../common/audit/audit.service';
@@ -7,6 +7,7 @@ import { requireOrganizationId } from '../../../common/tenant/tenant-context';
 import { physicalRooms, reservationStays, reservations } from '../../../database/schema';
 import { isExclusionViolation, ROOM_OVERLAP_CONSTRAINT } from '../../../database/postgres-errors';
 import { assertRoomAssignable } from '../domain/assignable';
+import { findRoomConflict } from '../infrastructure/room-conflict';
 import { ROOM_REPOSITORY, type RoomRepository } from '../domain/room.repository';
 
 export interface AssignRoomInput {
@@ -98,7 +99,12 @@ export class AssignRoomUseCase {
       // locking the room. Translate its refusal into something a front desk can
       // act on rather than a 500.
       if (isExclusionViolation(error, ROOM_OVERLAP_CONSTRAINT)) {
-        const conflict = await this.findConflict(input.propertyId, input.stayId, input.roomId!);
+        const conflict = await findRoomConflict(
+          this.db,
+          { organizationId, propertyId: input.propertyId },
+          input.stayId,
+          input.roomId!,
+        );
         throw errors.conflict(
           conflict
             ? `Room ${room?.roomNumber ?? ''} is already taken from ${conflict.checkIn} to ${conflict.checkOut}`.trim()
@@ -127,34 +133,6 @@ export class AssignRoomUseCase {
           eq(reservationStays.organizationId, requireOrganizationId()),
           eq(reservationStays.propertyId, propertyId),
           eq(reservationStays.id, stayId),
-        ),
-      )
-      .limit(1);
-
-    return rows[0] ?? null;
-  }
-
-  /** Which booking already holds the room, so the message can say so. */
-  private async findConflict(propertyId: string, stayId: string, roomId: string) {
-    const rows = await this.db
-      .select({
-        checkIn: reservationStays.checkIn,
-        checkOut: reservationStays.checkOut,
-        reservationCode: reservations.code,
-      })
-      .from(reservationStays)
-      .innerJoin(reservations, eq(reservations.id, reservationStays.reservationId))
-      .where(
-        and(
-          eq(reservationStays.organizationId, requireOrganizationId()),
-          eq(reservationStays.propertyId, propertyId),
-          eq(reservationStays.assignedRoomId, roomId),
-          ne(reservationStays.id, stayId),
-          // A room a departed guest has walked out of is free from that
-          // morning (room_released_on), whatever the booking's check-out says.
-          sql`daterange(${reservationStays.checkIn}, COALESCE(${reservationStays.roomReleasedOn}, ${reservationStays.checkOut}), '[)') && (
-            SELECT daterange(check_in, COALESCE(room_released_on, check_out), '[)') FROM reservation_stays WHERE id = ${stayId}
-          )`,
         ),
       )
       .limit(1);

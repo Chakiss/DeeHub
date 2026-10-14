@@ -9,6 +9,8 @@ import { CancelReservationUseCase } from './application/cancel-reservation.useca
 import { MarkNoShowUseCase } from './application/mark-no-show.usecase';
 import { CheckInUseCase } from './application/check-in.usecase';
 import { CheckOutUseCase } from './application/check-out.usecase';
+import { UndoCheckInUseCase } from './application/undo-check-in.usecase';
+import { UndoCheckOutUseCase } from './application/undo-check-out.usecase';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
 import { FolioModule } from '../folio/folio.module';
 import { ExtendStayUseCase } from './application/extend-stay.usecase';
@@ -64,6 +66,8 @@ import { ReservationsController } from './interface/reservations.controller';
     MarkNoShowUseCase,
     CheckInUseCase,
     CheckOutUseCase,
+    UndoCheckInUseCase,
+    UndoCheckOutUseCase,
     GetReservationQuery,
     ListReservationsQuery,
   ],

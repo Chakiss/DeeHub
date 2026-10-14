@@ -29,6 +29,8 @@ function setup() {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
+    {} as never,
   );
   const request = {
     capabilities: new Set(['reservation:cancel']),

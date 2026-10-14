@@ -485,8 +485,24 @@ describeIfDb('worker', () => {
   });
 
   describe('reconciliation', () => {
+    // Reconciliation only looks from yesterday forward, so the fixed DATES
+    // above (which the ARI tests need verbatim) fall out of its window once
+    // the calendar passes them. These two nights move with the clock.
+    const upcoming = [1, 2].map((offset) => {
+      const day = new Date();
+      day.setUTCDate(day.getUTCDate() + offset);
+      return day.toISOString().slice(0, 10);
+    });
+
     beforeEach(async () => {
       await reset();
+      for (const date of upcoming) {
+        await pool.query(
+          `INSERT INTO inventory_days (organization_id, property_id, room_type_id, date, allotment, booked)
+           VALUES ($1, $2, $3, $4, 5, 0)`,
+          [orgId, propertyId, roomTypeId, date],
+        );
+      }
     });
 
     it('reports no drift when booked matches the reservations', async () => {
@@ -503,7 +519,7 @@ describeIfDb('worker', () => {
       // silently strand inventory.
       await pool.query(
         'UPDATE inventory_days SET booked = 2 WHERE room_type_id = $1 AND date = $2',
-        [roomTypeId, DATES[0]],
+        [roomTypeId, upcoming[0]],
       );
 
       const result = await reconcile.execute();
@@ -516,13 +532,13 @@ describeIfDb('worker', () => {
       // caused it, and the next occurrence could be an overbooking.
       await pool.query(
         'UPDATE inventory_days SET booked = 3 WHERE room_type_id = $1 AND date = $2',
-        [roomTypeId, DATES[1]],
+        [roomTypeId, upcoming[1]],
       );
       await reconcile.execute();
 
       const after = await pool.query<{ booked: number }>(
         'SELECT booked FROM inventory_days WHERE room_type_id = $1 AND date = $2',
-        [roomTypeId, DATES[1]],
+        [roomTypeId, upcoming[1]],
       );
       expect(after.rows[0]?.booked).toBe(3);
     });

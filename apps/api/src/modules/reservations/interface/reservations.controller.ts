@@ -11,6 +11,8 @@ import { CancelReservationUseCase } from '../application/cancel-reservation.usec
 import { MarkNoShowUseCase } from '../application/mark-no-show.usecase';
 import { CheckInUseCase } from '../application/check-in.usecase';
 import { CheckOutUseCase } from '../application/check-out.usecase';
+import { UndoCheckInUseCase } from '../application/undo-check-in.usecase';
+import { UndoCheckOutUseCase } from '../application/undo-check-out.usecase';
 import { GetReservationQuery } from '../application/get-reservation.query';
 import { ListReservationsQuery } from '../application/list-reservations.query';
 import { ExtendStayUseCase } from '../application/extend-stay.usecase';
@@ -193,6 +195,11 @@ const checkOutSchema = versionSchema
 /** No-show: the version the desk read, and an optional why. */
 const noShowSchema = versionSchema.extend({ reason: z.string().max(500).optional() }).strict();
 
+/** Undo check-in / check-out: the version the desk read, and an optional why. */
+const undoSchema = versionSchema.extend({ note: z.string().trim().max(500).optional() }).strict();
+
+type UndoBody = z.infer<typeof undoSchema>;
+
 type NoShowBody = z.infer<typeof noShowSchema>;
 
 type CheckOutBody = z.infer<typeof checkOutSchema>;
@@ -218,6 +225,8 @@ export class ReservationsController {
     private readonly confirmReservation: ConfirmReservationUseCase,
     private readonly quoteCancellation: QuoteCancellationUseCase,
     private readonly markNoShow: MarkNoShowUseCase,
+    private readonly undoCheckInUseCase: UndoCheckInUseCase,
+    private readonly undoCheckOutUseCase: UndoCheckOutUseCase,
   ) {}
 
   @Get()
@@ -589,6 +598,59 @@ export class ReservationsController {
         reservationId: id,
         expectedVersion: body.version,
         releaseRemainingNights: body.releaseRemainingNights ?? false,
+      },
+      this.actor(request),
+    );
+  }
+
+  @Post(':id/undo-check-in')
+  @HttpCode(200)
+  @RequireCapability('reservation:checkin')
+  @ApiOperation({
+    summary: 'Undo a check-in pressed by mistake; the booking goes back to CONFIRMED',
+    description:
+      'Only from CHECKED_IN. Clears checked_in_at and keeps the room assignment. ' +
+      'Rooms, nights and the folio are untouched.',
+  })
+  async undoCheckIn(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(undoSchema)) body: UndoBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.undoCheckInUseCase.execute(
+      {
+        propertyId,
+        reservationId: id,
+        expectedVersion: body.version,
+        ...(body.note ? { note: body.note } : {}),
+      },
+      this.actor(request),
+    );
+  }
+
+  @Post(':id/undo-check-out')
+  @HttpCode(200)
+  @RequireCapability('reservation:checkout')
+  @ApiOperation({
+    summary: 'Undo a check-out; the booking goes back to CHECKED_IN',
+    description:
+      'Only from CHECKED_OUT and up to the booked departure day (422 CHECK_OUT_UNDO_TOO_LATE ' +
+      'after it). Nights reopened for sale are taken back (409 INVENTORY_UNAVAILABLE if resold), ' +
+      'the room is re-occupied (409 CONFLICT if given to someone else). Housekeeping is left as is.',
+  })
+  async undoCheckOut(
+    @Param('propertyId') propertyId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(undoSchema)) body: UndoBody,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.undoCheckOutUseCase.execute(
+      {
+        propertyId,
+        reservationId: id,
+        expectedVersion: body.version,
+        ...(body.note ? { note: body.note } : {}),
       },
       this.actor(request),
     );

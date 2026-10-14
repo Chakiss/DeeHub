@@ -32,6 +32,8 @@ export function StaySheet({
   onConfirm,
   onArrive,
   onDepart,
+  onUndoArrive,
+  onUndoDepart,
   onCancel,
   onRelease,
   onMove,
@@ -49,6 +51,9 @@ export function StaySheet({
   onArrive: () => void;
   /** Check out; `releaseNights` puts the unslept nights back on sale. */
   onDepart: (releaseNights: boolean) => void;
+  /** Take a mistaken check-in / check-out back; the note is optional. */
+  onUndoArrive: (note: string) => void;
+  onUndoDepart: (note: string) => void;
   onCancel: (reason: string) => void;
   onRelease: () => void;
   onMove: (roomId: string) => void;
@@ -76,6 +81,8 @@ export function StaySheet({
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
   const [departing, setDeparting] = useState(false);
+  const [undoing, setUndoing] = useState<'in' | 'out' | null>(null);
+  const [undoNote, setUndoNote] = useState('');
   const leavingEarly = stay.status === 'CHECKED_IN' && stay.checkOut > today;
   const [rooms, setRooms] = useState<AssignableRoom[] | null>(null);
   const [roomId, setRoomId] = useState('');
@@ -245,6 +252,55 @@ export function StaySheet({
           </div>
         )}
 
+        {undoing && (
+          <form
+            data-testid="undo-panel"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (undoing === 'in') onUndoArrive(undoNote.trim());
+              else onUndoDepart(undoNote.trim());
+            }}
+            className="space-y-2 rounded-lg bg-stone-50 p-3 ring-1 ring-inset ring-stone-300"
+          >
+            <p className="text-sm font-medium text-ink-900">
+              {undoing === 'in' ? t('undoCheckInTitle') : t('undoCheckOutTitle')}
+            </p>
+            <p className="text-xs text-ink-700">
+              {undoing === 'in' ? t('undoCheckInExplain') : t('undoCheckOutExplain')}
+            </p>
+            <label className="block">
+              <span className="mb-1 block text-xs text-ink-700">{t('undoNote')}</span>
+              <input
+                type="text"
+                value={undoNote}
+                maxLength={500}
+                onChange={(event) => setUndoNote(event.target.value)}
+                className="w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-ink-900"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-md bg-ink-900 px-3 py-2 text-sm font-medium text-white hover:bg-ink-700 disabled:opacity-60"
+              >
+                {t('undoConfirm')}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  setUndoing(null);
+                  setUndoNote('');
+                }}
+                className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink-700 hover:bg-stone-100 disabled:opacity-60"
+              >
+                {t('undoDismiss')}
+              </button>
+            </div>
+          </form>
+        )}
+
         {cancelling && (
           <form
             onSubmit={(event) => {
@@ -311,6 +367,26 @@ export function StaySheet({
               className="rounded-md bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60"
             >
               {t('checkOut')}
+            </button>
+          )}
+          {canAssign && stay.status === 'CHECKED_IN' && undoing !== 'in' && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setUndoing('in')}
+              className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
+            >
+              {t('undoCheckIn')}
+            </button>
+          )}
+          {canAssign && stay.status === 'CHECKED_OUT' && undoing !== 'out' && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setUndoing('out')}
+              className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink-700 hover:bg-sunk/70 disabled:opacity-60"
+            >
+              {t('undoCheckOut')}
             </button>
           )}
           {movable && !picking && (

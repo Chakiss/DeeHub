@@ -11,6 +11,8 @@ import {
   checkIn,
   checkOut,
   confirm,
+  undoCheckIn,
+  undoCheckOut,
 } from '@/app/properties/[propertyId]/rooms/actions';
 import { listAssignableRooms } from '@/app/properties/[propertyId]/reservations/actions';
 import { addDays, dayLabel, isWeekend, weekdayLabel } from '@/lib/dates';
@@ -250,6 +252,50 @@ export function StayViewGrid({
     startTransition(async () => {
       const result = await checkOut(propertyId, stay.reservationId, stay.version, releaseNights);
       if (!result.ok) setError(result.error?.message ?? t('failed'));
+    });
+  }
+
+  /** The refusals an undo can meet, in words the desk can act on. */
+  function undoMessage(error?: { code: string; message: string }): string {
+    if (!error) return t('failed');
+    if (
+      ['CHECK_OUT_UNDO_TOO_LATE', 'INVENTORY_UNAVAILABLE', 'INVALID_STATE_TRANSITION'].includes(
+        error.code,
+      )
+    ) {
+      return t(`undoError${error.code}` as never);
+    }
+    // The room was given away: our sentence first, the server's detail (room
+    // number and dates) after it.
+    if (error.code === 'CONFLICT') {
+      return `${t('undoErrorCONFLICT')} (${error.message})`;
+    }
+    return error.message || t('failed');
+  }
+
+  function undoArrive(stay: StayViewOccupancy, note: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await undoCheckIn(
+        propertyId,
+        stay.reservationId,
+        stay.version,
+        note || undefined,
+      );
+      if (!result.ok) setError(undoMessage(result.error));
+    });
+  }
+
+  function undoDepart(stay: StayViewOccupancy, note: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await undoCheckOut(
+        propertyId,
+        stay.reservationId,
+        stay.version,
+        note || undefined,
+      );
+      if (!result.ok) setError(undoMessage(result.error));
     });
   }
 
@@ -614,6 +660,9 @@ export function StayViewGrid({
 
       {opened && (
         <StaySheet
+          // New version or status = a different situation: reset the sheet's
+          // local panels (undo, early check-out) instead of carrying them over.
+          key={`${opened.stay.stayId}:${opened.stay.version}:${opened.stay.status}`}
           propertyId={propertyId}
           stay={opened.stay}
           roomNumber={opened.roomNumber}
@@ -624,6 +673,8 @@ export function StayViewGrid({
           onConfirm={() => accept(opened.stay)}
           onArrive={() => arrive(opened.stay)}
           onDepart={(releaseNights) => depart(opened.stay, releaseNights)}
+          onUndoArrive={(note) => undoArrive(opened.stay, note)}
+          onUndoDepart={(note) => undoDepart(opened.stay, note)}
           onCancel={(reason) => callOff(opened.stay, reason)}
           onRelease={() => release(opened.stay.stayId)}
           onMove={(roomId) => move(opened.stay, roomId)}

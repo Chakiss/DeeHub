@@ -267,6 +267,8 @@ export interface ReservationRepository {
       cancellationReason?: string;
       checkedInAt?: Date;
       checkedOutAt?: Date;
+      clearCheckedInAt?: boolean;
+      clearCheckedOutAt?: boolean;
       /** A hold the hotel has confirmed no longer expires. */
       clearHold?: boolean;
     },
