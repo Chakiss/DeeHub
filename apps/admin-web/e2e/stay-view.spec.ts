@@ -507,8 +507,18 @@ test.describe('rooms and stay view', () => {
     // One room fewer free on the 2nd than on the 1st: this guest's. Other
     // specs add rooms of this type, so the count is relative, not absolute.
     const freeRow = page.getByRole('row', { name: /Deluxe Double Free/ });
-    const freeOnFirst = Number(await freeRow.getByRole('cell').nth(0).textContent());
-    await expect(freeRow.getByRole('cell').nth(1)).toHaveText(String(freeOnFirst - 1));
+    // The cell shows sellable first and the physical count in brackets; the
+    // data attributes carry both. A room move changes only the physical one.
+    const cellCounts = async (night: number) => {
+      const cell = freeRow.getByRole('cell').nth(night);
+      return {
+        sellable: Number(await cell.getAttribute('data-sellable')),
+        physical: Number(await cell.getAttribute('data-physical')),
+      };
+    };
+    const firstNight = await cellCounts(0);
+    const secondBefore = await cellCounts(1);
+    expect(secondBefore.physical).toBe(firstNight.physical - 1);
 
     const barBox = (await bar.boundingBox())!;
     const toBox = (await to.boundingBox())!;
@@ -519,7 +529,9 @@ test.describe('rooms and stay view', () => {
 
     await expect(to.getByRole('button', { name: new RegExp(guest) })).toBeVisible();
     await expect(from.getByRole('button', { name: new RegExp(guest) })).toHaveCount(0);
-    await expect(freeRow.getByRole('cell').nth(1)).toHaveText(String(freeOnFirst - 1));
+    await expect.poll(async () => (await cellCounts(1)).physical).toBe(firstNight.physical - 1);
+    expect((await cellCounts(1)).sellable).toBe(secondBefore.sellable);
+    expect(await cellCounts(0)).toEqual(firstNight);
 
     // And back, without a mouse.
     await to.getByRole('button', { name: new RegExp(guest) }).click();

@@ -53,12 +53,15 @@ export function StayViewGrid({
   view,
   from,
   today,
+  sellable,
   canAssign,
 }: {
   propertyId: string;
   view: StayView;
   from: string;
   today: string;
+  /** roomTypeId -> date -> sellable units; absent when unknown. */
+  sellable: Record<string, Record<string, number>>;
   canAssign: boolean;
 }) {
   const t = useTranslations('stayView');
@@ -514,7 +517,8 @@ export function StayViewGrid({
 
               {/* The desk's count — nobody in the room that night — under the
                   heading so it reads with the rooms it counts. Deliberately not
-                  the sellable number; see freeRoomsPerNight. */}
+                  the sellable number first, with the physical count in brackets
+                  when it differs; see freeRoomsPerNight. */}
               <div role="row" aria-label={`${group.roomTypeName} ${t('free')}`} className="flex">
                 <div
                   role="rowheader"
@@ -523,21 +527,40 @@ export function StayViewGrid({
                 >
                   {t('free')}
                 </div>
-                {group.free.map((count, position) => (
-                  <div
-                    key={view.dates[position]}
-                    role="cell"
-                    className={`tabular flex h-6 w-[var(--col)] shrink-0 items-center justify-center border-b border-l border-stone-100 text-[11px] ${
-                      count === 0
-                        ? 'bg-rose-50 font-semibold text-rose-700'
-                        : view.dates[position] === today
-                          ? 'bg-brand-100/40 text-ink-700'
-                          : 'bg-sunk/40 text-stone-600'
-                    }`}
-                  >
-                    {count}
-                  </div>
-                ))}
+                {group.free.map((physical, position) => {
+                  const date = view.dates[position] ?? '';
+                  const known = sellable[group.roomTypeId]?.[date];
+                  const count = known ?? physical;
+                  const differs = known !== undefined && known !== physical;
+                  const explain =
+                    known === undefined
+                      ? t('freeCellPhysical', { physical })
+                      : t('freeCell', { sellable: known, physical });
+                  return (
+                    <div
+                      key={date}
+                      role="cell"
+                      title={explain}
+                      aria-label={explain}
+                      data-sellable={known}
+                      data-physical={physical}
+                      className={`tabular flex h-6 w-[var(--col)] shrink-0 items-center justify-center border-b border-l border-stone-100 text-[11px] ${
+                        count === 0
+                          ? 'bg-rose-50 font-semibold text-rose-700'
+                          : date === today
+                            ? 'bg-brand-100/40 text-ink-700'
+                            : 'bg-sunk/40 text-stone-600'
+                      }`}
+                    >
+                      {count}
+                      {differs && (
+                        <span className="ml-0.5 text-[9px] font-normal text-stone-400">
+                          ({physical})
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {!collapsed.has(group.roomTypeId) &&
@@ -813,6 +836,7 @@ function Legend() {
           </li>
         ))}
       </ul>
+      <p className="text-xs text-stone-500">{t('freeLegend')}</p>
       <ul
         aria-label={t('channels')}
         className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500"

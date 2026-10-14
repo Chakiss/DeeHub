@@ -173,6 +173,10 @@ takes effect immediately rather than after token expiry.
 | `PATCH` | `/properties/{id}/stays/{stayId}/room` | assign a booking to a room, or release it with `null` |
 | `GET`   | `/properties/{id}/stay-view`           | who is in which room, plus what still needs one       |
 
+The stay view's "free" row shows the sellable units (`allotment - booked`, zero
+when closed or stop-sold) with the physically free rooms in brackets when they
+differ, e.g. `0 (1)` after a checkout that kept the night counted as sold.
+
 Physical rooms never influence availability (ADR-0002). Assigning every room in
 the hotel changes no number an OTA sees; allotment is what the property chose to
 sell, which is what makes controlled overselling a decision rather than an

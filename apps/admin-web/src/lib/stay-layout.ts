@@ -82,14 +82,20 @@ export function layoutStays<T extends StayLike>(
     const clippedStart = stay.checkIn < first;
     const clippedEnd = until > end;
 
-    const left = clippedStart ? 0 : (index.get(stay.checkIn) ?? 0) + 0.5;
+    // A stay that ends the day it starts (checked in and out the same day, or
+    // a day use) is drawn in the MORNING half of its cell, so it ends at the
+    // midpoint where the next stay in the room begins and both share a lane.
+    const zeroLength = until === stay.checkIn;
+    const left = clippedStart ? 0 : (index.get(stay.checkIn) ?? 0) + (zeroLength ? 0 : 0.5);
     // Check-out on the morning after the last column is the window's own edge,
     // not a cut; only a later date is.
-    const right = clippedEnd
-      ? columns
-      : until === end
+    const right = zeroLength
+      ? left + 0.5
+      : clippedEnd
         ? columns
-        : (index.get(until) ?? columns) + 0.5;
+        : until === end
+          ? columns
+          : (index.get(until) ?? columns) + 0.5;
 
     bars.push({
       stay,
@@ -101,16 +107,28 @@ export function layoutStays<T extends StayLike>(
     });
   }
 
-  // Lanes: greedy, first free. Bars already sorted by check-in.
+  // Lanes: greedy, first free, in visual order so the result never depends on
+  // the order the stays arrived in. On a tie a zero-length bar goes first: it
+  // can use either half of its cell, so it must see the lanes before the
+  // arrival that starts at the cell's midpoint takes one.
+  const ordered = bars
+    .map((bar) => ({ bar, zero: bar.stay.checkIn === endOf(bar.stay) }))
+    .sort((x, y) => x.bar.left - y.bar.left || Number(y.zero) - Number(x.zero));
   const laneEnds: number[] = [];
-  return bars.map((bar) => {
-    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= bar.left);
+  return ordered.map(({ bar, zero }) => {
+    let left = bar.left;
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= left);
+    if (zero && lane === -1) {
+      // Morning half is taken (a guest leaving that morning): try the afternoon.
+      lane = laneEnds.findIndex((laneEnd) => laneEnd <= left + 0.5);
+      if (lane !== -1) left += 0.5;
+    }
     if (lane === -1) {
       lane = laneEnds.length;
       laneEnds.push(0);
     }
-    laneEnds[lane] = bar.left + bar.width;
-    return { ...bar, lane };
+    laneEnds[lane] = left + bar.width;
+    return { ...bar, left, lane };
   });
 }
 
@@ -118,10 +136,12 @@ export function layoutStays<T extends StayLike>(
  * How many rooms of a group are free on each night: rooms with no stay
  * covering the night, out-of-service rooms excluded.
  *
- * This is the desk's number — "where can I put someone tonight" — and
- * deliberately NOT the sellable count, which is allotment and lives on the
- * inventory grid (ADR-0002). A hotel can be sold out with three rooms free
- * here, or have a room free here on a night it chose not to sell.
+ * This is the PHYSICAL number — "where can I put someone tonight". The row on
+ * the stay view leads with the SELLABLE count (allotment - booked, from the
+ * inventory grid, ADR-0002) because staff read it as "can I sell this"; this
+ * number is shown in brackets beside it only when it differs, e.g. after a
+ * checkout that freed the room but kept the night counted as sold, or a
+ * booking that has no room assigned yet.
  */
 export function freeRoomsPerNight<T extends StayLike>(
   dates: readonly string[],
