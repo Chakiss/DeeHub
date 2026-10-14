@@ -56,6 +56,12 @@ export class CheckInUseCase {
     // The domain decides, not the UI: an OTA webhook or a stale browser tab
     // must not be able to check in something cancelled.
     assertTransition(reservation.status as ReservationStatus, 'CHECKED_IN');
+    // CHECKED_OUT -> CHECKED_IN is legal in the table (undo check-out), but only
+    // through that use case, which restores nights and rooms. Check-in is for
+    // a booking that has not arrived.
+    if (reservation.status !== 'CONFIRMED') {
+      throw errors.invalidTransition(reservation.status, 'CHECKED_IN');
+    }
 
     const property = await this.properties.findProperty(this.db, input.propertyId);
     if (!property) throw errors.notFound('Property', input.propertyId);

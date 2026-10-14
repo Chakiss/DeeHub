@@ -19,6 +19,46 @@ where it is enforced.
 - **Guest email.** None yet; a `BOOKING_NO_SHOW` notice is future work.
   Enforced in `reservations/application/mark-no-show.usecase.ts`.
 
+## Undo check-in / check-out
+
+For a button pressed by mistake. Two reverse transitions, each its own endpoint
+and use case; the forward endpoints cannot be used to go back (`check-in` only
+accepts `CONFIRMED`, `confirm` only `PENDING`).
+
+- **Undo check-in** (`CHECKED_IN` -> `CONFIRMED`). Allowed any time while the
+  booking is checked in. Clears `checked_in_at`; the room assignment, rooms,
+  nights, housekeeping and folio are untouched (check-in wrote nothing else).
+  The booking can be checked in again.
+- **Undo check-out** (`CHECKED_OUT` -> `CHECKED_IN`). Allowed up to and including
+  the latest booked check-out date (property timezone). After it,
+  `CHECK_OUT_UNDO_TOO_LATE` (422): the room and nights have moved on. It reverses
+  what check-out did:
+  - Nights the check-out reopened for sale (`released_at` set) are taken back
+    (`booked` +1 per night) and their release flags cleared. If any was resold
+    meanwhile, `INVENTORY_UNAVAILABLE` (409) and nothing changes.
+  - `room_released_on` is cleared, so the room is occupied again for the booked
+    dates. If another guest was given the room since, the database's overlap
+    constraint refuses it: `CONFLICT` (409) naming the room and dates, nothing
+    changes.
+  - Housekeeping is NOT touched: the room stays `DIRTY`, because it is not clean
+    and the guest is in it. The response lists the rooms still dirty.
+- **Undone on a later day.** Undo means "the check-out never happened": it
+  restores EVERY released night, past ones included, and re-extends the room's
+  range over them. If any of those nights was resold or the room reassigned, the
+  whole undo is refused and nothing changes.
+- **Undo check-in has no date bound** and is audited like every other status
+  change (`reservation.check_in_undone`).
+- **Money.** The folio is not touched either way: check-in and check-out never
+  posted charges or payments, and neither does the undo.
+- **Refusals.** Any other status is `INVALID_STATE_TRANSITION` (409); a stale
+  `version` is `VERSION_MISMATCH` (409).
+- **Audit.** `reservation.check_in_undone` and `reservation.check_out_undone`
+  record before/after status, the previous timestamp, the optional note and, for
+  check-out, the nights restored and rooms re-occupied. Check-out's
+  `INVENTORY_CHANGED` outbox event is re-emitted for restored nights.
+  Enforced in `reservations/application/undo-check-in.usecase.ts` and
+  `undo-check-out.usecase.ts`; transitions in `domain/reservation-status.ts`.
+
 ## Cancellation policy
 
 - **Per rate plan.** `rate_plans.is_refundable` is the on/off switch. Off means

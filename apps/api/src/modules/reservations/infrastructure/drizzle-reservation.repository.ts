@@ -176,6 +176,9 @@ export class DrizzleReservationRepository implements ReservationRepository {
       checkedInAt?: Date;
       checkedOutAt?: Date;
       clearHold?: boolean;
+      /** Undo check-in / check-out: write NULL back. */
+      clearCheckedInAt?: boolean;
+      clearCheckedOutAt?: boolean;
     },
   ): Promise<number> {
     const organizationId = requireOrganizationId();
@@ -192,6 +195,8 @@ export class DrizzleReservationRepository implements ReservationRepository {
         ...(patch?.cancellationReason ? { cancellationReason: patch.cancellationReason } : {}),
         ...(patch?.checkedInAt ? { checkedInAt: patch.checkedInAt } : {}),
         ...(patch?.checkedOutAt ? { checkedOutAt: patch.checkedOutAt } : {}),
+        ...(patch?.clearCheckedInAt ? { checkedInAt: null } : {}),
+        ...(patch?.clearCheckedOutAt ? { checkedOutAt: null } : {}),
         ...(patch?.clearHold ? { holdExpiresAt: null } : {}),
       })
       .where(

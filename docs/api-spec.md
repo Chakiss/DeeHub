@@ -787,6 +787,8 @@ staff can see _why_ the system won't sell a room and fix the restriction.
 | `POST`  | `/properties/{pid}/reservations/{id}/check-in`            | `reservation:checkin`                                               |
 | `POST`  | `/properties/{pid}/reservations/{id}/check-out`           | `reservation:checkout`                                              |
 | `POST`  | `/properties/{pid}/reservations/{id}/no-show`             | `reservation:update` — a CONFIRMED guest who never arrived          |
+| `POST`  | `/properties/{pid}/reservations/{id}/undo-check-in`       | `reservation:checkin` — CHECKED_IN back to CONFIRMED                |
+| `POST`  | `/properties/{pid}/reservations/{id}/undo-check-out`      | `reservation:checkout` — CHECKED_OUT back to CHECKED_IN             |
 | `GET`   | `/properties/{pid}/reservations/{id}/audit`               | `audit:read`                                                        |
 
 **Cancel quote** — `GET .../reservations/{id}/cancel-quote` (`reservation:cancel`),
@@ -832,6 +834,30 @@ are audited. The audit entry carries `quotedRefundMinor`, `refundMinor`, `method
 and `note`. The response adds `refund: { amountMinor, method, paymentId } | null`.
 The reservation detail (`GET .../reservations/{id}`) carries `cancellation:
 { noticeHours, refundPercent } | null`, the strictest frozen policy.
+
+**Undo check-in / check-out** — `POST .../reservations/{id}/undo-check-in`
+(`reservation:checkin`) and `POST .../undo-check-out` (`reservation:checkout`),
+body `{ version, note? }` (`note` <= 500 characters, unknown fields refused).
+
+```jsonc
+// undo-check-in
+{ "id": "…", "status": "CONFIRMED", "version": 5 }
+// undo-check-out
+{
+  "id": "…",
+  "status": "CHECKED_IN",
+  "version": 6,
+  "nightsRestored": ["2031-09-02"], // nights taken back from sale
+  "roomsStillDirty": ["3"], // housekeeping is left as is
+}
+```
+
+Errors: `409 INVALID_STATE_TRANSITION` (not `CHECKED_IN` / `CHECKED_OUT`),
+`409 VERSION_MISMATCH`, and for undo-check-out `422 CHECK_OUT_UNDO_TOO_LATE`
+(business date after the latest booked check-out; `details: { checkOut, today }`),
+`409 INVENTORY_UNAVAILABLE` (a reopened night was resold) and `409 CONFLICT`
+(the room was given to another guest). Any refusal rolls everything back. The
+folio is not touched. See business-rules.md "Undo check-in / check-out".
 
 **No-show** — `POST .../reservations/{id}/no-show` (`reservation:update`), body
 `{ version, reason? }` (`reason` ≤ 500 characters, unknown fields refused). The

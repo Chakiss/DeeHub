@@ -56,6 +56,12 @@ export class ConfirmReservationUseCase {
       throw errors.notFound('Reservation', input.reservationId);
     }
     assertTransition(reservation.status, 'CONFIRMED');
+    // CHECKED_IN -> CONFIRMED is legal in the table (undo check-in), but only
+    // through that use case, which reverses what check-in wrote. This endpoint
+    // confirms a hold and nothing else.
+    if (reservation.status !== 'PENDING') {
+      throw errors.invalidTransition(reservation.status, 'CONFIRMED');
+    }
 
     return this.db.transaction(async (tx) => {
       const updated = await this.reservations.updateStatus(

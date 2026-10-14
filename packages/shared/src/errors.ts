@@ -26,6 +26,8 @@ export const ERROR_STATUS = {
   REFUND_NOTE_REQUIRED: 422,
   /** Marking a no-show before the check-in date has arrived. */
   NO_SHOW_TOO_EARLY: 422,
+  /** Undoing a check-out after the booked departure day has passed. */
+  CHECK_OUT_UNDO_TOO_LATE: 422,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
 } as const;
@@ -133,6 +135,14 @@ export const errors = {
       'NO_SHOW_TOO_EARLY',
       'A booking can only be marked no-show from its check-in date',
       { checkIn, today },
+    );
+  },
+
+  checkOutUndoTooLate(checkOut: string, today: string): DomainError {
+    return new DomainError(
+      'CHECK_OUT_UNDO_TOO_LATE',
+      'A check-out can only be undone up to the booked departure day',
+      { checkOut, today },
     );
   },
 

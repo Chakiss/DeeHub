@@ -52,7 +52,7 @@ let room: IsolatedRoomType;
  * blocked for the dates of a stay that has ended, and a later test reusing it
  * is refused with "Room EC-1 is already taken".
  */
-const roomIds = [randomUUID(), randomUUID(), randomUUID()];
+const roomIds = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 
 test.beforeAll(async () => {
   const data = testData();
@@ -283,5 +283,44 @@ test.describe('a guest who leaves early', () => {
     // grow a question it cannot answer.
     await expect(page.getByText('checked out')).toBeVisible();
     await expect(page.getByText('Leaving before the booked date')).toBeHidden();
+  });
+
+  test('can be taken back in house from the stay sheet', async ({ page, request }) => {
+    const data = testData();
+    const token = await apiToken(request);
+    const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+    const guest = 'Undo Checkout Guest';
+    const booking = await arrive(request, token, guest, addDays(TODAY, 2), roomIds[3]!);
+
+    // The desk checks them out early and puts the room back on sale, by mistake.
+    const detail = await request.get(
+      `${API}/properties/${data.propertyId}/reservations/${booking.id}`,
+      { headers },
+    );
+    const { version } = (await detail.json()) as { version: number };
+    const out = await request.post(
+      `${API}/properties/${data.propertyId}/reservations/${booking.id}/check-out`,
+      { headers, data: { version, releaseRemainingNights: true } },
+    );
+    expect(out.ok(), await out.text()).toBeTruthy();
+    const soldBefore = await bookedOn(TODAY);
+
+    await login(page, data.managerEmail);
+    await page.goto(`/properties/${data.propertyId}/stay-view?from=${TODAY}`);
+    await page.getByRole('button', { name: new RegExp(guest) }).click();
+
+    const sheet = page.getByRole('dialog', { name: guest });
+    await expect(sheet.getByText('Departed')).toBeVisible();
+    await sheet.getByRole('button', { name: 'Undo check-out' }).click();
+    // The consequence is readable before the click.
+    await expect(sheet.getByText(/room stays marked not clean/)).toBeVisible();
+    await sheet.getByRole('button', { name: 'Yes, undo' }).click();
+
+    // The sheet follows the refreshed grid: in house again, tonight taken back.
+    await expect(sheet.getByText('In house')).toBeVisible();
+    // The undo panel does not outlive the undo it belonged to.
+    await expect(sheet.getByTestId('undo-panel')).toHaveCount(0);
+    await expect(sheet.getByRole('button', { name: 'Undo check-in' })).toBeVisible();
+    expect(await bookedOn(TODAY)).toBe(soldBefore + 1);
   });
 });
