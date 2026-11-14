@@ -7,9 +7,10 @@ repository, and §10 says plainly what does not exist yet. An application that
 oversells gets found out at certification, which is a worse place to be found
 out than a form.
 
-Filed in parallel with the Agoda application on purpose — the two queues are
+Meant to be filed in parallel with the Agoda application — the two queues are
 independent, and waiting on one does not shorten the other
-(`ota-expansion-plan.md` §4).
+(`ota-expansion-plan.md` §4). **Not yet filed as of 2026-10-28**; only the
+Agoda application has gone out (case 105606752, 2026-08-13).
 
 > **Before sending, fill in:** legal entity name and registration number,
 > registered address, and the pilot property's Booking.com property ID.
@@ -26,7 +27,7 @@ independent, and waiting on one does not shorten the other
 **Applicant:** DeeHub — hotel platform (PMS + channel manager), Thailand
 **Legal entity:** ‹fill in›
 **First property to connect:** The Let's Chill Resort Pattaya @ Huayyai,
-7 rooms across 2 room types, Booking.com property ID ‹fill in›
+7 rooms across 2 room types, Booking.com property ID **16264040**
 **Production:** live on Google Cloud, `asia-southeast1` (Singapore)
 **Contact:** ‹fill in›
 
