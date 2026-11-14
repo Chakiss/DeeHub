@@ -94,7 +94,9 @@ The applications are the schedule. The code fits between them.
    rather than guessed from three remembered ones.
 3. **Expedia and Trip.com after the first OTA is live in production**, not
    before. A second integration built against an unproven pipeline debugs two
-   things at once.
+   things at once. The Expedia _application_ is drafted ahead of that
+   (`expedia-connectivity-application.md`, not yet filed) — applying is a
+   queue, building is the part that waits.
 4. **Airbnb: not scheduled.** See §6.
 
 ## 5. The port needs three things it does not have
